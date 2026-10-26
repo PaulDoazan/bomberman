@@ -208,6 +208,10 @@ func _wants_bomb(world: World, bot: PlayerState) -> bool:
 			owned += 1
 	if owned >= SimConfig.MAX_BOMBS:
 		return false
+	# Close to a water rise, a blast could chase everyone off the ground that stays dry.
+	if world.time_left <= 0.0 and not world.next_rise_is_final() \
+			and world.seconds_to_next_rise() < SimConfig.FUSE + SimConfig.EXPLOSION_DURATION + SimConfig.WATER_WARNING:
+		return false
 	var cell := bot.cell()
 	for d in Arena.ORTHOGONAL:
 		var n: Vector2i = cell + d
