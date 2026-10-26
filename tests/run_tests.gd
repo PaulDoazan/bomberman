@@ -5,6 +5,8 @@ func _init() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--only="):
 			only = arg.trim_prefix("--only=")
+	var counter := ErrorCounter.new()
+	OS.add_logger(counter)
 	var total := 0
 	var failed := 0
 	for file in DirAccess.get_files_at("res://tests"):
@@ -22,8 +24,11 @@ func _init() -> void:
 			if not m.name.begins_with("test_"):
 				continue
 			var t: TestCase = script.new()
+			counter.errors.clear()
 			t.call(m.name)
 			total += 1
+			if not counter.errors.is_empty():
+				t.failures.append("erreur d'exécution : " + counter.errors[0])
 			if t.failures.is_empty():
 				print("  ok   ", file, "::", m.name)
 			else:
