@@ -9,7 +9,6 @@ const COLOR_TOP := Color("f1e3b8")
 const COLOR_GOAL := Color("e58bb0")
 const COLOR_PILLAR := Color("5a4020")
 const COLOR_BLOCK := Color("9a6a35")
-const WATER_TWEEN := 2.0
 
 var _box := BoxMesh.new()
 var _materials: Dictionary = {} # Color -> StandardMaterial3D
@@ -18,8 +17,6 @@ var _blocks: Dictionary = {} # Vector2i -> MeshInstance3D
 var _block_mesh := BoxMesh.new()
 var _block_mat: StandardMaterial3D
 var _water: MeshInstance3D
-var _water_target_h2 := 0
-var _water_tween: Tween = null
 var _arena: Arena = null
 
 func _ready() -> void:
@@ -124,14 +121,20 @@ func build(arena: Arena) -> void:
 	# Water: a large plane that overflows the map.
 	var span := maxf(arena.width, arena.height) * 4.0
 	_water.scale = Vector3(span, 1.0, span)
-	_water.position = Vector3(arena.width * 0.5, _water_y(SimConfig.WATER_START_H2), arena.height * 0.5)
-	_water_target_h2 = SimConfig.WATER_START_H2
-	if _water_tween != null:
-		_water_tween.kill()
-		_water_tween = null
+	_water.position = Vector3(arena.width * 0.5, water_y(SimConfig.WATER_START_H2), arena.height * 0.5)
 
-func _water_y(h2v: int) -> float:
+static func water_y(h2v: int) -> float:
 	return h2v * 0.5 + 0.25
+
+# Drawn water height, derived from the sim state: it rises during the warning so that it reaches
+# the next step exactly on the rise tick, and is never below the simulated water.
+static func water_y_for(world: World) -> float:
+	var y := water_y(world.water_h2)
+	var nxt: Variant = world.next_water_h2()
+	if world.water_warning and nxt != null:
+		var t := clampf(1.0 - world.seconds_to_next_rise() / SimConfig.WATER_WARNING, 0.0, 1.0)
+		y = lerpf(y, water_y(nxt), t)
+	return y
 
 func sync(world: World) -> void:
 	var arena := world.arena
@@ -149,9 +152,4 @@ func sync(world: World) -> void:
 				m.position = Vector3(x + 0.5, arena.h2_at(c) * 0.5 + 0.47, y + 0.5)
 				add_child(m)
 				_blocks[c] = m
-	if world.water_h2 != _water_target_h2:
-		_water_target_h2 = world.water_h2
-		if _water_tween != null:
-			_water_tween.kill()
-		_water_tween = create_tween()
-		_water_tween.tween_property(_water, "position:y", _water_y(world.water_h2), WATER_TWEEN)
+	_water.position.y = water_y_for(world)
