@@ -6,6 +6,10 @@ config_version=5
 config/name="Bomberman"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
+[autoload]
+
+Session="*res://src/session.gd"
+
 [display]
 
 window/size/viewport_width=1280

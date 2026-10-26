@@ -1,0 +1,39 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/game/game.gd" id="1_game"]
+[ext_resource type="Script" path="res://src/game/arena_view.gd" id="2_arena"]
+[ext_resource type="Script" path="res://src/game/actors_view.gd" id="3_actors"]
+[ext_resource type="Script" path="res://src/game/camera_rig.gd" id="4_cam"]
+[ext_resource type="Script" path="res://src/game/input_controller.gd" id="5_input"]
+
+[sub_resource type="Environment" id="Environment_sky"]
+background_mode = 1
+background_color = Color(0.6, 0.8, 0.95, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.75, 0.78, 0.85, 1)
+ambient_light_energy = 0.8
+
+[node name="Game" type="Node3D"]
+script = ExtResource("1_game")
+
+[node name="ArenaView" type="Node3D" parent="."]
+script = ExtResource("2_arena")
+
+[node name="ActorsView" type="Node3D" parent="."]
+script = ExtResource("3_actors")
+
+[node name="CameraRig" type="Node3D" parent="."]
+script = ExtResource("4_cam")
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig"]
+
+[node name="InputController" type="Node" parent="."]
+script = ExtResource("5_input")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10, 0)
+rotation_degrees = Vector3(-55, 25, 0)
+light_energy = 0.9
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_sky")
