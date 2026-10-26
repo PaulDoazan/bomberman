@@ -4,6 +4,7 @@ config_version=5
 [application]
 
 config/name="Bomberman"
+run/main_scene="res://src/ui/settings_screen.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [autoload]

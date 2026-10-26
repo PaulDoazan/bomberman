@@ -8,7 +8,7 @@ const EPS := 1e-6
 @onready var actors_view: ActorsView = $ActorsView
 @onready var camera_rig: CameraRig = $CameraRig
 @onready var input_controller: InputController = $InputController
-@onready var hud: Node = get_node_or_null("Hud")
+@onready var hud: Hud = get_node_or_null("Hud")
 
 var match_state: MatchState
 var _brains: Dictionary = {} # id -> BotBrain
