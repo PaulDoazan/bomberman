@@ -17,6 +17,7 @@ var finished := false
 var winners: Array[int] = []
 
 var _next_bomb_id := 0
+var _water_index := 0
 
 func _init(p_arena: Arena, player_ids: Array[int], p_cfg: SimConfig, p_rng: RandomNumberGenerator) -> void:
 	arena = p_arena
@@ -32,6 +33,8 @@ func _init(p_arena: Arena, player_ids: Array[int], p_cfg: SimConfig, p_rng: Rand
 		players[p.id] = p
 
 func step(intents: Dictionary) -> void:
+	if finished:
+		return
 	tick += 1
 	events.clear()
 	for id: int in players:
@@ -40,6 +43,7 @@ func step(intents: Dictionary) -> void:
 		if intent == null:
 			intent = PlayerIntent.new()
 		p.stun_timer = maxf(0.0, p.stun_timer - SimConfig.DT)
+		p.invulnerable_timer = maxf(0.0, p.invulnerable_timer - SimConfig.DT)
 		if p.life != PlayerState.Life.ALIVE:
 			continue
 		if intent.place_bomb:
@@ -49,6 +53,101 @@ func step(intents: Dictionary) -> void:
 	_update_explosions()
 	_update_bombs()
 	_apply_explosion_damage()
+	_update_water()
+	_apply_drowning()
+	_update_respawns()
+	_check_round_end()
+
+func is_submerged(c: Vector2i) -> bool:
+	return not arena.in_bounds(c) or arena.h2_at(c) <= water_h2
+
+func _update_water() -> void:
+	time_left -= SimConfig.DT
+	if _water_index >= SimConfig.WATER_STEPS.size():
+		water_warning = false
+		return
+	# Rise k is scheduled WATER_STEP_INTERVAL * k seconds after the timer hits 0.
+	var until_rise := time_left + _water_index * SimConfig.WATER_STEP_INTERVAL
+	if until_rise <= 0.0:
+		water_h2 = SimConfig.WATER_STEPS[_water_index]
+		_water_index += 1
+		events.append({"type": "water_rise", "h2": water_h2})
+		until_rise += SimConfig.WATER_STEP_INTERVAL
+	water_warning = _water_index < SimConfig.WATER_STEPS.size() and until_rise <= SimConfig.WATER_WARNING
+
+func _apply_drowning() -> void:
+	for p: PlayerState in players.values():
+		if p.life != PlayerState.Life.ALIVE or not is_submerged(p.cell()):
+			continue
+		if find_respawn_cell() == null:
+			_eliminate(p, "drown")
+		else:
+			kill(p.id, "drown")
+
+func _eliminate(p: PlayerState, cause: String) -> void:
+	if p.life != PlayerState.Life.WAITING_RESPAWN:
+		events.append({"type": "death", "id": p.id, "cause": cause})
+	p.lives = 0
+	p.life = PlayerState.Life.GHOST
+	p.died_tick = tick
+
+func _update_respawns() -> void:
+	for p: PlayerState in players.values():
+		if p.life != PlayerState.Life.WAITING_RESPAWN or p.died_tick == tick:
+			continue
+		p.respawn_timer -= SimConfig.DT
+		if p.respawn_timer > 0.0:
+			continue
+		var c: Variant = find_respawn_cell()
+		if c == null:
+			_eliminate(p, "drown")
+			continue
+		p.pos = Arena.center_of(c)
+		p.life = PlayerState.Life.ALIVE
+		p.invulnerable_timer = SimConfig.INVULNERABLE_TIME
+		p.respawn_timer = 0.0
+		events.append({"type": "respawn", "id": p.id, "cell": c})
+
+# Random lowest dry cell that is walkable, bomb-free and not under an explosion; null when none.
+func find_respawn_cell() -> Variant:
+	var best: Array[Vector2i] = []
+	var best_h2 := 0
+	for y in arena.height:
+		for x in arena.width:
+			var c := Vector2i(x, y)
+			if arena.is_solid(c) or is_submerged(c) or bomb_at(c) != null:
+				continue
+			var hit := false
+			for e: Explosion in explosions:
+				if c in e.cells:
+					hit = true
+					break
+			if hit:
+				continue
+			var h := arena.h2_at(c)
+			if best.is_empty() or h < best_h2:
+				best = [c]
+				best_h2 = h
+			elif h == best_h2:
+				best.append(c)
+	if best.is_empty():
+		return null
+	return best[rng.randi_range(0, best.size() - 1)]
+
+func _check_round_end() -> void:
+	var alive: Array[int] = []
+	for p: PlayerState in players.values():
+		if p.life != PlayerState.Life.GHOST:
+			alive.append(p.id)
+	# A lone player (hand-built test worlds) is not a "single survivor": the round only ends once they die.
+	if alive.size() == 1 and players.size() > 1:
+		finished = true
+		winners = alive
+	elif alive.is_empty():
+		finished = true
+		for p: PlayerState in players.values():
+			if p.died_tick == tick and p.lives == 0:
+				winners.append(p.id)
 
 func _try_place_bomb(p: PlayerState) -> void:
 	if not p.can_act() or p.held != PlayerState.Held.NONE:
