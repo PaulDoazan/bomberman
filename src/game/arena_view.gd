@@ -62,7 +62,7 @@ func _box_xf(x0: float, x1: float, y0: float, y1: float, z0: float, z1: float) -
 	return Transform3D(b, Vector3((x0 + x1) * 0.5, (y0 + y1) * 0.5, (z0 + z1) * 0.5))
 
 # Direction (in tile units) towards the higher neighbour of a stairs cell.
-func _stairs_up_dir(arena: Arena, c: Vector2i) -> Vector2i:
+static func stairs_up_dir(arena: Arena, c: Vector2i) -> Vector2i:
 	var best := Vector2i.ZERO
 	var best_h := arena.h2_at(c)
 	for d in Arena.ORTHOGONAL:
@@ -71,6 +71,17 @@ func _stairs_up_dir(arena: Arena, c: Vector2i) -> Vector2i:
 			best_h = arena.h2_at(n)
 			best = d
 	return best
+
+# Height of the drawn surface at a point: a stairs cell has a lower step (h - 0.25) and an
+# upper step (h) on the half towards its higher neighbour.
+static func surface_y(arena: Arena, pt: Vector2) -> float:
+	var c := Arena.cell_of(pt)
+	var h := arena.h2_at(c) * 0.5
+	if arena.tile_at(c) != Arena.Tile.STAIRS:
+		return h
+	var up := stairs_up_dir(arena, c)
+	var local := pt - Vector2(c) - Vector2(0.5, 0.5)
+	return h if local.dot(Vector2(up)) > 0.0 else h - 0.25
 
 func build(arena: Arena) -> void:
 	_arena = arena
@@ -92,7 +103,7 @@ func build(arena: Arena) -> void:
 			if arena.tile_at(c) == Arena.Tile.STAIRS:
 				# Two steps: a lower slab over the whole cell, and a second one over the upper half.
 				list.append(_box_xf(x, x + 1, BASE_Y, h - 0.25, y, y + 1))
-				var up := _stairs_up_dir(arena, c)
+				var up := stairs_up_dir(arena, c)
 				var x0 := x + (0.5 if up.x > 0 else 0.0)
 				var x1 := x + (0.5 if up.x < 0 else 1.0)
 				var z0 := y + (0.5 if up.y > 0 else 0.0)

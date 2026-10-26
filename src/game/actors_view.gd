@@ -34,6 +34,9 @@ var _nose_stun_mat := StandardMaterial3D.new()
 var _time := 0.0
 var _tracks: Dictionary = {} # Node3D -> [prev: Vector3, cur: Vector3]
 const SNAP_DISTANCE := 1.2
+# Half-size of the footprint used to find the ground under a player: slightly inside the
+# collision box so merely brushing a step does not lift the player.
+const FOOT_HALF := 0.3
 
 # Remembers the previous and current sim position of a node; render() interpolates between them.
 func _track(node: Node3D, pos: Vector3, snap: bool = false) -> void:
@@ -114,6 +117,19 @@ func _cell_y(world: World, pos: Vector2) -> float:
 		return 0.0
 	return world.arena.h2_at(c) * 0.5
 
+# Highest drawn surface under the player's footprint, so the body never sinks into a step
+# it is climbing onto and stays on a ledge until it has fully left it.
+func _foot_y(world: World, pos: Vector2) -> float:
+	var arena := world.arena
+	var best := -INF
+	for off in [Vector2.ZERO, Vector2(-FOOT_HALF, -FOOT_HALF), Vector2(FOOT_HALF, -FOOT_HALF),
+			Vector2(-FOOT_HALF, FOOT_HALF), Vector2(FOOT_HALF, FOOT_HALF)]:
+		var pt: Vector2 = pos + off
+		var c := Arena.cell_of(pt)
+		if arena.in_bounds(c) and not arena.is_solid(c):
+			best = maxf(best, ArenaView.surface_y(arena, pt))
+	return _cell_y(world, pos) if best == -INF else best
+
 func _ground(world: World, pos: Vector2) -> Vector3:
 	return Vector3(pos.x, _cell_y(world, pos), pos.y)
 
@@ -140,7 +156,7 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		n.visible = p.life != PlayerState.Life.WAITING_RESPAWN
 		var thrown := p.carried_by == Carry.THROWN
 		var pos := p.pos
-		var y := _cell_y(world, pos)
+		var y := _foot_y(world, pos)
 		if thrown:
 			var f := _flight_of(world, PlayerState.Held.PLAYER, id)
 			if f != null:
@@ -156,8 +172,10 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		if not n.placed or thrown or p.carried_by >= 0:
 			n.y_smooth = y
 			n.placed = true
+		elif y >= n.y_smooth:
+			n.y_smooth = y # climbing: never lag below the step
 		else:
-			n.y_smooth = lerpf(n.y_smooth, y, 0.35)
+			n.y_smooth = lerpf(n.y_smooth, y, 0.35) # falling off a ledge
 		_track(n, Vector3(pos.x, n.y_smooth, pos.y), p.life == PlayerState.Life.WAITING_RESPAWN)
 		n.body.material_override = _ghost_mat if ghost else n.mat
 		var stunned := p.stun_timer > 0.0
