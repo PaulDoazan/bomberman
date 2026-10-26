@@ -4,6 +4,10 @@ extends Node3D
 const GHOST_HOVER := 1.5
 const CARRY_HEIGHT := 1.4
 const THROW_ARC := 1.5
+const STAR_COUNT := 3
+const STAR_ORBIT := 0.4
+const STAR_HEIGHT := 1.05
+const STAR_SPIN := 6.0 # radians per second
 
 class PlayerNode:
 	extends Node3D
@@ -11,6 +15,7 @@ class PlayerNode:
 	var nose: MeshInstance3D
 	var held_bomb: MeshInstance3D
 	var held_block: MeshInstance3D
+	var stars: Node3D # spins above the head while stunned
 	var mat: StandardMaterial3D
 	var y_smooth := 0.0
 	var placed := false
@@ -31,6 +36,8 @@ var _block_mat := StandardMaterial3D.new()
 var _dome_mat := StandardMaterial3D.new()
 var _nose_mat := StandardMaterial3D.new()
 var _nose_stun_mat := StandardMaterial3D.new()
+var _star_mesh := _make_star_mesh(0.16, 0.07)
+var _star_mat := StandardMaterial3D.new()
 var _time := 0.0
 var _tracks: Dictionary = {} # Node3D -> [prev: Vector3, cur: Vector3]
 const SNAP_DISTANCE := 1.2
@@ -87,6 +94,25 @@ func _ready() -> void:
 	_dome_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_nose_mat.albedo_color = Color.WHITE
 	_nose_stun_mat.albedo_color = Color(0.5, 0.5, 0.5)
+	_star_mat.albedo_color = Color("ffe14d")
+	_star_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_star_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_star_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED # always faces the top-down camera
+
+# Flat five-pointed star in the XY plane (billboarded by its material).
+static func _make_star_mesh(outer: float, inner: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var pts: Array[Vector3] = []
+	for i in 10:
+		var r := outer if i % 2 == 0 else inner
+		var a := PI / 2.0 + TAU * i / 10.0
+		pts.append(Vector3(cos(a), sin(a), 0.0) * r)
+	for i in 10:
+		st.add_vertex(Vector3.ZERO)
+		st.add_vertex(pts[i])
+		st.add_vertex(pts[(i + 1) % 10])
+	return st.commit()
 
 func _mesh(mesh: Mesh, mat: Material) -> MeshInstance3D:
 	var m := MeshInstance3D.new()
@@ -106,7 +132,14 @@ func _make_player(color: Color) -> PlayerNode:
 	n.held_bomb.position.y = CARRY_HEIGHT
 	n.held_block = _mesh(_block_mesh, _block_mat)
 	n.held_block.position.y = CARRY_HEIGHT
-	for c in [n.body, n.nose, n.held_bomb, n.held_block]:
+	n.stars = Node3D.new()
+	n.stars.position.y = STAR_HEIGHT
+	for i in STAR_COUNT:
+		var s := _mesh(_star_mesh, _star_mat)
+		var a := TAU * i / STAR_COUNT
+		s.position = Vector3(cos(a), 0.0, sin(a)) * STAR_ORBIT
+		n.stars.add_child(s)
+	for c in [n.body, n.nose, n.held_bomb, n.held_block, n.stars]:
 		n.add_child(c)
 	add_child(n)
 	return n
@@ -180,6 +213,9 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		n.body.material_override = _ghost_mat if ghost else n.mat
 		var stunned := p.stun_timer > 0.0
 		n.nose.material_override = _nose_stun_mat if stunned else _nose_mat
+		n.stars.visible = stunned and not ghost
+		if stunned:
+			n.stars.rotation.y = _time * STAR_SPIN
 		n.nose.position.x = p.facing.x * 0.3
 		n.nose.position.z = p.facing.y * 0.3
 		if p.invulnerable_timer > 0.0 and not ghost:
