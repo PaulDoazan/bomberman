@@ -1,15 +1,21 @@
 class_name BotBrain
 extends RefCounted
 
-# Stateless-ish bot: every decision is recomputed from the world. Only the injected rng is used.
+# Stateless-ish bot: every decision is recomputed from the world, except a short wander
+# commitment. Only the injected rng is used.
 
-const WANDER_CHANCE := 0.1
+const WANDER_RATE := 0.5 # wanders started per second, on average
+const WANDER_TIME := 1.0 # seconds a wander target is kept at most
 const SAFETY_MARGIN := 0.2
 
 var _rng: RandomNumberGenerator
 # Scratch results of the last _search: cell -> steps, cell -> first cell of the path.
 var _dist: Dictionary = {}
 var _first: Dictionary = {}
+# Wander commitment: the adjacent cell being wandered to and the ticks left (reset on a new world).
+var _wander_cell: Variant = null
+var _wander_ticks := 0
+var _last_world: World = null
 
 func _init(rng: RandomNumberGenerator) -> void:
 	_rng = rng
@@ -17,6 +23,11 @@ func _init(rng: RandomNumberGenerator) -> void:
 func decide(world: World, id: int) -> PlayerIntent:
 	var bot: PlayerState = world.players[id]
 	var intent := PlayerIntent.new()
+	if world != _last_world:
+		_last_world = world
+		_wander_cell = null
+	var wander: Variant = _wander_cell
+	_wander_cell = null # kept only if the seek step below re-commits to it
 	# 1. Ghosts chase the nearest free living player.
 	if bot.life == PlayerState.Life.GHOST:
 		var best: PlayerState = null
@@ -34,15 +45,17 @@ func decide(world: World, id: int) -> PlayerIntent:
 	var cell := bot.cell()
 	var bomb_cells := _bomb_cells(world)
 	var danger := DangerMap.build(world)
-	# 3. Flee.
+	# 3. Flee: prefer cells above the next water step, then anything dry.
 	if danger.has(cell):
 		var safe: Variant = _search(world, bot, bomb_cells, danger, false, func(c: Vector2i) -> bool: return _is_safe(world, danger, c))
+		if safe == null:
+			safe = _search(world, bot, bomb_cells, danger, false, func(c: Vector2i) -> bool: return not danger.has(c) and not world.is_submerged(c))
 		if safe != null:
 			_head_to(intent, bot, _first[safe])
 		else:
 			_head_to_least_dangerous(world, intent, bot, bomb_cells, danger)
 		return intent
-	# 4. Climb.
+	# 4. Climb (never through a blast: wait outside it instead).
 	if world.water_warning or world.time_left <= 0.0:
 		var top: Variant = _search_highest(world, bot, bomb_cells, danger)
 		if top != null and world.arena.h2_at(top) > world.arena.h2_at(cell):
@@ -67,16 +80,30 @@ func decide(world: World, id: int) -> PlayerIntent:
 			if arena.in_bounds(n) and (arena.tile_at(n) == Arena.Tile.BLOCK or opponents.has(n)):
 				return true
 		return false
-	if _rng.randf() < WANDER_CHANCE:
+	# Keep walking to the committed wander cell until reached, unsafe or timed out.
+	if wander != null and _wander_ticks > 0 and not danger.has(wander) \
+			and (wander == cell or _can_enter(world, bot, bomb_cells, cell, wander, strict)) \
+			and bot.pos.distance_to(Arena.center_of(wander)) > SimConfig.STOP_DISTANCE:
+		_wander_cell = wander
+		_wander_ticks -= 1
+		_head_to(intent, bot, wander)
+		return intent
+	# Already beside an opponent but no safe bomb: hold still rather than circle around them.
+	for d in Arena.ORTHOGONAL:
+		if opponents.has(cell + d) and arena.can_step(cell, cell + d):
+			return intent
+	if _rng.randf() < WANDER_RATE * SimConfig.DT:
 		var options: Array[Vector2i] = []
 		for d in Arena.ORTHOGONAL:
 			var n := cell + d
 			if _can_enter(world, bot, bomb_cells, cell, n, strict) and not danger.has(n):
 				options.append(n)
 		if not options.is_empty():
-			_head_to(intent, bot, options[_rng.randi_range(0, options.size() - 1)])
+			_wander_cell = options[_rng.randi_range(0, options.size() - 1)]
+			_wander_ticks = roundi(WANDER_TIME * SimConfig.TICK_RATE) - 1
+			_head_to(intent, bot, _wander_cell)
 			return intent
-	var found: Variant = _search(world, bot, bomb_cells, danger, strict, goal)
+	var found: Variant = _search(world, bot, bomb_cells, danger, strict, goal, true)
 	if found != null:
 		_head_to(intent, bot, _first[found])
 	return intent
@@ -97,10 +124,12 @@ func _can_enter(world: World, bot: PlayerState, bomb_cells: Dictionary, from: Ve
 		return false
 	return not (_water_unsafe(world, to) if strict else world.is_submerged(to))
 
-# Water level at which a cell is unsafe: the next step's when the warning is on, else the current one.
+# Water level at which a cell is unsafe: the next step's during the warning and the whole water
+# phase, else the current one. The final step covers every cell, so it is not anticipated.
 func _water_level(world: World) -> int:
-	if world.water_warning and world._water_index < SimConfig.WATER_STEPS.size():
-		return SimConfig.WATER_STEPS[world._water_index]
+	var nxt: Variant = world.next_water_h2()
+	if nxt != null and (world.water_warning or world.time_left <= 0.0) and not world.next_rise_is_final():
+		return nxt
 	return world.water_h2
 
 func _water_unsafe(world: World, c: Vector2i) -> bool:
@@ -109,9 +138,10 @@ func _water_unsafe(world: World, c: Vector2i) -> bool:
 func _is_safe(world: World, danger: Dictionary, c: Vector2i) -> bool:
 	return not danger.has(c) and not _water_unsafe(world, c)
 
-# BFS over enterable cells; a cell is usable only if its danger outlasts the walk there.
+# BFS over enterable cells; a cell is usable only if its danger outlasts the walk there
+# (fleeing), or only if it is not endangered at all (avoid_danger: seeking, climbing).
 # Returns the first cell satisfying stop (null if none); _dist/_first describe every visited cell.
-func _search(world: World, bot: PlayerState, bomb_cells: Dictionary, danger: Dictionary, strict: bool, stop: Callable) -> Variant:
+func _search(world: World, bot: PlayerState, bomb_cells: Dictionary, danger: Dictionary, strict: bool, stop: Callable, avoid_danger := false) -> Variant:
 	var start := bot.cell()
 	_dist = {start: 0}
 	_first = {start: start}
@@ -127,7 +157,7 @@ func _search(world: World, bot: PlayerState, bomb_cells: Dictionary, danger: Dic
 			var n: Vector2i = c + d
 			if _dist.has(n) or not _can_enter(world, bot, bomb_cells, c, n, strict):
 				continue
-			if danger.get(n, INF) <= steps / SimConfig.PLAYER_SPEED + SAFETY_MARGIN:
+			if danger.has(n) and (avoid_danger or danger[n] <= steps / SimConfig.PLAYER_SPEED + SAFETY_MARGIN):
 				continue
 			_dist[n] = steps
 			_first[n] = n if c == start else _first[c]
@@ -136,7 +166,7 @@ func _search(world: World, bot: PlayerState, bomb_cells: Dictionary, danger: Dic
 
 # The reachable cell with the greatest h2 (nearest on ties); null when nothing is reachable.
 func _search_highest(world: World, bot: PlayerState, bomb_cells: Dictionary, danger: Dictionary) -> Variant:
-	_search(world, bot, bomb_cells, danger, false, Callable())
+	_search(world, bot, bomb_cells, danger, false, Callable(), true)
 	var best: Variant = null
 	var best_h2 := 0
 	for c: Vector2i in _dist: # insertion order is BFS order
