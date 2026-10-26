@@ -13,6 +13,11 @@ func _init() -> void:
 		if only != "" and file.get_basename() != only:
 			continue
 		var script: GDScript = load("res://tests/" + file)
+		if script == null or not script.can_instantiate():
+			total += 1
+			failed += 1
+			print("  FAIL ", file, " : chargement impossible")
+			continue
 		for m in script.get_script_method_list():
 			if not m.name.begins_with("test_"):
 				continue
@@ -26,5 +31,8 @@ func _init() -> void:
 				print("  FAIL ", file, "::", m.name)
 				for f in t.failures:
 					print("       ", f)
+	if total == 0:
+		print("Aucun test exécuté")
+		failed += 1
 	print("%d tests, %d échecs" % [total, failed])
 	quit(1 if failed > 0 else 0)
