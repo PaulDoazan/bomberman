@@ -9,14 +9,16 @@ static func box_overlaps_cell(pos: Vector2, c: Vector2i) -> bool:
 	return pos.x + h > c.x + EPS and pos.x - h < c.x + 1.0 - EPS \
 		and pos.y + h > c.y + EPS and pos.y - h < c.y + 1.0 - EPS
 
-static func _blocked_at(world: World, p: PlayerState, pos: Vector2, cur: Vector2i) -> bool:
+# Only cells the box newly enters (not already overlapped at old_pos) can block, so a
+# player never gets stuck because of an overlap they already have (e.g. off-lane on stairs).
+static func _blocked_at(world: World, p: PlayerState, old_pos: Vector2, pos: Vector2, cur: Vector2i) -> bool:
 	var h := SimConfig.PLAYER_HALF
 	var lo := Vector2i(floori(pos.x - h + EPS), floori(pos.y - h + EPS))
 	var hi := Vector2i(floori(pos.x + h - EPS), floori(pos.y + h - EPS))
 	for cy in range(lo.y, hi.y + 1):
 		for cx in range(lo.x, hi.x + 1):
 			var c := Vector2i(cx, cy)
-			if c != cur and not world.is_passable_for(p, cur, c):
+			if c != cur and not box_overlaps_cell(old_pos, c) and not world.is_passable_for(p, cur, c):
 				return true
 	return false
 
@@ -28,7 +30,7 @@ static func _move_axis(world: World, p: PlayerState, axis: int, delta: float) ->
 	var cur := p.cell()
 	var np := p.pos
 	np[axis] += delta
-	if not _blocked_at(world, p, np, cur):
+	if not _blocked_at(world, p, p.pos, np, cur):
 		p.pos = np
 		return true
 	# Snap against the edge of the blocking cell.
@@ -46,7 +48,7 @@ static func _move_axis(world: World, p: PlayerState, axis: int, delta: float) ->
 	# The snap position may itself overlap a blocked cell (cur is not the only cell touched).
 	var sp := p.pos
 	sp[axis] = snapped
-	if absf(snapped - p.pos[axis]) < absf(delta) and not _blocked_at(world, p, sp, cur):
+	if absf(snapped - p.pos[axis]) < absf(delta) and not _blocked_at(world, p, p.pos, sp, cur):
 		p.pos = sp
 	return false
 
@@ -74,11 +76,12 @@ static func move(world: World, p: PlayerState, target: Vector2, speed: float, dt
 	p.facing = dom
 	var dom_axis := 0 if dom.x != 0 else 1
 	var perp_axis := 1 - dom_axis
-	var cur := p.cell()
-	var center := Arena.center_of(cur)
 
 	var ok_x := _move_axis(world, p, 0, step.x)
 	var ok_y := _move_axis(world, p, 1, step.y)
+	# Recomputed after the moves: the X move may have changed the current cell.
+	var cur := p.cell()
+	var center := Arena.center_of(cur)
 	var dom_ok := ok_x if dom_axis == 0 else ok_y
 	var max_perp := speed * dt
 	var offset: float = p.pos[perp_axis] - center[perp_axis]
@@ -88,14 +91,14 @@ static func move(world: World, p: PlayerState, target: Vector2, speed: float, dt
 				and world.is_passable_for(p, cur, cur + dom):
 			var np := p.pos
 			np[perp_axis] = _toward(p.pos[perp_axis], center[perp_axis], max_perp)
-			if not _blocked_at(world, p, np, cur):
+			if not _blocked_at(world, p, p.pos, np, cur):
 				p.pos = np
 	elif absf(offset) <= SimConfig.CORNER_ASSIST and absf(offset) > EPS \
 			and absf(target[perp_axis] - center[perp_axis]) <= 0.5:
 		# Gentle re-centring on the lane while advancing.
 		var np2 := p.pos
 		np2[perp_axis] = _toward(p.pos[perp_axis], center[perp_axis], 0.5 * max_perp)
-		if not _blocked_at(world, p, np2, p.cell()):
+		if not _blocked_at(world, p, p.pos, np2, p.cell()):
 			p.pos = np2
 
 	# Owners stop being exempt from a bomb once their box has left its cell.

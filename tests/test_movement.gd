@@ -75,3 +75,24 @@ func test_stunned_player_does_not_move() -> void:
 	w.players[0].stun_timer = 1.0
 	_go(w, 0, Vector2(4.5, 1.5), 0.5)
 	assert_eq(w.players[0].pos, Vector2(1.5, 1.5))
+
+func _stairs_arena() -> Arena:
+	var a := Fixtures.flat(5, 5)
+	for y in 5: a.set_cell(Vector2i(3, y), Arena.Tile.FLOOR, 2)
+	a.set_cell(Vector2i(2, 2), Arena.Tile.STAIRS, 1, Arena.Axis.X)
+	return a
+
+func test_climbs_stairs_from_off_lane_start_above() -> void:
+	var w := _world(_stairs_arena(), [Vector2(0.5, 2.2)])
+	_go(w, 0, Vector2(3.5, 2.5), 2.0)
+	assert_eq(w.players[0].cell(), Vector2i(3, 2))
+
+func test_climbs_stairs_from_off_lane_start_below() -> void:
+	var w := _world(_stairs_arena(), [Vector2(0.5, 2.8)])
+	_go(w, 0, Vector2(3.5, 2.5), 2.0)
+	assert_eq(w.players[0].cell(), Vector2i(3, 2))
+
+func test_can_move_along_stairs_when_off_lane() -> void:
+	var w := _world(_stairs_arena(), [Vector2(2.5, 2.2)])
+	_go(w, 0, Vector2(3.5, 2.5), 1.5)
+	assert_eq(w.players[0].cell(), Vector2i(3, 2))
