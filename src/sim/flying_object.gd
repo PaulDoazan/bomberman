@@ -7,6 +7,7 @@ var ref_id := -1 # bomb or player id, -1 for a block
 var from := Vector2.ZERO
 var landing: Variant = null # Vector2i, or null when the object falls into the water
 var to := Vector2.ZERO # centre of the landing cell, or of the first off-map cell (view hint, splash position)
+var dir := Vector2i.ZERO # throw direction, used to re-search a free cell at touchdown
 var elapsed := 0.0
 
 func progress() -> float:

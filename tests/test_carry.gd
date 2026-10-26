@@ -28,6 +28,12 @@ func _has_event(w: World, type: String) -> bool:
 			return true
 	return false
 
+func _explosion_origin(w: World) -> Variant:
+	for e: Dictionary in w.events:
+		if e["type"] == "explosion":
+			return e["cell"]
+	return null
+
 func test_pick_up_and_throw_block() -> void:
 	var a := Fixtures.flat(9, 5)
 	a.set_tile(Vector2i(2, 2), Arena.Tile.BLOCK)
@@ -134,19 +140,24 @@ func test_throw_lands_on_upper_level() -> void:
 	_flight(w)
 	assert_eq(b.cell, Vector2i(4, 2))
 	assert_eq(b.state, BombState.State.PLACED)
-	var exploded := false
+	var origin: Variant = null
 	for _t in 15:
 		w.step({})
-		exploded = exploded or _has_event(w, "explosion")
-	assert_true(exploded)
+		origin = origin if origin != null else _explosion_origin(w)
+	assert_eq(origin, Vector2i(4, 2), "explosion en (4,2)")
 	assert_eq(w.players[0].lives, 3, "le dôme ne descend pas")
 
 func test_flying_bomb_explodes_in_flight_when_fuse_ends() -> void:
 	var w := _world(Fixtures.flat(9, 5), [Vector2(1.5, 2.5)])
-	var b := w.add_bomb(0, Vector2i(1, 2), 0.1)
+	w.add_bomb(0, Vector2i(1, 2), 0.35)
 	w.step(_act())
 	w.step(_act())
-	_go(w, 0.2)
+	var origin: Variant = null
+	for _t in 12:
+		w.step({})
+		origin = origin if origin != null else _explosion_origin(w)
+	assert_true(origin != null, "événement explosion")
+	assert_eq(origin, Vector2i(3, 2), "cellule interpolée en vol (x = 3,3), pas `from`")
 	assert_eq(w.bombs.size(), 0)
 	assert_eq(w.flying.size(), 0)
 
@@ -162,3 +173,50 @@ func test_carrier_death_releases_carried_player_and_bomb() -> void:
 	assert_eq(b.state, BombState.State.HELD)
 	w2.kill(0, "test")
 	assert_eq(b.state, BombState.State.PLACED)
+
+func test_exploding_held_bomb_clears_invulnerable_holder() -> void:
+	var w := _world(Fixtures.flat(9, 5), [Vector2(1.5, 2.5)])
+	w.players[0].invulnerable_timer = 5.0
+	w.add_bomb(0, Vector2i(1, 2), 0.1)
+	w.step(_act())
+	_go(w, 0.2)
+	assert_eq(w.bombs.size(), 0)
+	assert_eq(w.players[0].held, PlayerState.Held.NONE)
+	assert_eq(w.players[0].held_id, -1)
+	var i := PlayerIntent.new()
+	i.place_bomb = true
+	w.step({0: i})
+	assert_eq(w.bombs.size(), 1, "peut reposer une bombe")
+	w.step(_act()) # picks the new bomb up: no error
+
+func test_block_lands_further_when_player_walks_onto_landing_cell() -> void:
+	var a := Fixtures.flat(9, 5)
+	var w := _world(a, [Vector2(1.5, 2.5), Vector2(6.5, 0.5)])
+	w.players[0].held = PlayerState.Held.BLOCK
+	w.step(_act())
+	w.players[1].pos = Vector2(4.5, 2.5)
+	_flight(w)
+	assert_eq(a.tile_at(Vector2i(4, 2)), Arena.Tile.FLOOR, "joueur pas emmuré")
+	assert_eq(a.tile_at(Vector2i(5, 2)), Arena.Tile.BLOCK)
+
+func test_bomb_lands_further_when_bomb_placed_on_landing_cell() -> void:
+	var w := _world(Fixtures.flat(9, 5), [Vector2(1.5, 2.5)])
+	var b := w.add_bomb(0, Vector2i(1, 2), 2.5)
+	w.step(_act())
+	w.step(_act())
+	var other := w.add_bomb(1, Vector2i(4, 2), 2.5)
+	_flight(w)
+	assert_eq(other.cell, Vector2i(4, 2))
+	assert_eq(b.cell, Vector2i(5, 2))
+	assert_eq(b.state, BombState.State.PLACED)
+
+func test_two_flights_to_same_cell_do_not_overlap() -> void:
+	var a := Fixtures.flat(9, 5)
+	var w := _world(a, [Vector2(1.5, 2.5)])
+	w.players[0].held = PlayerState.Held.BLOCK
+	w.step(_act())
+	w.players[0].held = PlayerState.Held.BLOCK
+	w.step(_act())
+	_flight(w)
+	assert_eq(a.tile_at(Vector2i(4, 2)), Arena.Tile.BLOCK)
+	assert_eq(a.tile_at(Vector2i(5, 2)), Arena.Tile.BLOCK)
