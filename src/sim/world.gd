@@ -76,25 +76,39 @@ func step(intents: Dictionary) -> void:
 func is_submerged(c: Vector2i) -> bool:
 	return not arena.in_bounds(c) or arena.h2_at(c) <= water_h2
 
+# Water level of the next rise; null once the last step is reached.
+func next_water_h2() -> Variant:
+	if _water_index >= SimConfig.WATER_STEPS.size():
+		return null
+	return SimConfig.WATER_STEPS[_water_index]
+
+# True when the next rise is the last one (it covers every cell).
+func next_rise_is_final() -> bool:
+	return _water_index == SimConfig.WATER_STEPS.size() - 1
+
+# Seconds until the next rise; INF once the last step is reached.
+# Rise k is scheduled WATER_STEP_INTERVAL * k seconds after the timer hits 0.
+func seconds_to_next_rise() -> float:
+	if _water_index >= SimConfig.WATER_STEPS.size():
+		return INF
+	return time_left + _water_index * SimConfig.WATER_STEP_INTERVAL
+
 func _update_water() -> void:
 	time_left -= SimConfig.DT
-	if _water_index >= SimConfig.WATER_STEPS.size():
+	if next_water_h2() == null:
 		water_warning = false
 		return
-	# Rise k is scheduled WATER_STEP_INTERVAL * k seconds after the timer hits 0.
-	var until_rise := time_left + _water_index * SimConfig.WATER_STEP_INTERVAL
-	if until_rise <= 0.0:
-		water_h2 = SimConfig.WATER_STEPS[_water_index]
+	if seconds_to_next_rise() <= 0.0:
+		water_h2 = next_water_h2()
 		_water_index += 1
 		events.append({"type": "water_rise", "h2": water_h2})
-		until_rise += SimConfig.WATER_STEP_INTERVAL
-	water_warning = _water_index < SimConfig.WATER_STEPS.size() and until_rise <= SimConfig.WATER_WARNING
+	water_warning = next_water_h2() != null and seconds_to_next_rise() <= SimConfig.WATER_WARNING
 
 func _apply_drowning() -> void:
 	for p: PlayerState in players.values():
 		if p.life != PlayerState.Life.ALIVE or p.carried_by == Carry.THROWN or not is_submerged(p.cell()):
 			continue
-		if find_respawn_cell() == null:
+		if not has_dry_cell():
 			_eliminate(p, "drown")
 		else:
 			kill(p.id, "drown")
@@ -127,20 +141,42 @@ func _update_respawns() -> void:
 		events.append({"type": "respawn", "id": p.id, "cell": c})
 
 # Random lowest dry cell that is walkable, bomb-free and not under an explosion; null when none.
+# When the next rise comes before the respawn invulnerability and a warning would let the player
+# react, cells flooded by that rise are avoided (unless nothing else is left).
 func find_respawn_cell() -> Variant:
+	var best: Array[Vector2i] = []
+	var nxt: Variant = next_water_h2()
+	if nxt != null and seconds_to_next_rise() <= SimConfig.INVULNERABLE_TIME + SimConfig.WATER_WARNING:
+		best = _lowest_respawn_cells(nxt)
+	if best.is_empty():
+		best = _lowest_respawn_cells(water_h2)
+	if best.is_empty():
+		return null
+	return best[rng.randi_range(0, best.size() - 1)]
+
+# Same filter as find_respawn_cell at the current water level, without drawing from the rng.
+func has_dry_cell() -> bool:
+	for y in arena.height:
+		for x in arena.width:
+			if _can_respawn_at(Vector2i(x, y), water_h2):
+				return true
+	return false
+
+func _can_respawn_at(c: Vector2i, floor_h2: int) -> bool:
+	if arena.is_solid(c) or arena.h2_at(c) <= floor_h2 or bomb_at(c) != null:
+		return false
+	for e: Explosion in explosions:
+		if c in e.cells:
+			return false
+	return true
+
+func _lowest_respawn_cells(floor_h2: int) -> Array[Vector2i]:
 	var best: Array[Vector2i] = []
 	var best_h2 := 0
 	for y in arena.height:
 		for x in arena.width:
 			var c := Vector2i(x, y)
-			if arena.is_solid(c) or is_submerged(c) or bomb_at(c) != null:
-				continue
-			var hit := false
-			for e: Explosion in explosions:
-				if c in e.cells:
-					hit = true
-					break
-			if hit:
+			if not _can_respawn_at(c, floor_h2):
 				continue
 			var h := arena.h2_at(c)
 			if best.is_empty() or h < best_h2:
@@ -148,9 +184,7 @@ func find_respawn_cell() -> Variant:
 				best_h2 = h
 			elif h == best_h2:
 				best.append(c)
-	if best.is_empty():
-		return null
-	return best[rng.randi_range(0, best.size() - 1)]
+	return best
 
 func _check_round_end() -> void:
 	var alive: Array[int] = []

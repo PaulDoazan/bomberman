@@ -169,3 +169,65 @@ func test_last_players_drowning_together_are_ex_aequo() -> void:
 	var ids: Array = w.winners.duplicate()
 	ids.sort()
 	assert_eq(ids, [0, 1])
+
+func test_water_schedule_accessors() -> void:
+	var w := _two_survivors() # round_time 1.0
+	assert_eq(w.next_water_h2(), -1, "premier palier à venir")
+	assert_almost(w.seconds_to_next_rise(), 1.0, 0.001)
+	_go(w, 1.1)
+	assert_eq(w.next_water_h2(), 1)
+	assert_almost(w.seconds_to_next_rise(), 19.9, 0.05)
+	_go(w, 61.0)
+	assert_eq(w.water_h2, 4)
+	assert_true(w.next_water_h2() == null, "plus de palier")
+	assert_eq(w.seconds_to_next_rise(), INF)
+
+func _pit_and_ground() -> Arena:
+	# Columns 0-2 are a pit (h2 -2), the rest is ground (h2 0).
+	var a := Fixtures.flat(9, 3)
+	for y in 3:
+		for x in 3:
+			a.set_cell(Vector2i(x, y), Arena.Tile.FLOOR, -2)
+	return a
+
+func test_respawn_avoids_cells_flooded_by_the_next_rise() -> void:
+	# The first rise (h2 -1, floods the pit) comes 1 s after the respawn: inside invulnerability + warning.
+	var w := _world(_pit_and_ground(), [Vector2(4.5, 1.5), Vector2(8.5, 1.5)], 3, 3.0)
+	for i in 10:
+		w.kill(0, "test")
+		var p: PlayerState = w.players[0]
+		p.lives = 3
+		w.players[0].respawn_timer = 0.01
+		w.step({})
+		assert_eq(p.life, PlayerState.Life.ALIVE)
+		assert_true(w.arena.h2_at(p.cell()) > w.next_water_h2(), "réapparition au-dessus du prochain palier (%s)" % str(p.cell()))
+
+func test_respawn_uses_lowest_dry_cell_when_rise_is_far() -> void:
+	var w := _world(_pit_and_ground(), [Vector2(4.5, 1.5), Vector2(8.5, 1.5)], 3, 100.0)
+	w.kill(0, "test")
+	w.players[0].respawn_timer = 0.01
+	w.step({})
+	assert_eq(w.arena.h2_at(w.players[0].cell()), -2, "fosse : la montée est loin")
+
+func test_respawn_falls_back_when_everything_floods_next() -> void:
+	var a := Fixtures.flat(5, 3)
+	for y in 3:
+		for x in 5:
+			a.set_cell(Vector2i(x, y), Arena.Tile.FLOOR, -2)
+	var w := _world(a, [Vector2(0.5, 0.5), Vector2(4.5, 2.5)], 3, 3.0)
+	w.kill(0, "test")
+	w.players[0].respawn_timer = 0.01
+	w.step({})
+	assert_eq(w.players[0].life, PlayerState.Life.ALIVE, "règle actuelle en repli")
+
+func test_drowning_check_does_not_draw_rng() -> void:
+	var a := Fixtures.flat(5, 3)
+	for y in 3:
+		a.set_cell(Vector2i(0, y), Arena.Tile.FLOOR, 4)
+	var w := _world(a, [Vector2(2.5, 1.5), Vector2(0.5, 1.5)], 3, 100.0)
+	w.water_h2 = 1
+	assert_true(w.has_dry_cell())
+	var before := w.rng.state
+	w.step({}) # player 0 drowns
+	assert_eq(w.players[0].life, PlayerState.Life.WAITING_RESPAWN)
+	assert_eq(w.rng.state, before, "pas de tirage pour la noyade")
