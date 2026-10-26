@@ -18,6 +18,7 @@ Le multijoueur en ligne viendra dans une étape suivante, et le POC doit être c
 - Les contrôles souris + clavier décrits plus bas.
 - Bombes, explosions, blocs destructibles.
 - Soulever et lancer : bombes (les siennes et celles des autres), joueurs, blocs.
+- Coup de pied : en continuant de pousser un court instant (0,2 s) contre une bombe, on la kicke. Elle roule tout droit dans la direction où regarde le perso (6 cases/s) jusqu'au prochain obstacle : pilier, bloc, bombe, joueur, eau ou niveau plus haut. Elle peut tomber d'un niveau et continuer à rouler, et sa mèche continue de tourner.
 - Montée des eaux à la fin du chrono, noyade.
 - Fantômes qui possèdent les vivants.
 - Manches enchaînées sans fin, avec score de victoires.

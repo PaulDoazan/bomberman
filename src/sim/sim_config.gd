@@ -45,6 +45,9 @@ const THROW_FLIGHT := 0.5
 const STUN_TIME := 1.5
 const CARRY_ESCAPE := 3.0
 
+const KICK_PUSH_TIME := 0.2 # seconds pushing against a bomb before kicking it
+const KICK_SPEED := 6.0 # cells per second
+
 const BLOCK_DENSITY := 0.225
 const SPAWN_CLEARANCE := 2
 const SCOREBOARD_DURATION := 4.0

@@ -226,7 +226,8 @@ func _sync_bombs(world: World) -> void:
 			if f != null:
 				_track(m, _arc(world, f))
 		elif b.state == BombState.State.PLACED:
-			_track(m, Vector3(b.cell.x + 0.5, world.arena.h2_at(b.cell) * 0.5 + 0.32, b.cell.y + 0.5))
+			var roll := Vector2(b.roll_dir) * b.roll_offset # a kicked bomb rolls between cell centres
+			_track(m, Vector3(b.cell.x + 0.5 + roll.x, world.arena.h2_at(b.cell) * 0.5 + 0.32, b.cell.y + 0.5 + roll.y))
 		var s := 1.0
 		if b.fuse < 0.5:
 			s = 1.0 + 0.25 * (1.0 - b.fuse / 0.5)

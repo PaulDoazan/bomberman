@@ -62,9 +62,11 @@ func step(intents: Dictionary) -> void:
 				Carry.throw(self, p)
 		if p.can_act() and intent.moving:
 			Movement.move(self, p, intent.target, SimConfig.PLAYER_SPEED, SimConfig.DT)
+		Kick.update_push(self, p, p.can_act() and intent.moving)
 	Carry.update_carried(self)
 	Carry.update_flying(self)
 	Ghosts.update(self)
+	Kick.update_rolling(self)
 	_update_explosions()
 	_update_bombs()
 	_apply_explosion_damage()

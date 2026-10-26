@@ -12,6 +12,7 @@ var life := Life.ALIVE
 var respawn_timer := 0.0
 var invulnerable_timer := 0.0
 var stun_timer := 0.0
+var push_timer := 0.0 # time spent pushing against a bomb, for kicking
 var held := Held.NONE
 var held_id := -1
 var carried_by := -1
