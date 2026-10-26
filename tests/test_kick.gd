@@ -108,6 +108,20 @@ func test_placing_again_on_a_bomb_kicks_it() -> void:
 	_wait(w, 1.0)
 	assert_eq(b.cell, Vector2i(6, 1))
 
+# Une bombe qui roule et percute une bombe immobile s'arrête et lui transmet son mouvement.
+func test_rolling_bomb_passes_its_motion_to_the_bomb_it_hits() -> void:
+	var a := Fixtures.flat(12, 3)
+	a.set_tile(Vector2i(10, 1), Arena.Tile.PILLAR)
+	var w := _world(a, [Vector2(1.5, 1.5)])
+	var b1 := _bomb(w, Vector2i(3, 1))
+	var b2 := _bomb(w, Vector2i(6, 1))
+	_go(w, 0, Vector2(3.5, 1.5), 1.0)
+	_wait(w, 1.5)
+	assert_eq(b1.cell, Vector2i(5, 1), "la première s'arrête au contact")
+	assert_eq(b1.roll_dir, Vector2i.ZERO)
+	assert_eq(b2.cell, Vector2i(9, 1), "la seconde repart jusqu'au pilier")
+	assert_eq(b2.roll_dir, Vector2i.ZERO)
+
 # Reposer une bombe pour la kicker ne doit jamais assommer celui qui la kicke, même s'il
 # déborde sur la case de devant.
 func test_kicking_the_bomb_underfoot_never_stuns_the_kicker() -> void:

@@ -50,6 +50,10 @@ static func update_rolling(world: World) -> void:
 			for p: PlayerState in _players_in(world, nxt, b):
 				if p.stun_timer <= 0.0: # no stun-lock by kicking again into a stunned player
 					p.stun_timer = SimConfig.BOMB_HIT_STUN_TIME
+			var hit := world.bomb_at(nxt)
+			if hit != null and hit.roll_dir == Vector2i.ZERO:
+				hit.roll_dir = b.roll_dir # the motion passes on to the bomb it hits
+				hit.roll_offset = 0.0
 			b.roll_dir = Vector2i.ZERO
 			b.roll_offset = 0.0
 			continue
