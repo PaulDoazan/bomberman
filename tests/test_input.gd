@@ -26,3 +26,17 @@ func test_click_on_world_moves_until_release() -> void:
 	Input.action_release("move") # released over a control: the release event never arrives
 	assert_false(c.wants_move(), "relâché au-dessus de l'interface")
 	c.free()
+
+func test_arrow_keys_steer_ahead_of_player() -> void:
+	var ic := InputController.new()
+	var p := PlayerState.new()
+	p.pos = Vector2(4.5, 6.5)
+	Input.action_press("move_up")
+	Input.action_press("move_right")
+	var intent: PlayerIntent = ic.consume_intent(p, null)
+	Input.action_release("move_up")
+	Input.action_release("move_right")
+	ic.free()
+	assert_true(intent.moving)
+	var d := (intent.target - p.pos).normalized()
+	assert_almost(d.x, sqrt(0.5)); assert_almost(d.y, -sqrt(0.5))

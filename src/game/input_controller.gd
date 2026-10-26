@@ -23,8 +23,17 @@ func wants_move() -> bool:
 		_move_held = false
 	return _move_held
 
+# Arrow keys steer towards a point a little ahead of the player; they take priority over the mouse.
+const KEY_LOOKAHEAD := 2.0
+
 func consume_intent(p: PlayerState, rig: CameraRig) -> PlayerIntent:
 	var intent := PlayerIntent.new()
+	var dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	if dir != Vector2.ZERO:
+		intent.moving = true
+		intent.target = p.pos + dir.normalized() * KEY_LOOKAHEAD
+		_consume_buttons(intent)
+		return intent
 	intent.moving = wants_move()
 	var plane_h2 := 0
 	var arena: Arena = rig.arena_ref
@@ -37,8 +46,11 @@ func consume_intent(p: PlayerState, rig: CameraRig) -> PlayerIntent:
 		intent.moving = false
 	else:
 		intent.target = hit
+	_consume_buttons(intent)
+	return intent
+
+func _consume_buttons(intent: PlayerIntent) -> void:
 	intent.place_bomb = _bomb_pressed
 	intent.action = _action_pressed
 	_bomb_pressed = false
 	_action_pressed = false
-	return intent

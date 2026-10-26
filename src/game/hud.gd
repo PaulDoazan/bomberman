@@ -38,6 +38,7 @@ func _ready() -> void:
 
 	var quit := Button.new()
 	quit.text = "Quitter"
+	quit.focus_mode = Control.FOCUS_NONE # arrows and Space must never reach the button
 	quit.pressed.connect(_on_quit)
 	top.add_child(quit)
 
