@@ -45,7 +45,7 @@ const THROW_FLIGHT := 0.5
 const STUN_TIME := 1.5
 const CARRY_ESCAPE := 3.0
 
-const BLOCK_DENSITY := 0.45
+const BLOCK_DENSITY := 0.225
 const SPAWN_CLEARANCE := 2
 const SCOREBOARD_DURATION := 4.0
 
