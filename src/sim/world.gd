@@ -44,6 +44,13 @@ func step(intents: Dictionary) -> void:
 			intent = PlayerIntent.new()
 		p.stun_timer = maxf(0.0, p.stun_timer - SimConfig.DT)
 		p.invulnerable_timer = maxf(0.0, p.invulnerable_timer - SimConfig.DT)
+		Ghosts.tick_timers(p)
+		if p.life == PlayerState.Life.GHOST:
+			if p.possess_target != -1:
+				Ghosts.drive_victim(self, p, intent)
+			elif intent.moving:
+				Movement.move_free(self, p, intent.target, SimConfig.GHOST_SPEED, SimConfig.DT)
+			continue
 		if p.life != PlayerState.Life.ALIVE:
 			continue
 		if intent.place_bomb:
@@ -57,6 +64,7 @@ func step(intents: Dictionary) -> void:
 			Movement.move(self, p, intent.target, SimConfig.PLAYER_SPEED, SimConfig.DT)
 	Carry.update_carried(self)
 	Carry.update_flying(self)
+	Ghosts.update(self)
 	_update_explosions()
 	_update_bombs()
 	_apply_explosion_damage()
@@ -95,8 +103,10 @@ func _eliminate(p: PlayerState, cause: String) -> void:
 	if p.life != PlayerState.Life.WAITING_RESPAWN:
 		events.append({"type": "death", "id": p.id, "cause": cause})
 	Carry.release_links(self, p)
+	Ghosts.end_possession(self, p)
 	p.lives = 0
 	p.life = PlayerState.Life.GHOST
+	Ghosts.on_became_ghost(self, p)
 	p.died_tick = tick
 
 func _update_respawns() -> void:
@@ -246,6 +256,7 @@ func _apply_explosion_damage() -> void:
 func kill(id: int, cause: String) -> void:
 	var p: PlayerState = players[id]
 	Carry.release_links(self, p)
+	Ghosts.end_possession(self, p)
 	p.lives -= 1
 	p.died_tick = tick
 	events.append({"type": "death", "id": id, "cause": cause})
@@ -254,6 +265,7 @@ func kill(id: int, cause: String) -> void:
 		p.respawn_timer = SimConfig.RESPAWN_DELAY
 	else:
 		p.life = PlayerState.Life.GHOST
+		Ghosts.on_became_ghost(self, p)
 
 func bomb_at(c: Vector2i) -> BombState:
 	for b: BombState in bombs.values():
