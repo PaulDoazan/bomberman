@@ -50,8 +50,10 @@ func test_rolling_bomb_stops_before_a_player() -> void:
 	var w := _world(_lane(), [Vector2(1.5, 1.5), Vector2(5.5, 1.5)])
 	var b := _bomb(w, Vector2i(3, 1))
 	_go(w, 0, Vector2(3.5, 1.5), 1.0)
-	_wait(w, 1.0)
+	_wait(w, 0.5)
 	assert_eq(b.cell, Vector2i(4, 1))
+	assert_true(w.players[1].stun_timer > SimConfig.BOMB_HIT_STUN_TIME - 1.0, "assommé par la bombe")
+	assert_eq(b.roll_dir, Vector2i.ZERO)
 
 func test_rolling_bomb_does_not_climb_but_drops_down() -> void:
 	var a := Fixtures.flat(9, 3)

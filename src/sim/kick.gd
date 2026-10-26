@@ -43,6 +43,9 @@ static func update_rolling(world: World) -> void:
 		var nxt := b.cell + b.roll_dir
 		var off := b.roll_offset + SimConfig.KICK_SPEED * SimConfig.DT
 		if off >= 0.0 and not _can_roll(world, b.cell, nxt):
+			for p: PlayerState in _players_in(world, nxt):
+				if p.stun_timer <= 0.0: # no stun-lock by kicking again into a stunned player
+					p.stun_timer = SimConfig.BOMB_HIT_STUN_TIME
 			b.roll_dir = Vector2i.ZERO
 			b.roll_offset = 0.0
 			continue
@@ -62,7 +65,11 @@ static func _can_roll(world: World, from: Vector2i, to: Vector2i) -> bool:
 		return false
 	if world.bomb_at(to) != null:
 		return false
+	return _players_in(world, to).is_empty()
+
+static func _players_in(world: World, c: Vector2i) -> Array[PlayerState]:
+	var out: Array[PlayerState] = []
 	for p: PlayerState in world.players.values():
-		if p.life == PlayerState.Life.ALIVE and p.carried_by == -1 and Movement.box_overlaps_cell(p.pos, to):
-			return false
-	return true
+		if p.life == PlayerState.Life.ALIVE and p.carried_by == -1 and Movement.box_overlaps_cell(p.pos, c):
+			out.append(p)
+	return out

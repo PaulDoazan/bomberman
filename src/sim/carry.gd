@@ -165,7 +165,7 @@ static func _land(world: World, f: FlyingObject) -> void:
 			b.cell = c
 			b.passable_for.clear()
 			for hit: PlayerState in _free_players_at(world, c):
-				hit.stun_timer = SimConfig.STUN_TIME
+				hit.stun_timer = SimConfig.BOMB_HIT_STUN_TIME
 		PlayerState.Held.BLOCK:
 			world.arena.set_tile(c, Arena.Tile.BLOCK)
 		PlayerState.Held.PLAYER:

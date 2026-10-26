@@ -128,7 +128,7 @@ func test_thrown_bomb_stuns_player_on_landing() -> void:
 	w.step(_act())
 	_flight(w)
 	assert_eq(b.state, BombState.State.PLACED)
-	assert_true(w.players[1].stun_timer > 0.0, "étourdi")
+	assert_true(w.players[1].stun_timer > SimConfig.BOMB_HIT_STUN_TIME - 0.1, "assommé")
 
 func test_throw_lands_on_upper_level() -> void:
 	var a := Fixtures.flat(9, 5)
