@@ -93,3 +93,33 @@ func test_struggling_shortens_a_stun() -> void:
 		w.step({0: shake})
 	assert_eq(w.players[0].stun_timer, 0.0, "réveillé plus tôt")
 	assert_almost(w.players[1].stun_timer, SimConfig.BOMB_HIT_STUN_TIME - 1.0, 0.05, "sans secouer")
+
+# Reposer une bombe en restant dessus kicke la première dans la direction du regard.
+func test_placing_again_on_a_bomb_kicks_it() -> void:
+	var w := _world(_lane(), [Vector2(2.5, 1.5)])
+	w.players[0].facing = Vector2i(1, 0)
+	var i := PlayerIntent.new(); i.place_bomb = true
+	w.step({0: i})
+	var b: BombState = w.bombs.values()[0]
+	b.fuse = 100.0
+	w.step({0: i})
+	assert_eq(w.bombs.size(), 1, "pas de deuxième bombe")
+	assert_eq(b.roll_dir, Vector2i(1, 0), "la bombe part")
+	_wait(w, 1.0)
+	assert_eq(b.cell, Vector2i(6, 1))
+
+# Reposer une bombe pour la kicker ne doit jamais assommer celui qui la kicke, même s'il
+# déborde sur la case de devant.
+func test_kicking_the_bomb_underfoot_never_stuns_the_kicker() -> void:
+	for dir: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var a := Fixtures.flat(9, 9)
+		var w := _world(a, [Vector2(4.5, 4.5) + Vector2(dir) * 0.3])
+		w.players[0].facing = dir
+		var i := PlayerIntent.new(); i.place_bomb = true
+		w.step({0: i})
+		var b: BombState = w.bombs.values()[0]
+		b.fuse = 100.0
+		w.step({0: i})
+		_wait(w, 1.0)
+		assert_eq(w.players[0].stun_timer, 0.0, "pas assommé (%s)" % dir)
+		assert_eq(b.cell, Vector2i(4, 4) + dir * 4, "la bombe est partie (%s)" % dir)

@@ -15,9 +15,13 @@ static func update_push(world: World, p: PlayerState, moving: bool) -> void:
 	p.push_timer += SimConfig.DT
 	if p.push_timer + 1e-6 >= SimConfig.KICK_PUSH_TIME:
 		p.push_timer = 0.0
-		b.roll_dir = p.facing
-		b.roll_offset = 0.0
-		world.events.append({"type": "kick", "id": p.id, "bomb": b.id})
+		kick(world, p, b)
+
+# Sends b rolling in p's facing direction.
+static func kick(world: World, p: PlayerState, b: BombState) -> void:
+	b.roll_dir = p.facing
+	b.roll_offset = 0.0
+	world.events.append({"type": "kick", "id": p.id, "bomb": b.id})
 
 # The bomb in the cell ahead that the player's box is touching, if they cannot walk into it.
 static func _bomb_pushed(world: World, p: PlayerState) -> BombState:
@@ -42,8 +46,8 @@ static func update_rolling(world: World) -> void:
 			continue
 		var nxt := b.cell + b.roll_dir
 		var off := b.roll_offset + SimConfig.KICK_SPEED * SimConfig.DT
-		if off >= 0.0 and not _can_roll(world, b.cell, nxt):
-			for p: PlayerState in _players_in(world, nxt):
+		if off >= 0.0 and not _can_roll(world, b, nxt):
+			for p: PlayerState in _players_in(world, nxt, b):
 				if p.stun_timer <= 0.0: # no stun-lock by kicking again into a stunned player
 					p.stun_timer = SimConfig.BOMB_HIT_STUN_TIME
 			b.roll_dir = Vector2i.ZERO
@@ -57,7 +61,8 @@ static func update_rolling(world: World) -> void:
 
 # A bomb rolls on flat ground or off a ledge, never up, and stops before solids, bombs,
 # water and players.
-static func _can_roll(world: World, from: Vector2i, to: Vector2i) -> bool:
+static func _can_roll(world: World, b: BombState, to: Vector2i) -> bool:
+	var from := b.cell
 	var arena := world.arena
 	if not arena.in_bounds(to) or arena.is_solid(to):
 		return false
@@ -65,11 +70,14 @@ static func _can_roll(world: World, from: Vector2i, to: Vector2i) -> bool:
 		return false
 	if world.bomb_at(to) != null:
 		return false
-	return _players_in(world, to).is_empty()
+	return _players_in(world, to, b).is_empty()
 
-static func _players_in(world: World, c: Vector2i) -> Array[PlayerState]:
+# Players in c the bomb would hit; those standing on the bomb (its layer, its kicker) never count.
+static func _players_in(world: World, c: Vector2i, b: BombState) -> Array[PlayerState]:
 	var out: Array[PlayerState] = []
 	for p: PlayerState in world.players.values():
+		if p.id in b.passable_for:
+			continue
 		if p.life == PlayerState.Life.ALIVE and p.carried_by == -1 and Movement.box_overlaps_cell(p.pos, c):
 			out.append(p)
 	return out

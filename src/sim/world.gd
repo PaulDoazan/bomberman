@@ -207,7 +207,13 @@ func _try_place_bomb(p: PlayerState) -> void:
 	if not p.can_act() or p.held != PlayerState.Held.NONE:
 		return
 	var c := p.cell()
-	if not arena.in_bounds(c) or bomb_at(c) != null:
+	if not arena.in_bounds(c):
+		return
+	var under := bomb_at(c)
+	if under != null:
+		# Placing again while standing on a bomb kicks it away.
+		if under.roll_dir == Vector2i.ZERO:
+			Kick.kick(self, p, under)
 		return
 	var owned := 0
 	for b: BombState in bombs.values():
