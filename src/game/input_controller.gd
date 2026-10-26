@@ -6,6 +6,18 @@ var _action_pressed := false
 # Latched from _unhandled_input so a click taken by a GUI control (Quitter, end-of-round panel)
 # never steers the player.
 var _move_held := false
+# Shaking while stunned: each arrow press, and each MOUSE_SHAKE_PX of mouse travel, is one shake.
+const MOUSE_SHAKE_PX := 250.0
+var _shakes := 0.0
+var _mouse_travel := 0.0
+
+# _input, not _unhandled_input: shaking the mouse over the HUD still counts.
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		_mouse_travel += (event as InputEventMouseMotion).relative.length()
+	for a in ["move_left", "move_right", "move_up", "move_down"]:
+		if event.is_action_pressed(a):
+			_shakes += 1.0
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("move"):
@@ -50,6 +62,10 @@ func consume_intent(p: PlayerState, rig: CameraRig) -> PlayerIntent:
 	return intent
 
 func _consume_buttons(intent: PlayerIntent) -> void:
+	var mouse_shakes := floorf(_mouse_travel / MOUSE_SHAKE_PX)
+	intent.struggle = _shakes + mouse_shakes
+	_shakes = 0.0
+	_mouse_travel -= mouse_shakes * MOUSE_SHAKE_PX
 	intent.place_bomb = _bomb_pressed
 	intent.action = _action_pressed
 	_bomb_pressed = false

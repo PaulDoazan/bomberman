@@ -19,7 +19,7 @@ Le multijoueur en ligne viendra dans une étape suivante, et le POC doit être c
 - Bombes, explosions, blocs destructibles.
 - Soulever et lancer : bombes (les siennes et celles des autres), joueurs, blocs.
 - Coup de pied : en continuant de pousser un court instant (0,2 s) contre une bombe, on la kicke. Elle roule tout droit dans la direction où regarde le perso (6 cases/s) jusqu'au prochain obstacle : pilier, bloc, bombe, joueur, eau ou niveau plus haut. Elle peut tomber d'un niveau et continuer à rouler, et sa mèche continue de tourner.
-- Assommé : une bombe qui nous roule dessus, ou qu'on nous lance sur la tête, nous assomme 3 s (la doc de BM64 dit seulement « longtemps » sans chiffre : valeur choisie). Des étoiles tournent au-dessus de la tête tant qu'on est assommé.
+- Assommé : une bombe qui nous roule dessus, ou qu'on nous lance sur la tête, nous assomme 3 s (la doc de BM64 dit seulement « longtemps » sans chiffre : valeur choisie). Des étoiles tournent au-dessus de la tête tant qu'on est assommé. On se réveille plus vite en secouant : chaque appui sur une flèche, ou chaque 250 px de souris secouée, retire 0,15 s.
 - Montée des eaux à la fin du chrono, noyade.
 - Fantômes qui possèdent les vivants.
 - Manches enchaînées sans fin, avec score de victoires.

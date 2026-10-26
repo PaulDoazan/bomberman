@@ -81,3 +81,15 @@ func test_owner_standing_on_own_bomb_does_not_kick_it() -> void:
 	_go(w, 0, Vector2(5.5, 1.5), 0.6)
 	assert_eq(b.cell, Vector2i(3, 1))
 	assert_eq(b.roll_dir, Vector2i.ZERO)
+
+# Secouer (flèches ou souris) raccourcit le temps passé assommé.
+func test_struggling_shortens_a_stun() -> void:
+	var w := _world(_lane(), [Vector2(1.5, 1.5), Vector2(5.5, 1.5)])
+	w.players[0].stun_timer = SimConfig.BOMB_HIT_STUN_TIME
+	w.players[1].stun_timer = SimConfig.BOMB_HIT_STUN_TIME
+	var shake := PlayerIntent.new()
+	shake.struggle = 1.0
+	for _t in SimConfig.TICK_RATE: # 1 s en secouant à chaque tick
+		w.step({0: shake})
+	assert_eq(w.players[0].stun_timer, 0.0, "réveillé plus tôt")
+	assert_almost(w.players[1].stun_timer, SimConfig.BOMB_HIT_STUN_TIME - 1.0, 0.05, "sans secouer")

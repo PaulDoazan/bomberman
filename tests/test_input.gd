@@ -40,3 +40,22 @@ func test_arrow_keys_steer_ahead_of_player() -> void:
 	assert_true(intent.moving)
 	var d := (intent.target - p.pos).normalized()
 	assert_almost(d.x, sqrt(0.5)); assert_almost(d.y, -sqrt(0.5))
+
+func test_arrow_presses_and_mouse_shaking_count_as_struggle() -> void:
+	var ic := InputController.new()
+	var p := PlayerState.new()
+	for i in 3:
+		var e := InputEventAction.new()
+		e.action = "move_left"
+		e.pressed = true
+		ic._input(e)
+	var m := InputEventMouseMotion.new()
+	m.relative = Vector2(InputController.MOUSE_SHAKE_PX * 2.5, 0.0)
+	ic._input(m)
+	Input.action_press("move_right") # flèche tenue : pas besoin de caméra pour viser
+	var intent: PlayerIntent = ic.consume_intent(p, null)
+	var next: PlayerIntent = ic.consume_intent(p, null)
+	Input.action_release("move_right")
+	ic.free()
+	assert_almost(intent.struggle, 5.0, 0.001, "3 appuis + 2 secousses")
+	assert_almost(next.struggle, 0.0, 0.001, "remis à zéro")

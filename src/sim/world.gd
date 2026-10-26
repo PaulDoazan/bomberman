@@ -42,7 +42,7 @@ func step(intents: Dictionary) -> void:
 		var intent: PlayerIntent = intents.get(id, null)
 		if intent == null:
 			intent = PlayerIntent.new()
-		p.stun_timer = maxf(0.0, p.stun_timer - SimConfig.DT)
+		p.stun_timer = maxf(0.0, p.stun_timer - SimConfig.DT - intent.struggle * SimConfig.STRUGGLE_TIME)
 		p.invulnerable_timer = maxf(0.0, p.invulnerable_timer - SimConfig.DT)
 		Ghosts.tick_timers(p)
 		if p.life == PlayerState.Life.GHOST:
