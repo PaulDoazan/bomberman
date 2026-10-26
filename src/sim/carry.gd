@@ -42,8 +42,11 @@ static func release_links(world: World, p: PlayerState) -> void:
 		carrier.held_id = -1
 		p.carried_by = -1
 
+# A block never lands on stairs: it would turn the stair into a plain floor cell once destroyed.
 static func _is_free_landing(world: World, c: Vector2i, kind: int) -> bool:
 	if not world.arena.in_bounds(c) or world.arena.is_solid(c) or world.bomb_at(c) != null:
+		return false
+	if kind == PlayerState.Held.BLOCK and world.arena.tile_at(c) == Arena.Tile.STAIRS:
 		return false
 	return kind == PlayerState.Held.BOMB or _free_players_at(world, c).is_empty()
 

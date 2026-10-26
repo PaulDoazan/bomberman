@@ -220,3 +220,13 @@ func test_two_flights_to_same_cell_do_not_overlap() -> void:
 	_flight(w)
 	assert_eq(a.tile_at(Vector2i(4, 2)), Arena.Tile.BLOCK)
 	assert_eq(a.tile_at(Vector2i(5, 2)), Arena.Tile.BLOCK)
+
+func test_thrown_block_skips_stairs() -> void:
+	var a := Fixtures.flat(9, 5)
+	a.set_cell(Vector2i(4, 2), Arena.Tile.STAIRS, 0, Arena.Axis.X)
+	var w := _world(a, [Vector2(1.5, 2.5)])
+	w.players[0].held = PlayerState.Held.BLOCK
+	w.step(_act())
+	_flight(w)
+	assert_eq(a.tile_at(Vector2i(4, 2)), Arena.Tile.STAIRS, "l'escalier reste un escalier")
+	assert_eq(a.tile_at(Vector2i(5, 2)), Arena.Tile.BLOCK, "le bloc atterrit après")
