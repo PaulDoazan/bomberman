@@ -58,6 +58,15 @@ func test_climbs_stairs() -> void:
 	_go(w, 0, Vector2(3.5, 2.5), 1.5)
 	assert_eq(w.players[0].cell(), Vector2i(3, 2))
 
+func test_jumps_down_from_ledge_but_cannot_climb_back() -> void:
+	var a := Fixtures.flat(5, 5)
+	for y in 5: a.set_cell(Vector2i(3, y), Arena.Tile.FLOOR, 2)
+	var w := _world(a, [Vector2(3.5, 2.5)])
+	_go(w, 0, Vector2(1.5, 2.5), 1.0)
+	assert_eq(w.players[0].cell(), Vector2i(1, 2), "saut vers le bas")
+	_go(w, 0, Vector2(3.5, 2.5), 1.0)
+	assert_true(w.players[0].pos.x <= 3.0 - SimConfig.PLAYER_HALF + 0.01, "pas d'escalade")
+
 func test_bomb_blocks_others_but_owner_can_leave() -> void:
 	var w := _world(Fixtures.flat(7, 3), [Vector2(1.5, 1.5), Vector2(5.5, 1.5)])
 	var i := PlayerIntent.new(); i.place_bomb = true

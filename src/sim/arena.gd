@@ -63,12 +63,12 @@ func is_solid(c: Vector2i) -> bool:
 	return t == Tile.PILLAR or t == Tile.BLOCK
 
 # Terrain only: b must be adjacent (Chebyshev 1) to a. Ignores bombs and players.
-# A step changes height by at most one half-level, so levels only connect through stairs,
-# and a player on a stair can move in any direction.
+# Climbing is limited to one half-level, so going up only works through stairs (in any
+# direction). Jumping down from a ledge is allowed whatever the drop.
 func can_step(a: Vector2i, b: Vector2i) -> bool:
 	if not in_bounds(a) or is_solid(b):
 		return false
-	return absi(h2_at(a) - h2_at(b)) <= 1
+	return h2_at(b) - h2_at(a) <= 1
 
 # Orthogonal neighbours reachable by can_step.
 func walkable_neighbors(c: Vector2i) -> Array[Vector2i]:

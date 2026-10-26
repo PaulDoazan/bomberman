@@ -11,6 +11,7 @@ func test_step_rules() -> void:
 	a.set_cell(Vector2i(2, 3), Arena.Tile.STAIRS, 1, Arena.Axis.X)
 	assert_true(a.can_step(Vector2i(2, 2), Vector2i(2, 3)), "d'une marche à la marche voisine")
 	assert_false(a.can_step(Vector2i(3, 1), Vector2i(3, 2)), "sol vers l'étage sans escalier")
+	assert_true(a.can_step(Vector2i(3, 2), Vector2i(3, 1)), "sauter de l'étage vers le sol")
 	assert_false(a.can_step(Vector2i(0, 0), Vector2i(-1, 0)), "hors grille")
 	a.set_tile(Vector2i(1, 1), Arena.Tile.PILLAR)
 	assert_false(a.can_step(Vector2i(0, 1), Vector2i(1, 1)), "pilier")
