@@ -69,7 +69,7 @@ Choix de conception (Claude, non contesté par l'utilisateur) :
 - Choix Claude : un joueur qui perd une vie (explosion ou noyade) réapparaît après 2 s sur une case libre et sûre (hors danger, hors de l'eau, de préférence sur le niveau sec le plus bas encore disponible). Il est invulnérable 2 s, en clignotant. À la perte de la dernière vie, il devient fantôme.
 - Sans bonus, chaque joueur a des valeurs fixes : **2 bombes posées à la fois au maximum**, **portée d'explosion de 3 cases**, mèche d'environ 2,5 s.
 - **L'explosion est une demi-sphère qui grossit** (décision utilisateur) : un dôme posé sur le sol du niveau où la bombe explose, qui touche **toutes les cases dans son rayon, dans toutes les directions, diagonales comprises**. Elle **monte** (elle touche les étages plus hauts dans son rayon) mais **ne descend jamais** sous le niveau de la bombe : les niveaux plus bas sont épargnés.
-- Choix Claude : la grille est **une grille 2D avec une hauteur par case**. Une case est touchée si elle est à distance ≤ rayon (3 cases par défaut, à ajuster en jouant) et à un niveau ≥ celui de la bombe.
+- Choix Claude : la grille est **une grille 2D avec une hauteur par case**. Une case est touchée si elle est à distance ≤ rayon (2 cases par défaut, réduit de 3 à 2 après les premiers essais) et à un niveau ≥ celui de la bombe.
 - Choix Claude (non tranché par l'utilisateur) : les **piliers et les blocs protègent** ce qui est derrière eux (ligne de vue depuis la bombe). Un bloc touché est détruit, mais il protège quand même ce qu'il cache pendant cette explosion. Le dôme est dessiné entier à l'écran, mais seules les cases en vue sont touchées.
 - L'explosion tue les joueurs touchés (ils perdent une vie) et fait exploser les autres bombes touchées.
 

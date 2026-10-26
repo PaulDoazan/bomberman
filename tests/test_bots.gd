@@ -23,11 +23,13 @@ func _run_bot(w: World, brain: BotBrain, seconds: float) -> void:
 
 func test_danger_map_chain_takes_shortest_fuse() -> void:
 	var w := _world(Fixtures.flat(11, 7), [Vector2(0.5, 0.5)])
+	# A and B are BOMB_RADIUS apart: A sets B off, so B's cells explode at A's fuse.
+	var r := int(SimConfig.BOMB_RADIUS)
 	w.add_bomb(1, Vector2i(3, 3), 0.5)
-	w.add_bomb(1, Vector2i(5, 3), 2.0)
+	w.add_bomb(1, Vector2i(3 + r, 3), 2.0)
 	var d := DangerMap.build(w)
-	assert_almost(d.get(Vector2i(8, 3), -1.0), 0.5, 0.001, "B-only cell takes A's fuse")
-	assert_almost(d.get(Vector2i(0, 3), -1.0), 0.5, 0.001, "A-only cell")
+	assert_almost(d.get(Vector2i(3 + 2 * r, 3), -1.0), 0.5, 0.001, "B-only cell takes A's fuse")
+	assert_almost(d.get(Vector2i(3 - r, 3), -1.0), 0.5, 0.001, "A-only cell")
 	assert_false(d.has(Vector2i(10, 0)), "far cell is safe")
 
 func test_danger_map_extra_bomb_and_explosions() -> void:

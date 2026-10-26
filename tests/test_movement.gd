@@ -18,8 +18,8 @@ func _go(w: World, id: int, target: Vector2, seconds: float) -> void:
 
 func test_moves_straight_and_stops_at_target() -> void:
 	var w := _world(Fixtures.flat(7, 5), [Vector2(0.5, 2.5)])
-	_go(w, 0, Vector2(4.5, 2.5), 1.5)
-	assert_almost(w.players[0].pos.x, 4.5, 0.05)
+	_go(w, 0, Vector2(4.5, 2.5), 4.0 / SimConfig.PLAYER_SPEED + 0.2)
+	assert_almost(w.players[0].pos.x, 4.5, SimConfig.STOP_DISTANCE)
 	assert_almost(w.players[0].pos.y, 2.5, 0.05)
 	assert_eq(w.players[0].facing, Vector2i(1, 0))
 

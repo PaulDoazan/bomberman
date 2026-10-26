@@ -17,14 +17,14 @@ const MAP_SIZE_LABELS := {
 	"immense": "Immense",
 }
 
-const PLAYER_SPEED := 4.0
-const GHOST_SPEED := 4.5
+const PLAYER_SPEED := 3.2
+const GHOST_SPEED := 3.6
 const PLAYER_HALF := 0.35
 const CORNER_ASSIST := 0.35
 const STOP_DISTANCE := 0.1
 
 const MAX_BOMBS := 2
-const BOMB_RADIUS := 3.0
+const BOMB_RADIUS := 2.0
 const FUSE := 2.5
 const EXPLOSION_DURATION := 0.5
 
