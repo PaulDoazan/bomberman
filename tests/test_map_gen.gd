@@ -65,3 +65,20 @@ func test_block_layout_changes_with_seed() -> void:
 	var r2 := RandomNumberGenerator.new()
 	r2.seed = 2
 	assert_true(MapGen.generate(Vector2i(19, 15), 4, r1).tiles != MapGen.generate(Vector2i(19, 15), 4, r2).tiles)
+
+# Le temple est adossé au fond de la map : impossible de passer derrière le sommet.
+func test_temple_backs_onto_the_far_edge() -> void:
+	for k in SimConfig.MAP_SIZES:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 5
+		var a := MapGen.generate(SimConfig.MAP_SIZES[k], 10, rng)
+		var summit_on_back_row := false
+		for x in a.width:
+			if a.h2_at(Vector2i(x, 0)) == 4:
+				summit_on_back_row = true
+		assert_true(summit_on_back_row, k + " sommet sur la rangée du fond")
+		for y in a.height:
+			for x in a.width:
+				if a.h2_at(Vector2i(x, y)) == 4:
+					var behind := Vector2i(x, y - 1)
+					assert_true(not a.in_bounds(behind) or a.h2_at(behind) == 4, k + " rien derrière le sommet")

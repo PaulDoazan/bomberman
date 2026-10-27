@@ -7,15 +7,16 @@ static func generate(size: Vector2i, player_count: int, rng: RandomNumberGenerat
 	var a := Arena.create(w, h)
 	var cx := w / 2
 
-	# Raised levels and pit (inclusive bounds).
+	# Raised levels and pit (inclusive bounds). The temple backs onto the far edge (y = 0),
+	# so nobody can walk behind the summit.
 	var a1 := roundi(w * 0.22)
-	var l1_y1 := roundi(h * 0.6)
+	var l1_y0 := 0
+	var l1_y1 := roundi(h * 0.44)
 	var a2 := maxi(1, roundi(w * 0.09))
-	var l1_y0 := roundi(h * 0.16)
-	var l2_y0 := l1_y0 + 1
-	var l2_y1 := l1_y0 + maxi(2, roundi(h * 0.2))
+	var l2_y0 := 0
+	var l2_y1 := maxi(2, roundi(h * 0.2)) - 1
 	var ap := roundi(w * 0.13)
-	var pit_y0 := l1_y1 + 3
+	var pit_y0 := roundi(h * 0.6) + 3
 	var pit_y1 := h - 2
 	var l1_x0 := cx - a1
 	var l1_x1 := cx + a1
@@ -65,6 +66,7 @@ static func generate(size: Vector2i, player_count: int, rng: RandomNumberGenerat
 		perim.append(Vector2i(x, h - 1))
 	for y in range(h - 2, 0, -1):
 		perim.append(Vector2i(0, y))
+	perim = perim.filter(func(c: Vector2i) -> bool: return a.h2_at(c) == 0)
 	for i in player_count:
 		a.spawns.append(perim[i * perim.size() / player_count])
 
