@@ -126,3 +126,27 @@ func test_held_bomb_explodes_at_holder_cell() -> void:
 		if e["type"] == "explosion":
 			found = e["cell"] == Vector2i(6, 1)
 	assert_true(found)
+
+func test_bomb_entering_lingering_blast_explodes() -> void:
+	var w := _world(Fixtures.flat(9, 3), [Vector2(8.5, 0.5)])
+	w.add_bomb(0, Vector2i(1, 1), 0.0)
+	w.step({})
+	assert_eq(w.bombs.size(), 0)
+	var late := w.add_bomb(0, Vector2i(2, 1), 2.0)
+	w.step({})
+	assert_false(w.bombs.has(late.id), "la bombe posée dans les flammes explose")
+	assert_eq(_count(w.events, "explosion"), 1)
+
+func test_rolling_bomb_explodes_in_lingering_blast() -> void:
+	var w := _world(Fixtures.flat(12, 3), [Vector2(11.5, 0.5)])
+	w.add_bomb(0, Vector2i(1, 1), 0.0)
+	w.step({})
+	var b := w.add_bomb(0, Vector2i(6, 1), 2.0)
+	b.roll_dir = Vector2i(-1, 0)
+	var exploded := false
+	for _t in roundi(SimConfig.EXPLOSION_DURATION * 30):
+		w.step({})
+		if not w.bombs.has(b.id):
+			exploded = true
+			break
+	assert_true(exploded, "la bombe qui roule explose en entrant dans les flammes")

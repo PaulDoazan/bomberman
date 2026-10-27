@@ -71,7 +71,7 @@ Choix de conception (Claude, non contesté par l'utilisateur) :
 - **L'explosion est une demi-sphère qui grossit** (décision utilisateur) : un dôme posé sur le sol du niveau où la bombe explose, qui touche **toutes les cases dans son rayon, dans toutes les directions, diagonales comprises**. Elle **monte** (elle touche les étages plus hauts dans son rayon) mais **ne descend jamais** sous le niveau de la bombe : les niveaux plus bas sont épargnés.
 - Choix Claude : la grille est **une grille 2D avec une hauteur par case**. Une case est touchée si elle est à distance ≤ rayon (2 cases par défaut, réduit de 3 à 2 après les premiers essais) et à un niveau ≥ celui de la bombe.
 - Choix Claude (non tranché par l'utilisateur) : les **piliers et les blocs protègent** ce qui est derrière eux (ligne de vue depuis la bombe). Un bloc touché est détruit, mais il protège quand même ce qu'il cache pendant cette explosion. Le dôme est dessiné entier à l'écran, mais seules les cases en vue sont touchées.
-- L'explosion tue les joueurs touchés (ils perdent une vie) et fait exploser les autres bombes touchées.
+- L'explosion tue les joueurs touchés (ils perdent une vie) et fait exploser les autres bombes touchées (décision utilisateur) : celles qui sont dans le dôme quand il apparaît, et aussi celles qui y entrent tant que les flammes durent (bombe qui roule, qui atterrit ou qu'on pose dedans).
 
 ### Le chrono et la montée des eaux (décision utilisateur)
 

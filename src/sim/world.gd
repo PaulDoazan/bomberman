@@ -257,7 +257,7 @@ func _update_bombs() -> void:
 	var queue: Array[BombState] = []
 	for b: BombState in bombs.values():
 		b.fuse -= SimConfig.DT # a thrown bomb's fuse never stops
-		if b.fuse <= 0.0:
+		if b.fuse <= 0.0 or (b.state != BombState.State.FLYING and _in_blast(bomb_cell(b))):
 			queue.append(b)
 	if queue.is_empty():
 		return
@@ -288,6 +288,14 @@ func _update_bombs() -> void:
 	for c: Vector2i in destroyed:
 		arena.set_tile(c, Arena.Tile.FLOOR)
 		events.append({"type": "block_destroyed", "cell": c})
+
+# True if a still burning explosion covers the cell: a bomb rolling, landing or placed there
+# goes off too.
+func _in_blast(c: Vector2i) -> bool:
+	for e: Explosion in explosions:
+		if c in e.cells:
+			return true
+	return false
 
 func _apply_explosion_damage() -> void:
 	for e: Explosion in explosions:

@@ -179,7 +179,7 @@ func test_exploding_held_bomb_clears_invulnerable_holder() -> void:
 	w.players[0].invulnerable_timer = 5.0
 	w.add_bomb(0, Vector2i(1, 2), 0.1)
 	w.step(_act())
-	_go(w, 0.2)
+	_go(w, 0.2 + SimConfig.EXPLOSION_DURATION) # until the flames are out
 	assert_eq(w.bombs.size(), 0)
 	assert_eq(w.players[0].held, PlayerState.Held.NONE)
 	assert_eq(w.players[0].held_id, -1)
