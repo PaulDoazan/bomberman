@@ -82,3 +82,16 @@ func test_temple_backs_onto_the_far_edge() -> void:
 				if a.h2_at(Vector2i(x, y)) == 4:
 					var behind := Vector2i(x, y - 1)
 					assert_true(not a.in_bounds(behind) or a.h2_at(behind) == 4, k + " rien derrière le sommet")
+
+func test_eight_mirrored_pillars() -> void:
+	for k in SimConfig.MAP_SIZES:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 4
+		var a := MapGen.generate(SimConfig.MAP_SIZES[k], 10, rng)
+		var count := 0
+		for y in a.height:
+			for x in a.width:
+				if a.tile_at(Vector2i(x, y)) == Arena.Tile.PILLAR:
+					count += 1
+					assert_eq(a.tile_at(Vector2i(a.width - 1 - x, y)), Arena.Tile.PILLAR, k + " symétrique")
+		assert_eq(count, 8, k + " 8 piliers")

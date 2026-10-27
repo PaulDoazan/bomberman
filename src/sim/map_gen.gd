@@ -1,6 +1,9 @@
 class_name MapGen
 extends RefCounted
 
+# Where the left-half pillars go, as fractions of the map size (each is mirrored on the right).
+const PILLAR_ANCHORS: Array[Vector2] = [Vector2(0.1, 0.2), Vector2(0.1, 0.55), Vector2(0.3, 0.7), Vector2(0.15, 0.9)]
+
 static func generate(size: Vector2i, player_count: int, rng: RandomNumberGenerator) -> Arena:
 	var w := size.x
 	var h := size.y
@@ -47,12 +50,25 @@ static func generate(size: Vector2i, player_count: int, rng: RandomNumberGenerat
 	cleared[Vector2i(pit_x0 - 2, pit_ym)] = true
 	cleared[Vector2i(pit_x1 + 2, pit_ym)] = true
 
-	# Pillars on ground cells with odd x and odd y.
+	# A few pillars on ground cells with odd x and odd y: the one nearest each anchor on the
+	# left half, mirrored on the right half.
+	var candidates: Array[Vector2i] = []
 	for y in range(1, h, 2):
-		for x in range(1, w, 2):
+		for x in range(1, cx, 2):
 			var c := Vector2i(x, y)
 			if a.h2_at(c) == 0 and a.tile_at(c) == Arena.Tile.FLOOR and not cleared.has(c):
-				a.set_tile(c, Arena.Tile.PILLAR)
+				candidates.append(c)
+	for anchor in PILLAR_ANCHORS:
+		if candidates.is_empty():
+			break
+		var target := Vector2(anchor.x * w, anchor.y * h)
+		var best := candidates[0]
+		for c in candidates:
+			if Vector2(c).distance_squared_to(target) < Vector2(best).distance_squared_to(target):
+				best = c
+		candidates.erase(best)
+		a.set_tile(best, Arena.Tile.PILLAR)
+		a.set_tile(Vector2i(w - 1 - best.x, best.y), Arena.Tile.PILLAR)
 
 	a.goal = Vector2i(cx, (l2_y0 + l2_y1) / 2)
 

@@ -56,7 +56,7 @@ Le multijoueur en ligne viendra dans une étape suivante, et le POC doit être c
 - Une maquette de référence de la disposition existe : `.superpowers/brainstorm/*/content/map-taille.html`, option A, dessinée en 23×19. On en garde la disposition relative, pas la taille.
 
 Choix de conception (Claude) :
-- **Piliers indestructibles** fixes, en quadrillage sur le sol (niveau 0), comme dans Bomberman classique.
+- **8 piliers indestructibles** seulement (décision utilisateur), fixes, sur le sol (niveau 0), placés en miroir de part et d'autre du temple.
 - **Blocs destructibles** tirés au hasard à chaque manche (environ 15 % des cases libres), en laissant toujours libres les cases à 2 pas ou moins d'un point de départ et les escaliers. Il n'y en a pas sur le sommet.
 - **Points de départ** répartis sur le pourtour du sol, autant que de joueurs (2 à 10).
 - On ne **monte** d'un niveau **que par les escaliers**, qu'on peut emprunter dans toutes les directions. Depuis le bord d'un niveau, on peut **sauter vers un niveau plus bas**. Un objet lancé peut atterrir sur un autre niveau.
