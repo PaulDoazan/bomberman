@@ -2,24 +2,34 @@ class_name ActorsView
 extends Node3D
 
 const GHOST_HOVER := 1.5
-const CARRY_HEIGHT := 1.4
+const CARRY_HEIGHT := 1.5
 const THROW_ARC := 1.5
 const STAR_COUNT := 3
 const STAR_ORBIT := 0.4
-const STAR_HEIGHT := 1.05
+const STAR_HEIGHT := 1.4
 const STAR_SPIN := 6.0 # radians per second
 const CORPSE_TIME := 2.5 # seconds a burnt body stays on screen
 const CORPSE_FADE := 0.6 # last part of CORPSE_TIME, spent fading out
 const CORPSE_COLOR := Color(0.06, 0.05, 0.05)
+const CHARACTER := preload("res://assets/characters/bomberman.glb")
+const PALETTE := preload("res://assets/characters/bomberman_palette.png")
+const TINT_SHADER := preload("res://src/game/player_tint.gdshader")
+const MODEL_SCALE := 1.2 / 1.75 # the model is 1.75 units tall; players stand about 1.2 cells
+const TURN_SPEED := 0.35 # fraction of the remaining angle turned per tick
+const LIFT_TIME := 0.3 # seconds the lift animation is squeezed into
+const LOOPED_ANIMS := ["Idle", "Walk", "Run", "Carry"]
 
 class PlayerNode:
 	extends Node3D
+	var model: Node3D # the character, turned towards the aim
 	var body: MeshInstance3D
-	var nose: MeshInstance3D
+	var anim: AnimationPlayer
 	var held_bomb: MeshInstance3D
 	var held_block: MeshInstance3D
 	var stars: Node3D # spins above the head while stunned
-	var mat: StandardMaterial3D
+	var mat: ShaderMaterial
+	var last_pos := Vector2.INF
+	var last_held := PlayerState.Held.NONE
 	var y_smooth := 0.0
 	var placed := false
 	var seen_death := -1 # died_tick already handled, so each death leaves one body
@@ -30,8 +40,6 @@ var _blocks_flying: Dictionary = {} # FlyingObject instance id -> MeshInstance3D
 var _domes: Dictionary = {} # Explosion instance id -> MeshInstance3D
 var _corpses: Array[Dictionary] = [] # {node: Node3D, mat: StandardMaterial3D, born: float}
 
-var _capsule := CapsuleMesh.new()
-var _nose_mesh := BoxMesh.new()
 var _bomb_mesh := SphereMesh.new()
 var _block_mesh := BoxMesh.new()
 var _dome_mesh := SphereMesh.new()
@@ -39,8 +47,6 @@ var _ghost_mat := StandardMaterial3D.new()
 var _bomb_mat := StandardMaterial3D.new()
 var _block_mat := StandardMaterial3D.new()
 var _dome_mat := StandardMaterial3D.new()
-var _nose_mat := StandardMaterial3D.new()
-var _nose_stun_mat := StandardMaterial3D.new()
 var _star_mesh := _make_star_mesh(0.16, 0.07)
 var _star_mat := StandardMaterial3D.new()
 var _time := 0.0
@@ -82,9 +88,6 @@ func reset() -> void:
 	_tracks.clear()
 
 func _ready() -> void:
-	_capsule.radius = 0.3
-	_capsule.height = 0.9
-	_nose_mesh.size = Vector3(0.18, 0.18, 0.18)
 	_bomb_mesh.radius = 0.32
 	_bomb_mesh.height = 0.64
 	_block_mesh.size = Vector3(0.8, 0.8, 0.8)
@@ -100,8 +103,6 @@ func _ready() -> void:
 	_dome_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_dome_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_dome_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_nose_mat.albedo_color = Color.WHITE
-	_nose_stun_mat.albedo_color = Color(0.5, 0.5, 0.5)
 	_star_mat.albedo_color = Color("ffe14d")
 	_star_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_star_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -128,14 +129,26 @@ func _mesh(mesh: Mesh, mat: Material) -> MeshInstance3D:
 	m.material_override = mat
 	return m
 
+# A new instance of the character; its looping animations are set up on first use.
+func _make_model() -> Node3D:
+	var model: Node3D = CHARACTER.instantiate()
+	model.scale = Vector3.ONE * MODEL_SCALE
+	var ap: AnimationPlayer = model.find_child("AnimationPlayer", true, false)
+	for a: String in LOOPED_ANIMS:
+		ap.get_animation(a).loop_mode = Animation.LOOP_LINEAR
+	return model
+
 func _make_player(color: Color) -> PlayerNode:
 	var n := PlayerNode.new()
-	n.mat = StandardMaterial3D.new()
-	n.mat.albedo_color = color
-	n.body = _mesh(_capsule, n.mat)
-	n.body.position.y = 0.45
-	n.nose = _mesh(_nose_mesh, _nose_mat)
-	n.nose.position.y = 0.6
+	n.mat = ShaderMaterial.new()
+	n.mat.shader = TINT_SHADER
+	n.mat.set_shader_parameter("palette", PALETTE)
+	n.mat.set_shader_parameter("tint", color)
+	n.model = _make_model()
+	n.body = n.model.find_child("Body", true, false)
+	n.body.material_override = n.mat
+	n.anim = n.model.find_child("AnimationPlayer", true, false)
+	n.anim.play("Idle")
 	n.held_bomb = _mesh(_bomb_mesh, _bomb_mat)
 	n.held_bomb.position.y = CARRY_HEIGHT
 	n.held_block = _mesh(_block_mesh, _block_mat)
@@ -147,7 +160,7 @@ func _make_player(color: Color) -> PlayerNode:
 		var a := TAU * i / STAR_COUNT
 		s.position = Vector3(cos(a), 0.0, sin(a)) * STAR_ORBIT
 		n.stars.add_child(s)
-	for c in [n.body, n.nose, n.held_bomb, n.held_block, n.stars]:
+	for c in [n.model, n.held_bomb, n.held_block, n.stars]:
 		n.add_child(c)
 	add_child(n)
 	return n
@@ -198,7 +211,7 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		if p.died_tick != n.seen_death:
 			n.seen_death = p.died_tick
 			if p.death_cause == "explosion":
-				_spawn_corpse(Vector3(p.pos.x, n.y_smooth, p.pos.y), p.aim)
+				_spawn_corpse(Vector3(p.pos.x, n.y_smooth, p.pos.y), n)
 		var ghost := p.life == PlayerState.Life.GHOST
 		n.visible = p.life != PlayerState.Life.WAITING_RESPAWN
 		var thrown := p.carried_by == Carry.THROWN
@@ -226,35 +239,60 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		_track(n, Vector3(pos.x, n.y_smooth, pos.y), p.life == PlayerState.Life.WAITING_RESPAWN)
 		n.body.material_override = _ghost_mat if ghost else n.mat
 		var stunned := p.stun_timer > 0.0
-		n.nose.material_override = _nose_stun_mat if stunned else _nose_mat
 		n.stars.visible = stunned and not ghost
 		if stunned:
 			n.stars.rotation.y = _time * STAR_SPIN
-		var look := Vector2(p.aim).normalized() * 0.3
-		n.nose.position.x = look.x
-		n.nose.position.z = look.y
+		n.model.rotation.y = lerp_angle(n.model.rotation.y, _yaw(p.aim), TURN_SPEED)
+		_animate(n, p)
 		if p.invulnerable_timer > 0.0 and not ghost:
-			n.body.visible = int(_time * 10.0) % 2 == 0
+			n.model.visible = int(_time * 10.0) % 2 == 0
 		else:
-			n.body.visible = true
+			n.model.visible = true
 		n.held_bomb.visible = p.held == PlayerState.Held.BOMB
 		n.held_block.visible = p.held == PlayerState.Held.BLOCK
 
-# A charred, black copy of the body left where a player was blown up; it fades out after a while.
-func _spawn_corpse(at: Vector3, aim: Vector2i) -> void:
+# Yaw that turns the model (facing +Z) towards an aim direction on the grid (x -> X, y -> Z).
+static func _yaw(aim: Vector2i) -> float:
+	return atan2(float(aim.x), float(aim.y))
+
+# Idle, run, lift then carry, from what the player is doing this tick.
+func _animate(n: PlayerNode, p: PlayerState) -> void:
+	var moved := n.last_pos != Vector2.INF and p.pos.distance_to(n.last_pos) > 0.01
+	n.last_pos = p.pos
+	var lifting := n.last_held == PlayerState.Held.NONE and p.held != PlayerState.Held.NONE
+	n.last_held = p.held
+	if lifting:
+		var lift := n.anim.get_animation("Lift").length
+		n.anim.play("Lift", 0.1, lift / LIFT_TIME)
+		return
+	if n.anim.current_animation == "Lift" and n.anim.is_playing():
+		return
+	var want := "Idle"
+	if p.life == PlayerState.Life.ALIVE and p.carried_by < 0:
+		if p.held != PlayerState.Held.NONE:
+			want = "Carry"
+		elif moved:
+			want = "Run"
+	if n.anim.current_animation != want:
+		n.anim.play(want, 0.15)
+
+# A charred, black copy of the body left where a player was blown up, frozen in the pose they
+# died in; it fades out after a while.
+func _spawn_corpse(at: Vector3, from: PlayerNode) -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = CORPSE_COLOR
 	mat.roughness = 1.0
-	var node := Node3D.new()
-	var body := _mesh(_capsule, mat)
-	body.position.y = 0.45
-	var nose := _mesh(_nose_mesh, mat)
-	var look := Vector2(aim).normalized() * 0.3
-	nose.position = Vector3(look.x, 0.6, look.y)
-	node.add_child(body)
-	node.add_child(nose)
+	var node := _make_model()
 	node.position = at
+	node.rotation.y = from.model.rotation.y
 	add_child(node)
+	var body: MeshInstance3D = node.find_child("Body", true, false)
+	body.material_override = mat
+	var ap: AnimationPlayer = node.find_child("AnimationPlayer", true, false)
+	var posed := from.anim.current_animation != ""
+	ap.play(from.anim.current_animation if posed else "Idle")
+	ap.seek(from.anim.current_animation_position if posed else 0.0, true)
+	ap.pause()
 	_corpses.append({"node": node, "mat": mat, "born": _time})
 
 func _sync_corpses() -> void:
