@@ -21,6 +21,7 @@ func _ready() -> void:
 	if hud:
 		input_controller.bomb_area = hud.bomb_button
 		input_controller.joystick = hud.joystick
+		input_controller.action_area = hud.action_button
 	match_state = MatchState.new(Session.config, rng)
 	for mp in match_state.players:
 		if mp.is_bot:

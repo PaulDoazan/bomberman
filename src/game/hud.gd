@@ -10,6 +10,7 @@ var _panel_text: Label
 var _fullscreen: Button
 var bomb_button: BombButton # touch screens only; the input controller reads touches on it
 var joystick: TouchJoystick # touch screens only
+var action_button: ActionButton # touch screens only: pick up / throw
 
 func _ready() -> void:
 	var root := Control.new()
@@ -17,8 +18,8 @@ func _ready() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 
-	# Touch controls, under the rest of the HUD, like Among Us: a fixed joystick bottom left and
-	# the bomb button bottom right. The layer stops mouse events so the click emulated from a
+	# Touch controls, under the rest of the HUD, like Among Us: a fixed joystick bottom left, the
+	# bomb button bottom right and the pick up / throw button to its left. The layer stops mouse events so the click emulated from a
 	# touch never steers the player: on touch screens only the joystick does.
 	var touch := Control.new()
 	touch.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -40,6 +41,14 @@ func _ready() -> void:
 	bomb_button.offset_right = -24
 	bomb_button.offset_bottom = -24
 	touch.add_child(bomb_button)
+	action_button = ActionButton.new()
+	action_button.custom_minimum_size = Vector2(150, 150)
+	action_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	action_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	action_button.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	action_button.offset_right = -230 # left of the bomb button
+	action_button.offset_bottom = -30
+	touch.add_child(action_button)
 
 	var top := HBoxContainer.new()
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -129,6 +138,8 @@ func sync(match_state: MatchState) -> void:
 	else:
 		_timer_label.text = format_time(world.time_left)
 	_sync_chips(match_state)
+	var me: PlayerState = world.players.get(0, null) # the local player
+	action_button.holding = me != null and me.held != PlayerState.Held.NONE
 	_warning.visible = world.water_warning and match_state.phase == MatchState.Phase.PLAYING
 	_panel.visible = match_state.phase == MatchState.Phase.ROUND_OVER
 	if _panel.visible:

@@ -100,3 +100,19 @@ func test_touch_bomb_button_and_joystick() -> void:
 	ic.free()
 	button.free()
 	stick.free()
+
+# Le bouton prendre/lancer envoie l'action, comme le clic droit.
+func test_touch_action_button() -> void:
+	var ic := InputController.new()
+	var button := Control.new()
+	button.position = Vector2(880, 560)
+	button.size = Vector2(150, 150)
+	ic.action_area = button
+	ic._input(_touch(0, Vector2(950, 630), true))
+	Input.action_press("move_right") # pas de caméra dans ce test
+	var intent: PlayerIntent = ic.consume_intent(PlayerState.new(), null)
+	Input.action_release("move_right")
+	assert_true(intent.action, "prendre ou lancer")
+	assert_false(intent.place_bomb)
+	ic.free()
+	button.free()
