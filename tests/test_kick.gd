@@ -36,7 +36,7 @@ func test_pushing_against_a_bomb_kicks_it_until_an_obstacle() -> void:
 	_wait(w, 1.0)
 	assert_eq(b.cell, Vector2i(6, 1), "arrêtée devant le pilier")
 	assert_eq(b.roll_dir, Vector2i.ZERO, "ne roule plus")
-	assert_almost(b.roll_offset, 0.0, 0.001, "centrée sur sa case")
+	assert_almost(b.pos().x, 7.0 - SimConfig.BOMB_BODY_RADIUS, 0.01, "au contact du pilier")
 
 func test_brief_contact_does_not_kick() -> void:
 	var w := _world(_lane(), [Vector2(2.5, 1.5)])
@@ -150,12 +150,11 @@ func test_diagonal_kick_rolls_at_45_degrees_until_a_corner() -> void:
 	var b: BombState = w.bombs.values()[0]
 	b.fuse = 100.0
 	w.step({0: i})
-	var cells: Array[Vector2i] = []
 	for _t in 60:
 		w.step({})
-		if cells.is_empty() or cells[-1] != b.cell:
-			cells.append(b.cell)
-	assert_eq(cells, [Vector2i(1, 1), Vector2i(2, 2), Vector2i(3, 3), Vector2i(4, 4), Vector2i(5, 5), Vector2i(6, 6), Vector2i(7, 7), Vector2i(8, 8)] as Array[Vector2i])
+		assert_almost(b.pos().x - 1.5, b.pos().y - 1.5, 0.0001, "sur la diagonale")
+	var corner := 9.0 - SimConfig.BOMB_BODY_RADIUS
+	assert_almost(b.pos().x, corner, 0.01, "dans le coin")
 	assert_eq(b.roll_dir, Vector2i.ZERO, "arrêtée dans le coin")
 
 # Contre un mur percuté à 45°, la bombe longe le mur puis repart en diagonale à sa fin.
@@ -167,12 +166,19 @@ func test_diagonal_bomb_slides_along_a_wall_then_resumes() -> void:
 	var b := _bomb(w, Vector2i(4, 1))
 	w.players[0].aim = Vector2i(1, 1)
 	Kick.kick(w, w.players[0], b)
-	var cells: Array[Vector2i] = [b.cell]
+	var along := 6.0 - SimConfig.BOMB_BODY_RADIUS # centre x while sliding along the pillars
+	var slid := false
 	for _t in 90:
 		w.step({})
-		if cells[-1] != b.cell:
-			cells.append(b.cell)
-	assert_eq(cells, [Vector2i(4, 1), Vector2i(5, 2), Vector2i(5, 3), Vector2i(5, 4), Vector2i(5, 5), Vector2i(6, 6), Vector2i(7, 7), Vector2i(8, 8)] as Array[Vector2i])
+		var at := b.pos()
+		for y in 5:
+			assert_true(Kick._depth(Vector2i(6, y), at) <= Kick.EPS, "ne traverse pas les piliers (%s)" % at)
+		if absf(at.x - along) < 0.001 and at.y > 3.0:
+			slid = true
+	assert_true(slid, "a longé le mur")
+	var corner := 9.0 - SimConfig.BOMB_BODY_RADIUS
+	assert_almost(b.pos().x, corner, 0.01, "repartie en diagonale jusqu'au coin")
+	assert_almost(b.pos().y, corner, 0.01)
 	assert_eq(b.roll_dir, Vector2i.ZERO)
 
 # Un pilier pris pile par l'angle arrête la bombe, comme un mur de face.
@@ -186,3 +192,5 @@ func test_diagonal_bomb_stops_on_a_corner_hit() -> void:
 	_wait(w, 2.0)
 	assert_eq(b.cell, Vector2i(3, 3))
 	assert_eq(b.roll_dir, Vector2i.ZERO)
+	var touch := 4.0 - SimConfig.BOMB_BODY_RADIUS / sqrt(2.0) # au contact du coin du pilier
+	assert_almost(b.pos().x, touch, 0.01); assert_almost(b.pos().y, touch, 0.01)

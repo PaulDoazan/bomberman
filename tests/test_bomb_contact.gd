@@ -90,3 +90,45 @@ func test_rolling_bomb_stops_exactly_at_the_player() -> void:
 	assert_eq(b.roll_dir, Vector2i.ZERO, "arrêtée")
 	assert_almost(b.pos().x, 7.3 - reach, 0.02, "pile au contact")
 	assert_true(w.players[1].stun_timer > 0.0, "assommé")
+
+# Une bombe frappée roule en ligne droite depuis sa position exacte : pas de recentrage sur la
+# rangée, pas de démarrage plus lent ou plus rapide.
+func test_kicked_bomb_rolls_straight_from_where_it_is() -> void:
+	var w := _world(Fixtures.flat(13, 5), [Vector2(0.5, 0.5)])
+	var b := w.add_bomb(0, Vector2i(3, 2), 100.0)
+	b.offset = Vector2(0.3, 0.25)
+	var start := b.pos()
+	w.players[0].aim = Vector2i(1, 0)
+	Kick.kick(w, w.players[0], b)
+	for t in 10:
+		w.step({})
+		assert_almost(b.pos().y, start.y, 0.0001, "pas de décalage de côté (tick %d)" % t)
+		assert_almost(b.pos().x, start.x + SimConfig.KICK_SPEED * SimConfig.DT * (t + 1), 0.0001, "vitesse constante (tick %d)" % t)
+
+# Une bombe décentrée qui frôle le coin d'un pilier glisse dessus et continue.
+func test_rolling_bomb_glides_off_a_pillar_corner() -> void:
+	var a := Fixtures.flat(13, 5)
+	a.set_tile(Vector2i(6, 3), Arena.Tile.PILLAR)
+	var w := _world(a, [Vector2(0.5, 0.5)])
+	var b := w.add_bomb(0, Vector2i(2, 2), 100.0)
+	b.offset = Vector2(0.0, 0.3) # le bas de la bombe déborde sur la rangée du pilier
+	w.players[0].aim = Vector2i(1, 0)
+	Kick.kick(w, w.players[0], b)
+	for _t in 60:
+		w.step({})
+	assert_true(b.pos().x > 11.0, "a continué après le pilier (x = %.2f)" % b.pos().x)
+
+# Pris de face, un pilier arrête la bombe au contact.
+func test_rolling_bomb_stops_against_a_pillar_face() -> void:
+	var a := Fixtures.flat(13, 5)
+	a.set_tile(Vector2i(6, 2), Arena.Tile.PILLAR)
+	var w := _world(a, [Vector2(0.5, 0.5)])
+	var b := w.add_bomb(0, Vector2i(2, 2), 100.0)
+	b.offset = Vector2(0.0, 0.2)
+	w.players[0].aim = Vector2i(1, 0)
+	Kick.kick(w, w.players[0], b)
+	for _t in 60:
+		w.step({})
+	assert_eq(b.roll_dir, Vector2i.ZERO, "arrêtée")
+	assert_almost(b.pos().x, 6.0 - SimConfig.BOMB_BODY_RADIUS, 0.01, "au contact du pilier")
+	assert_almost(b.pos().y, 2.7, 0.0001, "sans décalage")
