@@ -10,9 +10,26 @@ var _move_held := false
 const MOUSE_SHAKE_PX := 250.0
 var _shakes := 0.0
 var _mouse_travel := 0.0
+# Touch screens: a finger on bomb_area places a bomb; the first other finger down steers the
+# player towards where it is, so one can move and drop bombs at the same time.
+var bomb_area: Control = null
+var _button_touches: Dictionary = {} # touch index -> true, fingers on bomb_area
+var _steer_index := -1
+var _steer_pos := Vector2.ZERO
 
 # _input, not _unhandled_input: shaking the mouse over the HUD still counts.
 func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		var t := event as InputEventScreenTouch
+		if t.pressed and bomb_area != null and bomb_area.visible and bomb_area.get_global_rect().has_point(t.position):
+			_button_touches[t.index] = true
+			_bomb_pressed = true
+		elif not t.pressed:
+			_button_touches.erase(t.index)
+			if t.index == _steer_index:
+				_steer_index = -1
+	elif event is InputEventScreenDrag and (event as InputEventScreenDrag).index == _steer_index:
+		_steer_pos = (event as InputEventScreenDrag).position
 	if event is InputEventMouseMotion:
 		_mouse_travel += (event as InputEventMouseMotion).relative.length()
 	for a in ["move_left", "move_right", "move_up", "move_down"]:
@@ -20,6 +37,11 @@ func _input(event: InputEvent) -> void:
 			_shakes += 1.0
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		var t := event as InputEventScreenTouch
+		if t.pressed and _steer_index == -1 and not _button_touches.has(t.index):
+			_steer_index = t.index
+			_steer_pos = t.position
 	if event.is_action_pressed("move"):
 		_move_held = true
 	elif event.is_action_released("move"):
@@ -35,6 +57,9 @@ func wants_move() -> bool:
 		_move_held = false
 	return _move_held
 
+func touch_steering() -> bool:
+	return _steer_index != -1
+
 # Arrow keys steer towards a point a little ahead of the player; they take priority over the mouse.
 const KEY_LOOKAHEAD := 2.0
 
@@ -46,14 +71,16 @@ func consume_intent(p: PlayerState, rig: CameraRig) -> PlayerIntent:
 		intent.target = p.pos + dir.normalized() * KEY_LOOKAHEAD
 		_consume_buttons(intent)
 		return intent
-	intent.moving = wants_move()
+	var touching := touch_steering()
+	intent.moving = touching or wants_move()
 	var plane_h2 := 0
 	var arena: Arena = rig.arena_ref
 	if arena != null and arena.in_bounds(p.cell()):
 		plane_h2 = arena.h2_at(p.cell())
 	if p.life == PlayerState.Life.GHOST:
 		plane_h2 += 3 # 1.5 above the cell
-	var hit: Variant = rig.mouse_to_tile(rig.get_viewport().get_mouse_position(), plane_h2)
+	var screen := _steer_pos if touching else rig.get_viewport().get_mouse_position()
+	var hit: Variant = rig.mouse_to_tile(screen, plane_h2)
 	if hit == null:
 		intent.moving = false
 	else:

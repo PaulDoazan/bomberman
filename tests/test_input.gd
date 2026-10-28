@@ -59,3 +59,35 @@ func test_arrow_presses_and_mouse_shaking_count_as_struggle() -> void:
 	ic.free()
 	assert_almost(intent.struggle, 5.0, 0.001, "3 appuis + 2 secousses")
 	assert_almost(next.struggle, 0.0, 0.001, "remis à zéro")
+
+func _touch(index: int, at: Vector2, pressed: bool) -> InputEventScreenTouch:
+	var e := InputEventScreenTouch.new()
+	e.index = index
+	e.position = at
+	e.pressed = pressed
+	return e
+
+# Sur écran tactile : toucher le bouton bombe pose une bombe sans diriger le perso, et un autre
+# doigt posé n'importe où dirige le perso, même pendant qu'on appuie sur le bouton.
+func test_touch_bomb_button_and_finger_steering() -> void:
+	var ic := InputController.new()
+	var button := Control.new()
+	button.position = Vector2(1000, 500)
+	button.size = Vector2(200, 200)
+	ic.bomb_area = button
+	var p := PlayerState.new()
+	ic._input(_touch(0, Vector2(1100, 600), true))
+	ic._unhandled_input(_touch(0, Vector2(1100, 600), true))
+	assert_false(ic.touch_steering(), "le bouton ne dirige pas")
+	ic._input(_touch(1, Vector2(300, 300), true))
+	ic._unhandled_input(_touch(1, Vector2(300, 300), true))
+	assert_true(ic.touch_steering(), "un autre doigt dirige")
+	Input.action_press("move_right") # pas de caméra dans ce test : on vise avec une flèche
+	var intent: PlayerIntent = ic.consume_intent(p, null)
+	Input.action_release("move_right")
+	assert_true(intent.place_bomb, "bombe posée")
+	ic._input(_touch(1, Vector2(300, 300), false))
+	ic._unhandled_input(_touch(1, Vector2(300, 300), false))
+	assert_false(ic.touch_steering(), "doigt levé")
+	ic.free()
+	button.free()
