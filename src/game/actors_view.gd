@@ -92,8 +92,7 @@ func _ready() -> void:
 	_bomb_mesh.height = 2.0 * SimConfig.BOMB_BODY_RADIUS
 	_block_mesh.size = Vector3(0.8, 0.8, 0.8)
 	_dome_mesh.radius = SimConfig.BOMB_RADIUS
-	_dome_mesh.height = SimConfig.BOMB_RADIUS
-	_dome_mesh.is_hemisphere = true
+	_dome_mesh.height = 2.0 * SimConfig.BOMB_RADIUS
 	_ghost_mat.albedo_color = Color(1, 1, 1, 0.4)
 	_ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_ghost_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED

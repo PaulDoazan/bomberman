@@ -30,15 +30,28 @@ func test_pillar_and_block_shield() -> void:
 	assert_false(Vector2i(5, 4) in cells); assert_false(Vector2i(6, 4) in cells)
 	assert_true(Vector2i(4, 5) in cells, "le bloc est touché"); assert_false(Vector2i(4, 6) in cells, "mais protège derrière lui")
 
-func test_dome_rises_but_never_goes_down() -> void:
+# Une sphère entière : elle monte et descend, et la hauteur compte dans la distance.
+func test_blast_is_a_full_sphere() -> void:
 	var a := Fixtures.flat(9, 9)
 	for y in 9: for x in range(6, 9): a.set_cell(Vector2i(x, y), Arena.Tile.FLOOR, 2)
 	a.set_cell(Vector2i(5, 4), Arena.Tile.STAIRS, 1, Arena.Axis.X)
-	assert_true(Vector2i(6, 4) in Explosion.hit_cells(a, Vector2i(4, 4), 3.0), "monte à l'étage")
+	var up := Explosion.hit_cells(a, Vector2i(4, 4), 3.0)
+	assert_true(Vector2i(6, 4) in up, "monte à l'étage (2 de côté, 1 de haut)")
+	assert_false(Vector2i(7, 4) in up, "hors de la sphère (3 de côté, 1 de haut)")
 	var down := Explosion.hit_cells(a, Vector2i(6, 4), 3.0)
-	assert_false(Vector2i(4, 4) in down, "ne descend pas au sol")
-	assert_false(Vector2i(5, 4) in down, "ni sur l'escalier plus bas")
-	assert_true(Vector2i(4, 4) in Explosion.hit_cells(a, Vector2i(5, 4), 3.0), "bombe sur l'escalier : niveau 0")
+	assert_true(Vector2i(5, 4) in down, "descend sur l'escalier")
+	assert_true(Vector2i(4, 4) in down, "descend au sol")
+	assert_false(Vector2i(3, 4) in down, "hors de la sphère vers le bas")
+
+# Un joueur en contrebas est tué quand la sphère l'atteint.
+func test_sphere_reaches_a_player_below() -> void:
+	var a := Fixtures.flat(9, 3)
+	for y in 3: for x in range(5, 9): a.set_cell(Vector2i(x, y), Arena.Tile.FLOOR, 2)
+	var w := _world(a, [Vector2(4.5, 1.5), Vector2(8.5, 0.5)])
+	w.add_bomb(1, Vector2i(5, 1), 0.0)
+	for _t in roundi(SimConfig.EXPLOSION_DURATION * 30):
+		w.step({})
+	assert_eq(w.players[0].lives, 2, "touché en contrebas")
 
 func test_bomb_explodes_after_fuse_and_destroys_block() -> void:
 	var a := Fixtures.flat(9, 3)

@@ -146,7 +146,7 @@ func test_throw_lands_on_upper_level() -> void:
 		w.step({})
 		origin = origin if origin != null else _explosion_origin(w)
 	assert_eq(origin, Vector2i(4, 2), "explosion en (4,2)")
-	assert_eq(w.players[0].lives, 3, "le dôme ne descend pas")
+	assert_eq(w.players[0].lives, 3, "hors de portée")
 
 func test_flying_bomb_explodes_in_flight_when_fuse_ends() -> void:
 	var w := _world(Fixtures.flat(9, 5), [Vector2(1.5, 2.5)])

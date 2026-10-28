@@ -68,10 +68,10 @@ Choix de conception (Claude, non contesté par l'utilisateur) :
 - **3 vies par joueur et par manche par défaut, réglable** (décision utilisateur). Les vies repartent au maximum à chaque manche.
 - Choix Claude : un joueur qui perd une vie (explosion ou noyade) réapparaît après 2 s sur une case libre et sûre (hors danger, hors de l'eau, de préférence sur le niveau sec le plus bas encore disponible). Il est invulnérable 2 s, en clignotant. À la perte de la dernière vie, il devient fantôme.
 - Sans bonus, chaque joueur a des valeurs fixes : **2 bombes posées à la fois au maximum**, **portée d'explosion de 3 cases**, mèche d'environ 2,5 s.
-- **L'explosion est une demi-sphère qui grossit** (décision utilisateur) : un dôme posé sur le sol du niveau où la bombe explose, qui touche **toutes les cases dans son rayon, dans toutes les directions, diagonales comprises**. Elle **monte** (elle touche les étages plus hauts dans son rayon) mais **ne descend jamais** sous le niveau de la bombe : les niveaux plus bas sont épargnés.
-- Choix Claude : la grille est **une grille 2D avec une hauteur par case**. Une case est touchée si elle est à distance ≤ rayon (2 cases par défaut, réduit de 3 à 2 après les premiers essais) et à un niveau ≥ celui de la bombe.
-- Choix Claude (non tranché par l'utilisateur) : les **piliers et les blocs protègent** ce qui est derrière eux (ligne de vue depuis la bombe). Un bloc touché est détruit, mais il protège quand même ce qu'il cache pendant cette explosion. Le dôme est dessiné entier à l'écran, mais seules les cases en vue sont touchées.
-- L'explosion tue les joueurs touchés (ils perdent une vie) **seulement quand le dôme qui grandit touche vraiment leur corps** (décision utilisateur), et non dès qu'ils sont sur une case du rayon. Un joueur tué par une explosion devient **tout noir, comme brûlé**, et son corps reste visible environ 2,5 s avant de disparaître en fondu. L'explosion fait aussi exploser les autres bombes touchées (décision utilisateur) : celles qui sont dans le dôme quand il apparaît, et aussi celles qui y entrent tant que les flammes durent (bombe qui roule, qui atterrit ou qu'on pose dedans).
+- **L'explosion est une sphère entière qui grossit** (décision utilisateur, qui remplace la demi-sphère du départ) : centrée sur la bombe, au niveau du sol où elle explose, elle touche **toutes les cases dans son rayon, dans toutes les directions, diagonales comprises**. Elle **monte et descend** : les niveaux plus hauts comme plus bas sont touchés s'ils sont dans la sphère.
+- Choix Claude : la grille est **une grille 2D avec une hauteur par case**. Une case est touchée si sa distance à la bombe, en comptant la différence de hauteur (un niveau = 1 case), est ≤ rayon (2 cases par défaut, réduit de 3 à 2 après les premiers essais). Un joueur plus bas est touché dès que la sphère atteint sa tête (corps d'une case de haut).
+- Choix Claude (non tranché par l'utilisateur) : les **piliers et les blocs protègent** ce qui est derrière eux (ligne de vue depuis la bombe). Un bloc touché est détruit, mais il protège quand même ce qu'il cache pendant cette explosion. La sphère est dessinée entière à l'écran, mais seules les cases en vue sont touchées.
+- L'explosion tue les joueurs touchés (ils perdent une vie) **seulement quand la sphère qui grandit touche vraiment leur corps** (décision utilisateur), et non dès qu'ils sont sur une case du rayon. Un joueur tué par une explosion devient **tout noir, comme brûlé**, et son corps reste visible environ 2,5 s avant de disparaître en fondu. L'explosion fait aussi exploser les autres bombes touchées (décision utilisateur) : celles qui sont dans la sphère quand elle apparaît, et aussi celles qui y entrent tant que les flammes durent (bombe qui roule, qui atterrit ou qu'on pose dedans).
 
 ### Le chrono et la montée des eaux (décision utilisateur)
 
@@ -101,7 +101,7 @@ Transposition (choix Claude) :
 ## Bots (validés par l'utilisateur)
 
 Niveau correct, sans viser un champion :
-- ils **fuient les explosions à venir** : ils connaissent les cases qu'une bombe va toucher (dôme, ligne de vue, niveaux) et s'en écartent ;
+- ils **fuient les explosions à venir** : ils connaissent les cases qu'une bombe va toucher (sphère, ligne de vue, niveaux) et s'en écartent ;
 - ils **posent des bombes** près des blocs pour ouvrir le chemin, et près des adversaires **seulement s'ils ont une sortie de secours** ;
 - ils **montent vers le sommet** quand l'eau monte ;
 - en fantôme, ils **vont posséder le vivant le plus proche** ;
