@@ -7,13 +7,38 @@ var _chips: Dictionary = {} # id -> Label
 var _warning: Label
 var _panel: PanelContainer
 var _panel_text: Label
-var bomb_button: Control # touch screens only; the input controller reads touches on it
+var bomb_button: BombButton # touch screens only; the input controller reads touches on it
+var joystick: TouchJoystick # touch screens only
 
 func _ready() -> void:
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+
+	# Touch controls, under the rest of the HUD, like Among Us: a fixed joystick bottom left and
+	# the bomb button bottom right. The layer stops mouse events so the click emulated from a
+	# touch never steers the player: on touch screens only the joystick does.
+	var touch := Control.new()
+	touch.set_anchors_preset(Control.PRESET_FULL_RECT)
+	touch.mouse_filter = Control.MOUSE_FILTER_STOP
+	touch.visible = DisplayServer.is_touchscreen_available()
+	root.add_child(touch)
+	joystick = TouchJoystick.new()
+	joystick.custom_minimum_size = Vector2(280, 280) # grab area, larger than the drawn base
+	joystick.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	joystick.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	joystick.offset_left = 10
+	joystick.offset_bottom = -10
+	touch.add_child(joystick)
+	bomb_button = BombButton.new()
+	bomb_button.custom_minimum_size = Vector2(190, 190)
+	bomb_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	bomb_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	bomb_button.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	bomb_button.offset_right = -24
+	bomb_button.offset_bottom = -24
+	touch.add_child(bomb_button)
 
 	var top := HBoxContainer.new()
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -42,23 +67,6 @@ func _ready() -> void:
 	quit.focus_mode = Control.FOCUS_NONE # arrows and Space must never reach the button
 	quit.pressed.connect(_on_quit)
 	top.add_child(quit)
-
-	# Big bomb button in the bottom-right corner, for phones and tablets. It stops mouse
-	# events so the emulated click of a tap on it never steers the player.
-	var bomb := Button.new()
-	bomb.text = "BOMBE"
-	bomb.add_theme_font_size_override("font_size", 34)
-	bomb.focus_mode = Control.FOCUS_NONE
-	bomb.custom_minimum_size = Vector2(190, 190)
-	bomb.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	bomb.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	bomb.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	bomb.offset_right = -24
-	bomb.offset_bottom = -24
-	bomb.modulate.a = 0.7 # the map stays visible underneath
-	bomb.visible = DisplayServer.is_touchscreen_available()
-	root.add_child(bomb)
-	bomb_button = bomb
 
 	_warning = Label.new()
 	_warning.text = "Attention, l'eau monte !"

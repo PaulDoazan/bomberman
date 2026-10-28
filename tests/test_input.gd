@@ -67,27 +67,36 @@ func _touch(index: int, at: Vector2, pressed: bool) -> InputEventScreenTouch:
 	e.pressed = pressed
 	return e
 
-# Sur écran tactile : toucher le bouton bombe pose une bombe sans diriger le perso, et un autre
-# doigt posé n'importe où dirige le perso, même pendant qu'on appuie sur le bouton.
-func test_touch_bomb_button_and_finger_steering() -> void:
+func _drag(index: int, at: Vector2) -> InputEventScreenDrag:
+	var e := InputEventScreenDrag.new()
+	e.index = index
+	e.position = at
+	return e
+
+# Sur écran tactile : le bouton bombe (en bas à droite) pose une bombe, et le joystick fixe (en
+# bas à gauche) dirige le perso dans la direction poussée, les deux en même temps.
+func test_touch_bomb_button_and_joystick() -> void:
 	var ic := InputController.new()
 	var button := Control.new()
-	button.position = Vector2(1000, 500)
-	button.size = Vector2(200, 200)
+	button.position = Vector2(1070, 510)
+	button.size = Vector2(190, 190)
 	ic.bomb_area = button
+	var stick := TouchJoystick.new()
+	stick.position = Vector2(10, 430)
+	stick.size = Vector2(280, 280) # base centred at (150, 570)
+	ic.joystick = stick
 	var p := PlayerState.new()
-	ic._input(_touch(0, Vector2(1100, 600), true))
-	ic._unhandled_input(_touch(0, Vector2(1100, 600), true))
-	assert_false(ic.touch_steering(), "le bouton ne dirige pas")
-	ic._input(_touch(1, Vector2(300, 300), true))
-	ic._unhandled_input(_touch(1, Vector2(300, 300), true))
-	assert_true(ic.touch_steering(), "un autre doigt dirige")
-	Input.action_press("move_right") # pas de caméra dans ce test : on vise avec une flèche
+	p.pos = Vector2(4.5, 6.5)
+	ic._input(_touch(0, Vector2(1160, 600), true))
+	stick._input(_touch(1, Vector2(150, 560), true))
+	stick._input(_drag(1, Vector2(150, 480)))
 	var intent: PlayerIntent = ic.consume_intent(p, null)
-	Input.action_release("move_right")
 	assert_true(intent.place_bomb, "bombe posée")
-	ic._input(_touch(1, Vector2(300, 300), false))
-	ic._unhandled_input(_touch(1, Vector2(300, 300), false))
-	assert_false(ic.touch_steering(), "doigt levé")
+	assert_true(intent.moving, "le joystick dirige")
+	var d := (intent.target - p.pos).normalized()
+	assert_almost(d.x, 0.0, 0.001); assert_almost(d.y, -1.0, 0.001, "vers le haut de l'écran = vers le fond")
+	stick._input(_touch(1, Vector2(150, 480), false))
+	assert_false(ic.consume_intent(p, null).moving, "pouce levé")
 	ic.free()
 	button.free()
+	stick.free()

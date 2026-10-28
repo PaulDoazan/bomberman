@@ -20,6 +20,7 @@ func _ready() -> void:
 	rng.randomize()
 	if hud:
 		input_controller.bomb_area = hud.bomb_button
+		input_controller.joystick = hud.joystick
 	match_state = MatchState.new(Session.config, rng)
 	for mp in match_state.players:
 		if mp.is_bot:
