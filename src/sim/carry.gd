@@ -84,6 +84,7 @@ static func pick_up(world: World, p: PlayerState) -> void:
 
 static func _hold_bomb(p: PlayerState, b: BombState) -> void:
 	b.state = BombState.State.HELD
+	b.offset = Vector2.ZERO
 	b.passable_for.clear()
 	p.held = PlayerState.Held.BOMB
 	p.held_id = b.id
@@ -165,6 +166,7 @@ static func _land(world: World, f: FlyingObject) -> void:
 			var b: BombState = world.bombs[f.ref_id]
 			b.state = BombState.State.PLACED
 			b.cell = c
+			b.offset = Vector2.ZERO
 			b.passable_for.clear()
 			for hit: PlayerState in _free_players_at(world, c):
 				hit.stun_timer = SimConfig.BOMB_HIT_STUN_TIME

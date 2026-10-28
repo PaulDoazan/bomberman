@@ -2,6 +2,7 @@ class_name Explosion
 extends RefCounted
 
 var origin: Vector2i
+var centre: Vector2 # where the bomb was when it went off; the dome grows from here
 var cells: Array[Vector2i] = []
 var timer := SimConfig.EXPLOSION_DURATION
 var owner_id: int
@@ -16,7 +17,7 @@ func radius() -> float:
 # True if the dome, at its current size, reaches the body of a player standing at pos (feet on
 # the ground of their cell, box of PLAYER_HALF around pos).
 func touches(arena: Arena, pos: Vector2) -> bool:
-	var flat := maxf(0.0, pos.distance_to(Arena.center_of(origin)) - SimConfig.PLAYER_HALF)
+	var flat := maxf(0.0, pos.distance_to(centre) - SimConfig.PLAYER_HALF)
 	var up := maxf(0.0, (arena.h2_at(Arena.cell_of(pos)) - arena.h2_at(origin)) * 0.5)
 	return Vector2(flat, up).length() <= radius()
 

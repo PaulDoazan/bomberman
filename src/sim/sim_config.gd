@@ -25,6 +25,7 @@ const STOP_DISTANCE := 0.1
 
 const MAX_BOMBS := 2
 const BOMB_RADIUS := 2.0
+const BOMB_BODY_RADIUS := 0.32 # a bomb's round body, for collisions with players
 const FUSE := 2.5
 const EXPLOSION_DURATION := 0.5
 

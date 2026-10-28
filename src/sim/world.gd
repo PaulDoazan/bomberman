@@ -211,6 +211,9 @@ func _try_place_bomb(p: PlayerState) -> void:
 	if not arena.in_bounds(c):
 		return
 	var under := bomb_at(c)
+	for b: BombState in bombs.values():
+		if b.state == BombState.State.PLACED and p.id in b.passable_for and Movement.bomb_gap(p.pos, b.pos()) < 0.0:
+			under = b # still standing on it, even from the next cell
 	if under != null:
 		# Placing again while standing on a bomb kicks it away.
 		if under.roll_dir == Vector2i.ZERO:
@@ -222,9 +225,13 @@ func _try_place_bomb(p: PlayerState) -> void:
 			owned += 1
 	if owned >= SimConfig.MAX_BOMBS:
 		return
+	for other: BombState in bombs.values():
+		if other.state == BombState.State.PLACED and other.pos().distance_to(p.pos) < 2.0 * SimConfig.BOMB_BODY_RADIUS:
+			return # no room: the two bombs would overlap
 	var b := add_bomb(p.id, c, SimConfig.FUSE)
+	b.offset = p.pos - Arena.center_of(c) # exactly under the player
 	for other: PlayerState in players.values():
-		if other.is_alive() and Movement.box_overlaps_cell(other.pos, c):
+		if other.is_alive() and Movement.bomb_gap(other.pos, b.pos()) < 0.0:
 			b.passable_for.append(other.id)
 
 func add_bomb(owner_id: int, cell: Vector2i, fuse: float) -> BombState:
@@ -249,6 +256,18 @@ func bomb_cell(b: BombState) -> Vector2i:
 				return Arena.cell_of(Carry.flight_pos(f))
 	return b.cell
 
+# Exact position of a bomb on the grid plane, wherever it is.
+func _bomb_point(b: BombState) -> Vector2:
+	if b.state == BombState.State.HELD:
+		for p: PlayerState in players.values():
+			if p.held == PlayerState.Held.BOMB and p.held_id == b.id:
+				return p.pos
+	if b.state == BombState.State.FLYING:
+		for f: FlyingObject in flying:
+			if f.kind == PlayerState.Held.BOMB and f.ref_id == b.id:
+				return Carry.flight_pos(f)
+	return b.pos()
+
 func _update_explosions() -> void:
 	for e: Explosion in explosions:
 		e.timer -= SimConfig.DT
@@ -268,6 +287,7 @@ func _update_bombs() -> void:
 		if not bombs.has(b.id):
 			continue
 		var origin := bomb_cell(b)
+		var centre := _bomb_point(b)
 		for holder: PlayerState in players.values():
 			if holder.held == PlayerState.Held.BOMB and holder.held_id == b.id:
 				holder.held = PlayerState.Held.NONE
@@ -276,6 +296,7 @@ func _update_bombs() -> void:
 		flying = flying.filter(func(f: FlyingObject) -> bool: return not (f.kind == PlayerState.Held.BOMB and f.ref_id == b.id))
 		var e := Explosion.new()
 		e.origin = origin
+		e.centre = centre
 		e.owner_id = b.owner_id
 		e.cells = Explosion.hit_cells(arena, origin, SimConfig.BOMB_RADIUS)
 		explosions.append(e)

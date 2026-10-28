@@ -75,9 +75,10 @@ func test_bomb_blocks_others_but_owner_can_leave() -> void:
 	_go(w, 0, Vector2(0.5, 1.5), 0.5)        # le poseur quitte sa bombe
 	assert_eq(w.players[0].cell(), Vector2i(0, 1))
 	_go(w, 0, Vector2(3.5, 1.5), 0.15)       # puis ne peut plus y revenir
-	assert_true(w.players[0].pos.x <= 1.0 - SimConfig.PLAYER_HALF + 0.01)
+	var reach := SimConfig.BOMB_BODY_RADIUS + SimConfig.PLAYER_HALF # stopped against the round bomb
+	assert_true(w.players[0].pos.x <= 1.5 - reach + 0.01)
 	_go(w, 1, Vector2(0.5, 1.5), 0.85)       # l'autre joueur est bloqué (sans forcer assez pour kicker)
-	assert_true(w.players[1].pos.x >= 2.0 + SimConfig.PLAYER_HALF - 0.01)
+	assert_true(w.players[1].pos.x >= 1.5 + reach - 0.01)
 
 func test_stunned_player_does_not_move() -> void:
 	var w := _world(Fixtures.flat(5, 5), [Vector2(1.5, 1.5)])

@@ -26,17 +26,16 @@ static func kick(world: World, p: PlayerState, b: BombState) -> void:
 	b.roll_offset = 0.0
 	world.events.append({"type": "kick", "id": p.id, "bomb": b.id})
 
-# The bomb in the cell ahead that the player's box is touching, if they cannot walk into it.
+# A bomb ahead (within 60 degrees of facing) whose round body the player's box is touching,
+# if they cannot walk through it.
 static func _bomb_pushed(world: World, p: PlayerState) -> BombState:
-	var cur := p.cell()
-	var ahead := cur + p.facing
-	var b := world.bomb_at(ahead)
-	if b == null or p.id in b.passable_for:
-		return null
-	var axis := 0 if p.facing.x != 0 else 1
-	var edge: float = p.pos[axis] + SimConfig.PLAYER_HALF * float(p.facing[axis])
-	var boundary: float = float(cur[axis]) + (1.0 if p.facing[axis] > 0 else 0.0)
-	return b if absf(edge - boundary) <= TOUCH else null
+	for b: BombState in world.bombs.values():
+		if b.state != BombState.State.PLACED or p.id in b.passable_for:
+			continue
+		var to := b.pos() - p.pos
+		if Movement.bomb_gap(p.pos, b.pos()) <= TOUCH and to.dot(Vector2(p.facing)) > to.length() * 0.5:
+			return b
+	return null
 
 # Moves every rolling bomb; a bomb stops centred on its cell when the next one is blocked.
 static func update_rolling(world: World) -> void:
@@ -47,6 +46,8 @@ static func update_rolling(world: World) -> void:
 			continue
 		if b.roll_dir == Vector2i.ZERO:
 			continue
+		# A bomb placed off-centre drifts back onto its lane while it rolls.
+		b.offset = b.offset.move_toward(Vector2.ZERO, 0.5 * SimConfig.KICK_SPEED * SimConfig.DT)
 		var step_len := Vector2(b.roll_dir).length() # sqrt(2) for a diagonal step
 		var off := b.roll_offset + SimConfig.KICK_SPEED * SimConfig.DT / step_len
 		if b.roll_offset <= 0.0 and off >= 0.0:

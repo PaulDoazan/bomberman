@@ -88,8 +88,8 @@ func reset() -> void:
 	_tracks.clear()
 
 func _ready() -> void:
-	_bomb_mesh.radius = 0.32
-	_bomb_mesh.height = 0.64
+	_bomb_mesh.radius = SimConfig.BOMB_BODY_RADIUS
+	_bomb_mesh.height = 2.0 * SimConfig.BOMB_BODY_RADIUS
 	_block_mesh.size = Vector3(0.8, 0.8, 0.8)
 	_dome_mesh.radius = SimConfig.BOMB_RADIUS
 	_dome_mesh.height = SimConfig.BOMB_RADIUS
@@ -347,8 +347,8 @@ func _sync_bombs(world: World) -> void:
 			if f != null:
 				_track(m, _arc(world, f))
 		elif b.state == BombState.State.PLACED:
-			var roll := Vector2(b.roll_dir) * b.roll_offset # a kicked bomb rolls between cell centres
-			_track(m, Vector3(b.cell.x + 0.5 + roll.x, world.arena.h2_at(b.cell) * 0.5 + 0.32, b.cell.y + 0.5 + roll.y))
+			var at := b.pos()
+			_track(m, Vector3(at.x, world.arena.h2_at(b.cell) * 0.5 + SimConfig.BOMB_BODY_RADIUS, at.y))
 		var s := 1.0
 		if b.fuse < 0.5:
 			s = 1.0 + 0.25 * (1.0 - b.fuse / 0.5)
@@ -384,7 +384,7 @@ func _sync_explosions(world: World) -> void:
 			m = _mesh(_dome_mesh, _dome_mat)
 			add_child(m)
 			_domes[key] = m
-			m.position = Vector3(e.origin.x + 0.5, world.arena.h2_at(e.origin) * 0.5, e.origin.y + 0.5)
+			m.position = Vector3(e.centre.x, world.arena.h2_at(e.origin) * 0.5, e.centre.y)
 		m.scale = Vector3.ONE * (e.radius() / SimConfig.BOMB_RADIUS)
 	for key: int in _domes.keys():
 		if not alive.has(key):
