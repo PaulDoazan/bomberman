@@ -46,13 +46,17 @@ func step(intents: Dictionary) -> void:
 		p.invulnerable_timer = maxf(0.0, p.invulnerable_timer - SimConfig.DT)
 		Ghosts.tick_timers(p)
 		if p.life == PlayerState.Life.GHOST:
-			if p.possess_target != -1:
+			if p.eject_timer > 0.0:
+				Ghosts.update_eject(self, p)
+			elif p.possess_target != -1:
 				Ghosts.drive_victim(self, p, intent)
 			elif intent.moving:
 				Movement.move_free(self, p, intent.target, SimConfig.GHOST_SPEED, SimConfig.DT)
 			continue
 		if p.life != PlayerState.Life.ALIVE:
 			continue
+		if p.possessed_by != -1:
+			Ghosts.shake_off(self, p, intent.struggle)
 		if intent.place_bomb:
 			_try_place_bomb(p)
 		if intent.action and p.can_act():

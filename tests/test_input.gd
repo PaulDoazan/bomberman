@@ -116,3 +116,19 @@ func test_touch_action_button() -> void:
 	assert_false(intent.place_bomb)
 	ic.free()
 	button.free()
+
+# Faire tourner le joystick secoue (sortir d'un étourdissement, faire lâcher un fantôme) : chaque
+# nouveau quart de tour compte pour une secousse, comme un appui sur une flèche.
+func test_spinning_the_joystick_shakes() -> void:
+	var ic := InputController.new()
+	var stick := TouchJoystick.new()
+	stick.position = Vector2(10, 430)
+	stick.size = Vector2(280, 280) # base centred at (150, 570)
+	ic.joystick = stick
+	stick._input(_touch(1, Vector2(150, 570), true))
+	for at: Vector2 in [Vector2(230, 570), Vector2(150, 650), Vector2(70, 570), Vector2(150, 490), Vector2(230, 570)]:
+		stick._input(_drag(1, at))
+	assert_eq(ic.consume_intent(PlayerState.new(), null).struggle, 5.0, "un tour et quart")
+	assert_eq(ic.consume_intent(PlayerState.new(), null).struggle, 0.0, "déjà comptées")
+	ic.free()
+	stick.free()

@@ -84,9 +84,10 @@ func test_possession_ends_after_duration_then_cooldown() -> void:
 	_go(w, 4.2) # t = 5.2 s
 	assert_eq(w.players[1].possessed_by, -1, "terminée")
 	assert_eq(w.players[0].possess_target, -1)
-	_go(w, 9.0) # cooldown still running
+	var back := {0: _intent_to(w.players[1].pos)} # ejected: the ghost comes back to its victim
+	_go(w, 9.0, back) # cooldown still running
 	assert_eq(w.players[1].possessed_by, -1, "pas avant la recharge")
-	_go(w, 2.0)
+	_go(w, 2.0, back)
 	assert_eq(w.players[1].possessed_by, 0, "nouvelle possession")
 
 func test_possessed_victim_can_be_walked_into_water() -> void:
@@ -126,3 +127,27 @@ func test_nearest_victim_chosen() -> void:
 	_go(w, 0.1)
 	assert_eq(w.players[2].possessed_by, 0)
 	assert_eq(w.players[1].possessed_by, -1)
+
+# Secouer (stick, flèches, souris) fait lâcher le fantôme bien avant la fin de la possession.
+func test_shaking_throws_the_ghost_off() -> void:
+	var w := _world(Fixtures.flat(9, 5), [Vector2(4.5, 2.5), Vector2(4.5, 2.5), Vector2(8.5, 0.5)])
+	_go(w, 0.1)
+	assert_eq(w.players[1].possessed_by, 0, "possédé")
+	var shake := PlayerIntent.new()
+	shake.struggle = 1.0
+	_go(w, 1.0, {1: shake})
+	assert_eq(w.players[1].possessed_by, -1, "fantôme lâché")
+	assert_true(w.players[0].possess_cooldown > 0.0, "recharge lancée")
+
+# Le fantôme qui lâche sa victime est éjecté : il recule d'EJECT_DISTANCE sans pouvoir se diriger.
+func test_released_ghost_is_ejected() -> void:
+	var w := _world(Fixtures.flat(9, 5), [Vector2(4.5, 2.5), Vector2(4.5, 2.5), Vector2(8.5, 0.5)])
+	w.players[1].aim = Vector2i(1, 0)
+	_go(w, 0.1)
+	w.players[0].possess_timer = 0.0 # la possession finit au prochain tick
+	w.step({})
+	assert_true(w.players[0].eject_timer > 0.0, "éjection en cours")
+	_go(w, SimConfig.EJECT_TIME, {0: _intent_to(Vector2(8.5, 2.5))})
+	assert_almost(w.players[0].pos.x, 4.5 - SimConfig.EJECT_DISTANCE, 0.01, "projeté en arrière de la victime")
+	assert_eq(w.players[0].eject_timer, 0.0)
+	assert_eq(w.players[1].possessed_by, -1, "pas repossédée en retombant")

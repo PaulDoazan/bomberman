@@ -41,6 +41,8 @@ const WATER_START_H2 := -3
 const POSSESS_DURATION := 5.0
 const POSSESS_COOLDOWN := 10.0
 const POSSESS_REACH := 0.6
+const EJECT_DISTANCE := 2.0 # cells a ghost is thrown back when it lets go of its victim
+const EJECT_TIME := 0.5
 
 const THROW_DISTANCE := 3
 const THROW_FLIGHT := 0.5

@@ -2,6 +2,8 @@ class_name ActorsView
 extends Node3D
 
 const GHOST_HOVER := 1.5
+const EJECT_HOP := 1.2 # height of the arc of a ghost thrown off its victim
+const EJECT_SPINS := 2.0 # turns it makes on the way
 const CARRY_HEIGHT := 1.5
 const THROW_ARC := 1.5
 const STAR_COUNT := 3
@@ -226,9 +228,13 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 			var carrier: PlayerState = world.players[p.carried_by]
 			pos = carrier.pos
 			y = _cell_y(world, pos) + CARRY_HEIGHT
+		var ejected := 0.0 # progress of a ghost's ejection, 0 when not ejected
 		if ghost:
 			y += GHOST_HOVER
-		if not n.placed or thrown or p.carried_by >= 0:
+			if p.eject_timer > 0.0:
+				ejected = 1.0 - p.eject_timer / SimConfig.EJECT_TIME
+				y += sin(PI * ejected) * EJECT_HOP
+		if not n.placed or thrown or p.carried_by >= 0 or ejected > 0.0:
 			n.y_smooth = y
 			n.placed = true
 		elif y >= n.y_smooth:
@@ -241,7 +247,10 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		n.stars.visible = stunned and not ghost
 		if stunned:
 			n.stars.rotation.y = _time * STAR_SPIN
-		n.model.rotation.y = lerp_angle(n.model.rotation.y, _yaw(p.aim), TURN_SPEED)
+		if ejected > 0.0:
+			n.model.rotation.y = _yaw(p.aim) + ejected * EJECT_SPINS * TAU
+		else:
+			n.model.rotation.y = lerp_angle(n.model.rotation.y, _yaw(p.aim), TURN_SPEED)
 		_animate(n, p)
 		if p.invulnerable_timer > 0.0 and not ghost:
 			n.model.visible = int(_time * 10.0) % 2 == 0

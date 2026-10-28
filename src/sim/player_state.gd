@@ -23,6 +23,8 @@ var possessed_by := -1
 var possess_target := -1
 var possess_timer := 0.0
 var possess_cooldown := 0.0
+var eject_dir := Vector2.ZERO # a ghost thrown off its victim flies this way
+var eject_timer := 0.0
 var died_tick := -1
 
 func cell() -> Vector2i:

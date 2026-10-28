@@ -6,7 +6,7 @@ var _action_pressed := false
 # Latched from _unhandled_input so a click taken by a GUI control (Quitter, end-of-round panel)
 # never steers the player.
 var _move_held := false
-# Shaking while stunned: each arrow press, and each MOUSE_SHAKE_PX of mouse travel, is one shake.
+# Shaking while stunned or possessed: each arrow press, and each MOUSE_SHAKE_PX of mouse travel, is one shake.
 const MOUSE_SHAKE_PX := 250.0
 var _shakes := 0.0
 var _mouse_travel := 0.0
@@ -83,7 +83,7 @@ func consume_intent(p: PlayerState, rig: CameraRig) -> PlayerIntent:
 
 func _consume_buttons(intent: PlayerIntent) -> void:
 	var mouse_shakes := floorf(_mouse_travel / MOUSE_SHAKE_PX)
-	intent.struggle = _shakes + mouse_shakes
+	intent.struggle = _shakes + mouse_shakes + (joystick.take_shakes() if joystick != null else 0.0)
 	_shakes = 0.0
 	_mouse_travel -= mouse_shakes * MOUSE_SHAKE_PX
 	intent.place_bomb = _bomb_pressed
