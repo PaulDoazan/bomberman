@@ -69,18 +69,21 @@ func test_throw_off_map_splashes() -> void:
 	for x in 9:
 		assert_eq(a.tile_at(Vector2i(x, 2)), Arena.Tile.FLOOR)
 
-func test_carried_bomb_keeps_fuse_and_explodes_at_carrier() -> void:
+# Comme dans Bomberman 64 : la mèche d'une bombe tenue s'arrête (on peut la garder autant qu'on
+# veut), et reprend où elle en était une fois la bombe lancée.
+func test_held_bomb_fuse_stops_and_resumes_once_thrown() -> void:
 	var w := _world(Fixtures.flat(9, 5), [Vector2(1.5, 2.5)])
-	w.add_bomb(0, Vector2i(1, 2), 0.5)
+	var b := w.add_bomb(0, Vector2i(1, 2), 0.5)
 	w.step(_act())
 	assert_eq(w.players[0].held, PlayerState.Held.BOMB)
-	var found := false
-	for _t in 18:
-		w.step({})
-		for e: Dictionary in w.events:
-			if e["type"] == "explosion":
-				found = e["cell"] == w.players[0].cell()
-	assert_true(found, "explosion sur la case du porteur")
+	_go(w, 3.0)
+	assert_true(w.bombs.has(b.id), "n'explose pas tant qu'on la tient")
+	assert_almost(b.fuse, 0.5, 0.001, "mèche arrêtée")
+	w.step(_act())
+	_go(w, 0.4)
+	assert_true(w.bombs.has(b.id), "pas encore")
+	_go(w, 0.2)
+	assert_false(w.bombs.has(b.id), "la mèche a repris après le lancer")
 
 func test_cannot_place_bomb_while_holding() -> void:
 	var w := _world(Fixtures.flat(9, 5), [Vector2(1.5, 2.5)])
@@ -181,7 +184,7 @@ func test_carrier_death_releases_carried_player_and_bomb() -> void:
 func test_exploding_held_bomb_clears_invulnerable_holder() -> void:
 	var w := _world(Fixtures.flat(9, 5), [Vector2(1.5, 2.5)])
 	w.players[0].invulnerable_timer = 5.0
-	w.add_bomb(0, Vector2i(1, 2), 0.1)
+	w.add_bomb(0, Vector2i(1, 2), 0.0) # goes off the tick it is picked up
 	w.step(_act())
 	_go(w, 0.2 + SimConfig.EXPLOSION_DURATION) # until the flames are out
 	assert_eq(w.bombs.size(), 0)

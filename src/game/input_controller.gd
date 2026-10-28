@@ -10,21 +10,28 @@ var _move_held := false
 const MOUSE_SHAKE_PX := 250.0
 var _shakes := 0.0
 var _mouse_travel := 0.0
-# Touch screens: a finger on bomb_area places a bomb, and the joystick steers, both at once.
+# Touch screens: a finger on bomb_area places a bomb, one on action_area picks up or throws,
+# and the joystick steers, all at once.
 var bomb_area: Control = null
+var action_area: Control = null
 var joystick: TouchJoystick = null
 
 # _input, not _unhandled_input: shaking the mouse over the HUD still counts.
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		var t := event as InputEventScreenTouch
-		if t.pressed and bomb_area != null and bomb_area.visible and bomb_area.get_global_rect().has_point(t.position):
+		if t.pressed and _touches(bomb_area, t.position):
 			_bomb_pressed = true
+		elif t.pressed and _touches(action_area, t.position):
+			_action_pressed = true
 	if event is InputEventMouseMotion:
 		_mouse_travel += (event as InputEventMouseMotion).relative.length()
 	for a in ["move_left", "move_right", "move_up", "move_down"]:
 		if event.is_action_pressed(a):
 			_shakes += 1.0
+
+func _touches(area: Control, at: Vector2) -> bool:
+	return area != null and area.visible and area.get_global_rect().has_point(at)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("move"):
