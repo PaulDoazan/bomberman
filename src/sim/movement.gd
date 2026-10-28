@@ -9,11 +9,10 @@ static func box_overlaps_cell(pos: Vector2, c: Vector2i) -> bool:
 	return pos.x + h > c.x + EPS and pos.x - h < c.x + 1.0 - EPS \
 		and pos.y + h > c.y + EPS and pos.y - h < c.y + 1.0 - EPS
 
-# Distance from a player's box at pos to the round body of a bomb at centre (< 0: overlap).
+# Gap between a player at pos and a bomb at centre (< 0: overlap). Against bombs a player is
+# round, as wide as their legs and feet, not the box used against walls.
 static func bomb_gap(pos: Vector2, centre: Vector2) -> float:
-	var h := SimConfig.PLAYER_HALF
-	var d := Vector2(maxf(absf(centre.x - pos.x) - h, 0.0), maxf(absf(centre.y - pos.y) - h, 0.0))
-	return d.length() - SimConfig.BOMB_BODY_RADIUS
+	return pos.distance_to(centre) - SimConfig.PLAYER_BODY_RADIUS - SimConfig.BOMB_BODY_RADIUS
 
 # True when moving the box from old_pos to pos pushes it further into a bomb it cannot pass.
 static func _bomb_blocks(world: World, p: PlayerState, old_pos: Vector2, pos: Vector2) -> bool:

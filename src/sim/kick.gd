@@ -61,9 +61,6 @@ static func update_rolling(world: World) -> void:
 			b.roll_dir = dir
 		var nxt := b.cell + b.roll_dir
 		if off >= 0.0 and not _can_roll(world, b, nxt):
-			for p: PlayerState in _players_in(world, nxt, b):
-				if p.stun_timer <= 0.0: # no stun-lock by kicking again into a stunned player
-					p.stun_timer = SimConfig.BOMB_HIT_STUN_TIME
 			var hit := world.bomb_at(nxt)
 			if hit != null and hit.roll_dir == Vector2i.ZERO:
 				hit.roll_dir = b.roll_dir # the motion passes on to the bomb it hits
@@ -72,11 +69,60 @@ static func update_rolling(world: World) -> void:
 			b.roll_dir = Vector2i.ZERO
 			b.roll_offset = 0.0
 			continue
+		# Players stop the bomb exactly where its body touches theirs, and are stunned.
+		var contact := _player_contact(world, b, b.roll_offset, off)
+		var touched: Array[PlayerState] = contact[1]
+		if not touched.is_empty():
+			b.roll_offset = contact[0]
+			for p in touched:
+				if p.stun_timer <= 0.0: # no stun-lock by kicking again into a stunned player
+					p.stun_timer = SimConfig.BOMB_HIT_STUN_TIME
+			_stop_where_it_is(b)
+			continue
 		b.roll_offset = off
 		if b.roll_offset >= 0.5:
 			b.cell = nxt
 			b.roll_offset -= 1.0
 			b.passable_for.clear()
+
+# The furthest roll offset in [from, to] before b's body touches a player in its way, with the
+# players touched there; [to, []] when nobody is in the way. Players it moves away from, and
+# those it may pass through (its kicker standing on it), never count.
+static func _player_contact(world: World, b: BombState, from: float, to: float) -> Array:
+	var base := Arena.center_of(b.cell) + b.offset
+	var dir := Vector2(b.roll_dir)
+	var reach := SimConfig.BOMB_BODY_RADIUS + SimConfig.PLAYER_BODY_RADIUS
+	var best := to
+	var touched: Array[PlayerState] = []
+	for p: PlayerState in world.players.values():
+		if p.id in b.passable_for or p.life != PlayerState.Life.ALIVE or p.carried_by != -1:
+			continue
+		var end := base + dir * to
+		if end.distance_to(p.pos) >= reach or (p.pos - end).dot(dir) <= 0.0:
+			continue
+		var lo := from
+		var hi := to
+		if (base + dir * lo).distance_to(p.pos) >= reach:
+			for _i in 12:
+				var mid := (lo + hi) * 0.5
+				if (base + dir * mid).distance_to(p.pos) < reach:
+					hi = mid
+				else:
+					lo = mid
+		if lo < best - 1e-6:
+			best = lo
+			touched = [p]
+		elif absf(lo - best) <= 1e-6:
+			touched.append(p)
+	return [best, touched]
+
+# Stops a rolling bomb where it is, keeping its exact position (it may be between centres).
+static func _stop_where_it_is(b: BombState) -> void:
+	var at := b.pos()
+	b.roll_dir = Vector2i.ZERO
+	b.roll_offset = 0.0
+	b.cell = Arena.cell_of(at)
+	b.offset = at - Arena.center_of(b.cell)
 
 # The step from b's cell following its heading: the heading itself, or along the wall on one
 # side of a diagonal, or zero when walls close both sides (a corner).
@@ -100,21 +146,9 @@ static func _is_wall(world: World, from: Vector2i, to: Vector2i) -> bool:
 	return not arena.in_bounds(to) or arena.is_solid(to) \
 			or arena.h2_at(to) > arena.h2_at(from) or world.is_submerged(to)
 
-# A bomb rolls on flat ground or off a ledge, never up, and stops before solids, bombs,
-# water and players.
+# A bomb rolls on flat ground or off a ledge, never up, and stops before solids, bombs and
+# water. Players stop it on contact instead (see _player_contact).
 static func _can_roll(world: World, b: BombState, to: Vector2i) -> bool:
 	if _is_wall(world, b.cell, to):
 		return false
-	if world.bomb_at(to) != null:
-		return false
-	return _players_in(world, to, b).is_empty()
-
-# Players in c the bomb would hit; those standing on the bomb (its layer, its kicker) never count.
-static func _players_in(world: World, c: Vector2i, b: BombState) -> Array[PlayerState]:
-	var out: Array[PlayerState] = []
-	for p: PlayerState in world.players.values():
-		if p.id in b.passable_for:
-			continue
-		if p.life == PlayerState.Life.ALIVE and p.carried_by == -1 and Movement.box_overlaps_cell(p.pos, c):
-			out.append(p)
-	return out
+	return world.bomb_at(to) == null
