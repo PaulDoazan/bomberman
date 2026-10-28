@@ -46,3 +46,25 @@ func test_box_beside_the_bomb_corner_is_not_blocked() -> void:
 	var p: PlayerState = w.players[0]
 	assert_false(Movement._blocked_at(w, p, p.pos, Vector2(4.1, 2.3), p.cell()), "pas bloqué par le coin")
 	assert_true(Movement._blocked_at(w, p, p.pos, Vector2(4.1, 2.1), p.cell()), "bloqué par la bombe elle-même")
+
+# Rappuyer en s'éloignant ne kicke plus la bombe précédente : on n'est plus dessus. Plus loin,
+# une deuxième bombe se pose, même dans la même case.
+func test_pressing_again_after_walking_off_does_not_kick() -> void:
+	var w := _world(Fixtures.flat(13, 5), [Vector2(4.1, 2.5)])
+	_place(w, 0)
+	var first: BombState = w.bombs.values()[0]
+	var walk := PlayerIntent.new()
+	walk.moving = true
+	walk.target = Vector2(12.5, 2.5)
+	while w.players[0].pos.x < 4.1 + SimConfig.BOMB_BODY_RADIUS + 0.05:
+		w.step({0: walk})
+	_place(w, 0)
+	assert_eq(first.roll_dir, Vector2i.ZERO, "la première bombe ne part pas")
+	while w.players[0].pos.x < 4.1 + 2.0 * SimConfig.BOMB_BODY_RADIUS + 0.05:
+		w.step({0: walk})
+	_place(w, 0)
+	assert_eq(first.roll_dir, Vector2i.ZERO, "toujours pas")
+	assert_eq(w.bombs.size(), 2, "deuxième bombe posée")
+	var second: BombState = w.bombs.values()[1]
+	assert_eq(second.cell, first.cell, "dans la même case")
+	assert_almost(second.pos().distance_to(w.players[0].pos), 0.0, 0.001, "sous le joueur")

@@ -210,12 +210,13 @@ func _try_place_bomb(p: PlayerState) -> void:
 	var c := p.cell()
 	if not arena.in_bounds(c):
 		return
-	var under := bomb_at(c)
+	# Standing on a bomb (centre over its round body): placing again kicks it away. Merely
+	# touching it, or sharing its cell, is not standing on it.
+	var under: BombState = null
 	for b: BombState in bombs.values():
-		if b.state == BombState.State.PLACED and p.id in b.passable_for and Movement.bomb_gap(p.pos, b.pos()) < 0.0:
-			under = b # still standing on it, even from the next cell
+		if b.state == BombState.State.PLACED and b.pos().distance_to(p.pos) < SimConfig.BOMB_BODY_RADIUS:
+			under = b
 	if under != null:
-		# Placing again while standing on a bomb kicks it away.
 		if under.roll_dir == Vector2i.ZERO:
 			Kick.kick(self, p, under)
 		return
