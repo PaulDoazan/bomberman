@@ -82,7 +82,7 @@ func test_chain_reaction_same_tick() -> void:
 	assert_false(w.bombs.has(b.id))
 
 func test_explosion_costs_one_life() -> void:
-	var w := _world(Fixtures.flat(9, 3), [Vector2(2.5, 1.5), Vector2(3.5, 1.5), Vector2(8.5, 0.5)])
+	var w := _world(Fixtures.flat(9, 3), [Vector2(1.8, 1.5), Vector2(2.1, 1.5), Vector2(8.5, 0.5)]) # within the dome as it appears
 	w.players[1].invulnerable_timer = 1.0
 	w.add_bomb(2, Vector2i(1, 1), 0.0)
 	w.step({})
@@ -97,7 +97,7 @@ func test_explosion_costs_one_life() -> void:
 	assert_eq(w.players[0].lives, 2, "une seule vie perdue par explosion")
 
 func test_last_life_becomes_ghost() -> void:
-	var w := _world(Fixtures.flat(9, 3), [Vector2(2.5, 1.5)])
+	var w := _world(Fixtures.flat(9, 3), [Vector2(1.8, 1.5)])
 	w.players[0].lives = 1
 	w.add_bomb(0, Vector2i(1, 1), 0.0)
 	w.step({})
@@ -150,3 +150,29 @@ func test_rolling_bomb_explodes_in_lingering_blast() -> void:
 			exploded = true
 			break
 	assert_true(exploded, "la bombe qui roule explose en entrant dans les flammes")
+
+func test_death_only_when_the_growing_dome_touches() -> void:
+	# Player 1.5 cells away (in a hit cell): alive while the dome is still small.
+	var w := _world(Fixtures.flat(9, 3), [Vector2(3.0, 1.5), Vector2(8.5, 0.5)])
+	w.add_bomb(1, Vector2i(1, 1), 0.0)
+	w.step({})
+	assert_eq(w.players[0].life, PlayerState.Life.ALIVE, "pas encore touché")
+	var died := false
+	for _t in roundi(SimConfig.EXPLOSION_DURATION * 30):
+		w.step({})
+		died = died or w.players[0].life != PlayerState.Life.ALIVE
+	assert_true(died, "touché quand le dôme l'atteint")
+
+func test_edge_of_a_hit_cell_out_of_reach_survives() -> void:
+	# Cell (3,1) is in the blast, but the player stands at its far edge, beyond the full dome.
+	var w := _world(Fixtures.flat(9, 3), [Vector2(3.95, 1.5), Vector2(8.5, 0.5)])
+	w.add_bomb(1, Vector2i(1, 1), 0.0)
+	for _t in roundi(SimConfig.EXPLOSION_DURATION * 30) + 2:
+		w.step({})
+	assert_eq(w.players[0].lives, 3)
+
+func test_dome_radius_grows_to_full() -> void:
+	var e := Explosion.new()
+	assert_true(e.radius() < SimConfig.BOMB_RADIUS * 0.5)
+	e.timer = 0.0
+	assert_almost(e.radius(), SimConfig.BOMB_RADIUS, 0.001)

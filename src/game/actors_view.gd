@@ -301,8 +301,7 @@ func _sync_explosions(world: World) -> void:
 			add_child(m)
 			_domes[key] = m
 			m.position = Vector3(e.origin.x + 0.5, world.arena.h2_at(e.origin) * 0.5, e.origin.y + 0.5)
-		var t := clampf(1.0 - e.timer / SimConfig.EXPLOSION_DURATION, 0.0, 1.0)
-		m.scale = Vector3.ONE * lerpf(0.2, 1.0, t)
+		m.scale = Vector3.ONE * (e.radius() / SimConfig.BOMB_RADIUS)
 	for key: int in _domes.keys():
 		if not alive.has(key):
 			_domes[key].queue_free()

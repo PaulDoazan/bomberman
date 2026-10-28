@@ -300,7 +300,8 @@ func _in_blast(c: Vector2i) -> bool:
 func _apply_explosion_damage() -> void:
 	for e: Explosion in explosions:
 		for p: PlayerState in players.values():
-			if p.life == PlayerState.Life.ALIVE and p.carried_by != Carry.THROWN and p.invulnerable_timer <= 0.0 and p.cell() in e.cells:
+			if p.life == PlayerState.Life.ALIVE and p.carried_by != Carry.THROWN and p.invulnerable_timer <= 0.0 \
+					and p.cell() in e.cells and e.touches(arena, p.pos):
 				kill(p.id, "explosion")
 
 func kill(id: int, cause: String) -> void:

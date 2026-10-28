@@ -6,6 +6,20 @@ var cells: Array[Vector2i] = []
 var timer := SimConfig.EXPLOSION_DURATION
 var owner_id: int
 
+const GROW_START := 0.2 # dome size when it appears, as a fraction of its full radius
+
+# Current dome radius: grows from GROW_START to full over the explosion's duration.
+func radius() -> float:
+	var t := clampf(1.0 - timer / SimConfig.EXPLOSION_DURATION, 0.0, 1.0)
+	return SimConfig.BOMB_RADIUS * lerpf(GROW_START, 1.0, t)
+
+# True if the dome, at its current size, reaches the body of a player standing at pos (feet on
+# the ground of their cell, box of PLAYER_HALF around pos).
+func touches(arena: Arena, pos: Vector2) -> bool:
+	var flat := maxf(0.0, pos.distance_to(Arena.center_of(origin)) - SimConfig.PLAYER_HALF)
+	var up := maxf(0.0, (arena.h2_at(Arena.cell_of(pos)) - arena.h2_at(origin)) * 0.5)
+	return Vector2(flat, up).length() <= radius()
+
 # Hemisphere: round, never goes below the origin's level, blocked by pillars and blocks.
 static func hit_cells(arena: Arena, origin: Vector2i, radius: float) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
