@@ -98,6 +98,7 @@ func test_struggling_shortens_a_stun() -> void:
 func test_placing_again_on_a_bomb_kicks_it() -> void:
 	var w := _world(_lane(), [Vector2(2.5, 1.5)])
 	w.players[0].facing = Vector2i(1, 0)
+	w.players[0].aim = Vector2i(1, 0)
 	var i := PlayerIntent.new(); i.place_bomb = true
 	w.step({0: i})
 	var b: BombState = w.bombs.values()[0]
@@ -129,6 +130,7 @@ func test_kicking_the_bomb_underfoot_never_stuns_the_kicker() -> void:
 		var a := Fixtures.flat(9, 9)
 		var w := _world(a, [Vector2(4.5, 4.5) + Vector2(dir) * 0.3])
 		w.players[0].facing = dir
+		w.players[0].aim = dir
 		var i := PlayerIntent.new(); i.place_bomb = true
 		w.step({0: i})
 		var b: BombState = w.bombs.values()[0]
@@ -137,3 +139,50 @@ func test_kicking_the_bomb_underfoot_never_stuns_the_kicker() -> void:
 		_wait(w, 1.0)
 		assert_eq(w.players[0].stun_timer, 0.0, "pas assommé (%s)" % dir)
 		assert_eq(b.cell, Vector2i(4, 4) + dir * 4, "la bombe est partie (%s)" % dir)
+
+# Kick diagonal en terrain dégagé : la bombe roule à 45° jusqu'au coin de l'arène.
+func test_diagonal_kick_rolls_at_45_degrees_until_a_corner() -> void:
+	var w := _world(Fixtures.flat(9, 9), [Vector2(1.5, 1.5)])
+	w.players[0].facing = Vector2i(1, 0)
+	w.players[0].aim = Vector2i(1, 1)
+	var i := PlayerIntent.new(); i.place_bomb = true
+	w.step({0: i})
+	var b: BombState = w.bombs.values()[0]
+	b.fuse = 100.0
+	w.step({0: i})
+	var cells: Array[Vector2i] = []
+	for _t in 60:
+		w.step({})
+		if cells.is_empty() or cells[-1] != b.cell:
+			cells.append(b.cell)
+	assert_eq(cells, [Vector2i(1, 1), Vector2i(2, 2), Vector2i(3, 3), Vector2i(4, 4), Vector2i(5, 5), Vector2i(6, 6), Vector2i(7, 7), Vector2i(8, 8)] as Array[Vector2i])
+	assert_eq(b.roll_dir, Vector2i.ZERO, "arrêtée dans le coin")
+
+# Contre un mur percuté à 45°, la bombe longe le mur puis repart en diagonale à sa fin.
+func test_diagonal_bomb_slides_along_a_wall_then_resumes() -> void:
+	var a := Fixtures.flat(9, 9)
+	for y in 5:
+		a.set_tile(Vector2i(6, y), Arena.Tile.PILLAR)
+	var w := _world(a, [Vector2(0.5, 8.5)])
+	var b := _bomb(w, Vector2i(4, 1))
+	w.players[0].aim = Vector2i(1, 1)
+	Kick.kick(w, w.players[0], b)
+	var cells: Array[Vector2i] = [b.cell]
+	for _t in 90:
+		w.step({})
+		if cells[-1] != b.cell:
+			cells.append(b.cell)
+	assert_eq(cells, [Vector2i(4, 1), Vector2i(5, 2), Vector2i(5, 3), Vector2i(5, 4), Vector2i(5, 5), Vector2i(6, 6), Vector2i(7, 7), Vector2i(8, 8)] as Array[Vector2i])
+	assert_eq(b.roll_dir, Vector2i.ZERO)
+
+# Un pilier pris pile par l'angle arrête la bombe, comme un mur de face.
+func test_diagonal_bomb_stops_on_a_corner_hit() -> void:
+	var a := Fixtures.flat(9, 9)
+	a.set_tile(Vector2i(4, 4), Arena.Tile.PILLAR)
+	var w := _world(a, [Vector2(8.5, 0.5)])
+	var b := _bomb(w, Vector2i(1, 1))
+	w.players[0].aim = Vector2i(1, 1)
+	Kick.kick(w, w.players[0], b)
+	_wait(w, 2.0)
+	assert_eq(b.cell, Vector2i(3, 3))
+	assert_eq(b.roll_dir, Vector2i.ZERO)

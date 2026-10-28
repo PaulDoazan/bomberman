@@ -143,6 +143,7 @@ func test_rolling_bomb_explodes_in_lingering_blast() -> void:
 	w.step({})
 	var b := w.add_bomb(0, Vector2i(6, 1), 2.0)
 	b.roll_dir = Vector2i(-1, 0)
+	b.roll_heading = Vector2i(-1, 0)
 	var exploded := false
 	for _t in roundi(SimConfig.EXPLOSION_DURATION * 30):
 		w.step({})

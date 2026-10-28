@@ -18,7 +18,7 @@ Le multijoueur en ligne viendra dans une étape suivante, et le POC doit être c
 - Les contrôles souris + clavier décrits plus bas.
 - Bombes, explosions, blocs destructibles.
 - Soulever et lancer : bombes (les siennes et celles des autres), joueurs, blocs.
-- Coup de pied : en continuant de pousser un court instant (0,2 s) contre une bombe, on la kicke. Elle roule tout droit dans la direction où regarde le perso (6 cases/s) jusqu'au prochain obstacle : pilier, bloc, bombe, joueur, eau ou niveau plus haut. Elle peut tomber d'un niveau et continuer à rouler, et sa mèche continue de tourner. Appuyer de nouveau sur Espace en restant sur une bombe la kicke aussi. Une bombe qui roule et percute une bombe immobile s'arrête et lui transmet son mouvement.
+- Coup de pied : en continuant de pousser un court instant (0,2 s) contre une bombe, on la kicke. Elle roule dans la direction où regarde le perso, sur 8 directions (6 cases/s), jusqu'au prochain obstacle : pilier, bloc, bombe, joueur, eau ou niveau plus haut. En diagonale (décision utilisateur), une bombe qui rencontre un mur sur un côté le longe, puis repart à 45° une fois le mur dépassé. Elle s'arrête dans un coin. Choix Claude : un obstacle pris pile par l'angle l'arrête comme un mur de face, et un joueur ou une bombe sur la trajectoire n'est pas un mur (le joueur est assommé, la bombe reçoit le mouvement). Elle peut tomber d'un niveau et continuer à rouler, et sa mèche continue de tourner. Appuyer de nouveau sur Espace en restant sur une bombe la kicke aussi. Une bombe qui roule et percute une bombe immobile s'arrête et lui transmet son mouvement.
 - Assommé : une bombe qui nous roule dessus, ou qu'on nous lance sur la tête, nous assomme 3 s (la doc de BM64 dit seulement « longtemps » sans chiffre : valeur choisie). Des étoiles tournent au-dessus de la tête tant qu'on est assommé. On se réveille plus vite en secouant : chaque appui sur une flèche, ou chaque 250 px de souris secouée, retire 0,15 s.
 - Montée des eaux à la fin du chrono, noyade.
 - Fantômes qui possèdent les vivants.
@@ -43,7 +43,7 @@ Le multijoueur en ligne viendra dans une étape suivante, et le POC doit être c
 
 - **Clic gauche maintenu** : le perso avance **en ligne droite vers le pointeur** tant que le bouton est enfoncé. Il n'y a **pas de calcul de chemin** : c'est au joueur de contourner les obstacles avec la souris. Même principe qu'Agar.io, mais sur une grille.
   - Aide aux mouvements (validée) : le perso **glisse le long des murs** quand il les frôle et se **recentre doucement dans un couloir** quand il est presque aligné, comme l'aide aux coins des Bomberman au clavier.
-  - Le perso regarde dans la direction de son dernier déplacement, sur **8 directions** (diagonales à 45° comprises, décision utilisateur). Le coup de pied et la saisie de l'objet devant soi restent sur les 4 directions de la grille.
+  - Le perso regarde dans la direction de son dernier déplacement, sur **8 directions** (diagonales à 45° comprises, décision utilisateur). La saisie de l'objet devant soi reste sur les 4 directions de la grille.
 - **Espace** : pose une bombe sur la case du perso.
 - **Clic droit** : soulève l'objet qui se trouve devant le perso ou sous lui. Un deuxième clic droit le lance **dans la direction où regarde le perso**, et non vers la souris. On peut donc lancer dans les 8 directions. En diagonale, l'objet va environ aussi loin que tout droit (2 cases en diagonale au lieu de 3).
   - Objets qu'on peut soulever : ses bombes, celles des autres, les **autres joueurs**, les **blocs destructibles**.
