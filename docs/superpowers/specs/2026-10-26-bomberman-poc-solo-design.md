@@ -48,6 +48,7 @@ Le multijoueur en ligne viendra dans une étape suivante, et le POC doit être c
 - **Clic droit** : soulève l'objet qui se trouve devant le perso ou sous lui. Un deuxième clic droit le lance **dans la direction où regarde le perso**, et non vers la souris. On peut donc lancer dans les 8 directions. En diagonale, l'objet va environ aussi loin que tout droit (2 cases en diagonale au lieu de 3).
 - **Écran tactile** (décision utilisateur, à la façon d'Among Us) : un **joystick fixe en bas à gauche** dirige le perso dans la direction poussée, et un **bouton en forme de bombe en bas à droite** pose une bombe. Un **bouton rond à sa gauche** soulève ou lance (décision utilisateur) : il affiche « PRENDRE » les mains vides et « LANCER » quand on porte quelque chose. On peut utiliser joystick et boutons en même temps. Toucher ailleurs ne dirige pas le perso. Un bouton « Plein écran » dans la barre du haut passe en plein écran et en sort (décision utilisateur). Ces contrôles n'apparaissent que sur les écrans tactiles.
   - Objets qu'on peut soulever : ses bombes, celles des autres, les **autres joueurs**, les **blocs destructibles**.
+  - Un joueur, notamment **assommé** (le manuel de BM64 parle de ramasser « un ennemi paralysé », décision utilisateur), se saisit **au contact** et non à la case : à 1,1 case au plus devant soi (dans un cône de 60° autour du regard), ou n'importe où s'il est collé à soi. Les joueurs se traversent, ils peuvent donc partager une case.
 
 ## La map (décision utilisateur : option A, « fidèle, en plus grand »)
 

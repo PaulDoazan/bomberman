@@ -48,6 +48,7 @@ const STUN_TIME := 1.5 # after landing from a throw
 const BOMB_HIT_STUN_TIME := 3.0 # hit by a thrown or rolling bomb
 const STRUGGLE_TIME := 0.15 # seconds of stun removed per shake
 const CARRY_ESCAPE := 3.0
+const GRAB_REACH := 1.1 # how far ahead a player can grab another
 
 const KICK_PUSH_TIME := 0.2 # seconds pushing against a bomb before kicking it
 const KICK_SPEED := 6.0 # cells per second
