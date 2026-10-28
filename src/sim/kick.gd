@@ -24,6 +24,7 @@ static func kick(world: World, p: PlayerState, b: BombState) -> void:
 	b.roll_heading = p.aim
 	b.roll_dir = p.aim
 	b.roll_offset = 0.0
+	p.kick_tick = world.tick
 	world.events.append({"type": "kick", "id": p.id, "bomb": b.id})
 
 # A bomb ahead (within 60 degrees of facing) whose round body the player's box is touching,

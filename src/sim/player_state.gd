@@ -24,6 +24,7 @@ var possess_target := -1
 var possess_timer := 0.0
 var possess_cooldown := 0.0
 var died_tick := -1
+var kick_tick := -1 # tick of the last kick, for the view
 
 func cell() -> Vector2i:
 	return Arena.cell_of(pos)

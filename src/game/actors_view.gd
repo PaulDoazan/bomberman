@@ -18,6 +18,12 @@ const MODEL_SCALE := 1.2 / 1.75 # the model is 1.75 units tall; players stand ab
 const TURN_SPEED := 0.35 # fraction of the remaining angle turned per tick
 const LIFT_TIME := 0.3 # seconds the lift animation is squeezed into
 const LOOPED_ANIMS := ["Idle", "Walk", "Run", "Carry"]
+const ONE_SHOT_ANIMS := ["Lift", "Kick"] # played to the end before going back to the others
+# Right-leg kick built from the Idle pose (the model has no kick of its own). Each key is
+# [time, thigh, knee, spine]: turns in degrees about the body's sideways axis, negative
+# swinging the thigh forward and leaning back, positive bending the knee.
+const KICK_KEYS := [[0.0, 0.0, 0.0, 0.0], [0.1, 25.0, 70.0, 0.0], [0.2, -85.0, 5.0, -12.0],
+		[0.3, -70.0, 15.0, -10.0], [0.45, 0.0, 0.0, 0.0]]
 
 class PlayerNode:
 	extends Node3D
@@ -33,6 +39,7 @@ class PlayerNode:
 	var y_smooth := 0.0
 	var placed := false
 	var seen_death := -1 # died_tick already handled, so each death leaves one body
+	var seen_kick := -1 # kick_tick already animated
 
 var _players: Dictionary = {} # id -> PlayerNode
 var _bombs: Dictionary = {} # id -> MeshInstance3D
@@ -135,7 +142,57 @@ func _make_model() -> Node3D:
 	var ap: AnimationPlayer = model.find_child("AnimationPlayer", true, false)
 	for a: String in LOOPED_ANIMS:
 		ap.get_animation(a).loop_mode = Animation.LOOP_LINEAR
+	if not ap.has_animation("Kick"): # the library is shared by every instance
+		ap.get_animation_library("").add_animation("Kick", _make_kick(ap, model.find_child("Skeleton3D", true, false)))
 	return model
+
+# The Idle pose held still, with the right leg, its knee and the spine turned per KICK_KEYS.
+static func _make_kick(ap: AnimationPlayer, sk: Skeleton3D) -> Animation:
+	var idle := ap.get_animation("Idle")
+	var anim := Animation.new()
+	anim.length = KICK_KEYS[-1][0]
+	for t in idle.get_track_count():
+		var path := idle.track_get_path(t)
+		var type := idle.track_get_type(t)
+		var k := anim.add_track(type)
+		anim.track_set_path(k, path)
+		match type:
+			Animation.TYPE_POSITION_3D:
+				anim.position_track_insert_key(k, 0.0, idle.position_track_interpolate(t, 0.0))
+			Animation.TYPE_ROTATION_3D:
+				anim.rotation_track_insert_key(k, 0.0, idle.rotation_track_interpolate(t, 0.0))
+			Animation.TYPE_SCALE_3D:
+				anim.scale_track_insert_key(k, 0.0, idle.scale_track_interpolate(t, 0.0))
+	var prefix := String(idle.track_get_path(0)).get_slice(":", 0) + ":"
+	var rot := func(bone: String) -> Quaternion:
+		var t := idle.find_track(NodePath(prefix + bone), Animation.TYPE_ROTATION_3D)
+		if t >= 0:
+			return idle.rotation_track_interpolate(t, 0.0)
+		return sk.get_bone_rest(sk.find_bone(bone)).basis.get_rotation_quaternion()
+	var hips: Quaternion = rot.call("mixamorig_Hips")
+	var thigh: Quaternion = rot.call("mixamorig_RightUpLeg")
+	var shin: Quaternion = rot.call("mixamorig_RightLeg")
+	var spine: Quaternion = rot.call("mixamorig_Spine")
+	var tracks := {}
+	for bone: String in ["mixamorig_RightUpLeg", "mixamorig_RightLeg", "mixamorig_Spine"]:
+		var path := NodePath(prefix + bone)
+		var k := anim.find_track(path, Animation.TYPE_ROTATION_3D)
+		if k < 0:
+			k = anim.add_track(Animation.TYPE_ROTATION_3D)
+			anim.track_set_path(k, path)
+		else:
+			anim.track_remove_key(k, 0)
+		tracks[bone] = k
+	for key: Array in KICK_KEYS:
+		anim.rotation_track_insert_key(tracks["mixamorig_RightUpLeg"], key[0], _turned(hips, thigh, key[1]))
+		anim.rotation_track_insert_key(tracks["mixamorig_RightLeg"], key[0], _turned(hips * thigh, shin, key[2]))
+		anim.rotation_track_insert_key(tracks["mixamorig_Spine"], key[0], _turned(hips, spine, key[3]))
+	return anim
+
+# Local rotation of a bone turned by deg about the skeleton's X axis (the body's sideways axis),
+# given its parent's rotation in skeleton space.
+static func _turned(parent: Quaternion, local: Quaternion, deg: float) -> Quaternion:
+	return parent.inverse() * Quaternion(Vector3.RIGHT, deg_to_rad(deg)) * parent * local
 
 func _make_player(color: Color) -> PlayerNode:
 	var n := PlayerNode.new()
@@ -206,6 +263,7 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		if n == null:
 			n = _make_player(mp.color if mp != null else Color.WHITE)
 			n.seen_death = p.died_tick
+			n.seen_kick = p.kick_tick
 			_players[id] = n
 		if p.died_tick != n.seen_death:
 			n.seen_death = p.died_tick
@@ -242,7 +300,9 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		if stunned:
 			n.stars.rotation.y = _time * STAR_SPIN
 		n.model.rotation.y = lerp_angle(n.model.rotation.y, _yaw(p.aim), TURN_SPEED)
-		_animate(n, p)
+		var kicked := p.kick_tick != n.seen_kick
+		n.seen_kick = p.kick_tick
+		_animate(n, p, kicked)
 		if p.invulnerable_timer > 0.0 and not ghost:
 			n.model.visible = int(_time * 10.0) % 2 == 0
 		else:
@@ -254,17 +314,23 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 static func _yaw(aim: Vector2i) -> float:
 	return atan2(float(aim.x), float(aim.y))
 
-# Idle, run, lift then carry, from what the player is doing this tick.
-func _animate(n: PlayerNode, p: PlayerState) -> void:
+# Idle, run, kick, lift then carry, from what the player is doing this tick.
+func _animate(n: PlayerNode, p: PlayerState, kicked: bool) -> void:
 	var moved := n.last_pos != Vector2.INF and p.pos.distance_to(n.last_pos) > 0.01
 	n.last_pos = p.pos
 	var lifting := n.last_held == PlayerState.Held.NONE and p.held != PlayerState.Held.NONE
 	n.last_held = p.held
+	if kicked:
+		if n.anim.current_animation == "Kick":
+			n.anim.seek(0.0, true) # kicking again mid-kick replays it from the start
+		else:
+			n.anim.play("Kick", 0.05)
+		return
 	if lifting:
 		var lift := n.anim.get_animation("Lift").length
 		n.anim.play("Lift", 0.1, lift / LIFT_TIME)
 		return
-	if n.anim.current_animation == "Lift" and n.anim.is_playing():
+	if n.anim.current_animation in ONE_SHOT_ANIMS and n.anim.is_playing():
 		return
 	var want := "Idle"
 	if p.life == PlayerState.Life.ALIVE and p.carried_by < 0:
