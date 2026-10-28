@@ -130,6 +130,9 @@ func test_thrown_bomb_stuns_player_on_landing() -> void:
 	_flight(w)
 	assert_eq(b.state, BombState.State.PLACED)
 	assert_true(w.players[1].stun_timer > SimConfig.BOMB_HIT_STUN_TIME - 0.1, "assommé")
+	for _t in roundi(SimConfig.KNOCK_TIME * SimConfig.TICK_RATE):
+		w.step({})
+	assert_almost(w.players[1].pos.x, 4.5 + SimConfig.KNOCK_DISTANCE, 0.01, "repoussé dans le sens du lancer")
 
 func test_throw_lands_on_upper_level() -> void:
 	var a := Fixtures.flat(9, 5)

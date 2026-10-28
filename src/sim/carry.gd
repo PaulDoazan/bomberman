@@ -169,7 +169,7 @@ static func _land(world: World, f: FlyingObject) -> void:
 			b.offset = Vector2.ZERO
 			b.passable_for.clear()
 			for hit: PlayerState in _free_players_at(world, c):
-				hit.stun_timer = SimConfig.BOMB_HIT_STUN_TIME
+				world.hit_by_bomb(hit, Vector2(f.dir))
 		PlayerState.Held.BLOCK:
 			world.arena.set_tile(c, Arena.Tile.BLOCK)
 		PlayerState.Held.PLAYER:

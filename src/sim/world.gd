@@ -63,6 +63,7 @@ func step(intents: Dictionary) -> void:
 		if p.can_act() and intent.moving:
 			Movement.move(self, p, intent.target, SimConfig.PLAYER_SPEED, SimConfig.DT)
 		Kick.update_push(self, p, p.can_act() and intent.moving)
+	_update_knockbacks()
 	Carry.update_carried(self)
 	Carry.update_flying(self)
 	Ghosts.update(self)
@@ -326,6 +327,21 @@ func _apply_explosion_damage() -> void:
 			if p.life == PlayerState.Life.ALIVE and p.carried_by != Carry.THROWN and p.invulnerable_timer <= 0.0 \
 					and p.cell() in e.cells and e.touches(arena, p.pos):
 				kill(p.id, "explosion")
+
+# A bomb coming along dir (zero: straight down) hits p: stunned and knocked back a little.
+func hit_by_bomb(p: PlayerState, dir: Vector2) -> void:
+	p.stun_timer = SimConfig.BOMB_HIT_STUN_TIME
+	p.knock_dir = dir.normalized()
+	p.knock_timer = SimConfig.KNOCK_TIME
+
+func _update_knockbacks() -> void:
+	for p: PlayerState in players.values():
+		if p.knock_timer <= 1e-6:
+			p.knock_timer = 0.0
+			continue
+		p.knock_timer = maxf(0.0, p.knock_timer - SimConfig.DT)
+		if p.life == PlayerState.Life.ALIVE and p.carried_by == -1:
+			Movement.push(self, p, p.knock_dir * SimConfig.KNOCK_DISTANCE / SimConfig.KNOCK_TIME * SimConfig.DT)
 
 func kill(id: int, cause: String) -> void:
 	var p: PlayerState = players[id]

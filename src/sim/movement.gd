@@ -141,6 +141,11 @@ static func move(world: World, p: PlayerState, target: Vector2, speed: float, dt
 		if p.id in b.passable_for and bomb_gap(p.pos, b.pos()) >= 0.0:
 			b.passable_for.erase(p.id)
 
+# Moves p by delta without steering (a knock-back), blocked like walking.
+static func push(world: World, p: PlayerState, delta: Vector2) -> void:
+	_move_axis(world, p, 0, delta.x)
+	_move_axis(world, p, 1, delta.y)
+
 # Ghosts: no collision, only clamped to the grid.
 static func move_free(world: World, p: PlayerState, target: Vector2, speed: float, dt: float) -> void:
 	var to_target := target - p.pos

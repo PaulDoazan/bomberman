@@ -46,6 +46,8 @@ const THROW_DISTANCE := 3
 const THROW_FLIGHT := 0.5
 const STUN_TIME := 1.5 # after landing from a throw
 const BOMB_HIT_STUN_TIME := 3.0 # hit by a thrown or rolling bomb
+const KNOCK_DISTANCE := 0.4 # cells a player hit by a bomb is knocked back
+const KNOCK_TIME := 0.3 # seconds the knock-back lasts (a small hop in the view)
 const STRUGGLE_TIME := 0.15 # seconds of stun removed per shake
 const CARRY_ESCAPE := 3.0
 

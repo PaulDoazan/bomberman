@@ -77,7 +77,7 @@ static func update_rolling(world: World) -> void:
 			b.roll_offset = contact[0]
 			for p in touched:
 				if p.stun_timer <= 0.0: # no stun-lock by kicking again into a stunned player
-					p.stun_timer = SimConfig.BOMB_HIT_STUN_TIME
+					world.hit_by_bomb(p, Vector2(b.roll_dir))
 			_stop_where_it_is(b)
 			continue
 		b.roll_offset = off

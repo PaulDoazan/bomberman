@@ -7,6 +7,8 @@ const THROW_ARC := 1.5
 const STAR_COUNT := 3
 const STAR_ORBIT := 0.4
 const STAR_HEIGHT := 1.4
+const SIT_STAR_HEIGHT := 1.2 # stars above a player sitting knocked out
+const HOP_HEIGHT := 0.35 # top of the hop of a player knocked back by a bomb
 const STAR_SPIN := 6.0 # radians per second
 const CORPSE_TIME := 2.5 # seconds a burnt body stays on screen
 const CORPSE_FADE := 0.6 # last part of CORPSE_TIME, spent fading out
@@ -19,11 +21,26 @@ const TURN_SPEED := 0.35 # fraction of the remaining angle turned per tick
 const LIFT_TIME := 0.3 # seconds the lift animation is squeezed into
 const LOOPED_ANIMS := ["Idle", "Walk", "Run", "Carry"]
 const ONE_SHOT_ANIMS := ["Lift", "Kick"] # played to the end before going back to the others
-# Right-leg kick built from the Idle pose (the model has no kick of its own). Each key is
-# [time, thigh, knee, spine]: turns in degrees about the body's sideways axis, negative
-# swinging the thigh forward and leaning back, positive bending the knee.
-const KICK_KEYS := [[0.0, 0.0, 0.0, 0.0], [0.1, 25.0, 70.0, 0.0], [0.2, -85.0, 5.0, -12.0],
-		[0.3, -70.0, 15.0, -10.0], [0.45, 0.0, 0.0, 0.0]]
+# Moves built from the Idle pose (the model has none of its own). Each key is [time, turns],
+# a turn being a bone's rotation in degrees about the body's axes, on top of its parent's:
+# about X (sideways) negative swings a leg forward or leans back, positive bends a knee; about
+# Z (forward) it tilts sideways. "Hips_y" lowers the hips (skeleton units). Bones a move turns
+# somewhere are back to the Idle pose in the keys that leave them out.
+const KICK := {"loop": false, "keys": [
+	[0.0, {}],
+	[0.1, {"RightUpLeg": Vector3(25, 0, 0), "RightLeg": Vector3(70, 0, 0)}],
+	[0.2, {"RightUpLeg": Vector3(-85, 0, 0), "RightLeg": Vector3(5, 0, 0), "Spine": Vector3(-12, 0, 0)}],
+	[0.3, {"RightUpLeg": Vector3(-70, 0, 0), "RightLeg": Vector3(15, 0, 0), "Spine": Vector3(-10, 0, 0)}],
+	[0.45, {}],
+]}
+# Sitting on the ground, knocked out, the head lolling from side to side.
+const SIT := {"Hips_y": -0.3, "RightUpLeg": Vector3(-80, 0, 0), "LeftUpLeg": Vector3(-80, 0, 0),
+		"RightLeg": Vector3(15, 0, 0), "LeftLeg": Vector3(15, 0, 0), "Spine": Vector3(-15, 0, 0)}
+const STUNNED := {"loop": true, "keys": [
+	[0.0, {"Head": Vector3(15, 0, 18), "Spine1": Vector3(0, 0, 4)}],
+	[0.7, {"Head": Vector3(15, 0, -18), "Spine1": Vector3(0, 0, -4)}],
+	[1.4, {"Head": Vector3(15, 0, 18), "Spine1": Vector3(0, 0, 4)}],
+]}
 
 class PlayerNode:
 	extends Node3D
@@ -143,56 +160,72 @@ func _make_model() -> Node3D:
 	for a: String in LOOPED_ANIMS:
 		ap.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 	if not ap.has_animation("Kick"): # the library is shared by every instance
-		ap.get_animation_library("").add_animation("Kick", _make_kick(ap, model.find_child("Skeleton3D", true, false)))
+		var sk: Skeleton3D = model.find_child("Skeleton3D", true, false)
+		var lib := ap.get_animation_library("")
+		lib.add_animation("Kick", _make_move(ap, sk, KICK))
+		lib.add_animation("Stunned", _make_move(ap, sk, STUNNED, SIT))
 	return model
 
-# The Idle pose held still, with the right leg, its knee and the spine turned per KICK_KEYS.
-static func _make_kick(ap: AnimationPlayer, sk: Skeleton3D) -> Animation:
+# The Idle pose at its first frame, every track keyed once, turned per the move's keys (and
+# per base at every key).
+static func _make_move(ap: AnimationPlayer, sk: Skeleton3D, move: Dictionary, base := {}) -> Animation:
 	var idle := ap.get_animation("Idle")
+	var prefix := String(idle.track_get_path(0)).get_slice(":", 0) + ":mixamorig_"
+	var keys: Array = move["keys"]
 	var anim := Animation.new()
-	anim.length = KICK_KEYS[-1][0]
+	anim.length = keys[-1][0]
+	if move["loop"]:
+		anim.loop_mode = Animation.LOOP_LINEAR
 	for t in idle.get_track_count():
-		var path := idle.track_get_path(t)
-		var type := idle.track_get_type(t)
-		var k := anim.add_track(type)
-		anim.track_set_path(k, path)
-		match type:
+		var k := anim.add_track(idle.track_get_type(t))
+		anim.track_set_path(k, idle.track_get_path(t))
+		match idle.track_get_type(t):
 			Animation.TYPE_POSITION_3D:
 				anim.position_track_insert_key(k, 0.0, idle.position_track_interpolate(t, 0.0))
 			Animation.TYPE_ROTATION_3D:
 				anim.rotation_track_insert_key(k, 0.0, idle.rotation_track_interpolate(t, 0.0))
 			Animation.TYPE_SCALE_3D:
 				anim.scale_track_insert_key(k, 0.0, idle.scale_track_interpolate(t, 0.0))
-	var prefix := String(idle.track_get_path(0)).get_slice(":", 0) + ":"
-	var rot := func(bone: String) -> Quaternion:
-		var t := idle.find_track(NodePath(prefix + bone), Animation.TYPE_ROTATION_3D)
-		if t >= 0:
-			return idle.rotation_track_interpolate(t, 0.0)
-		return sk.get_bone_rest(sk.find_bone(bone)).basis.get_rotation_quaternion()
-	var hips: Quaternion = rot.call("mixamorig_Hips")
-	var thigh: Quaternion = rot.call("mixamorig_RightUpLeg")
-	var shin: Quaternion = rot.call("mixamorig_RightLeg")
-	var spine: Quaternion = rot.call("mixamorig_Spine")
-	var tracks := {}
-	for bone: String in ["mixamorig_RightUpLeg", "mixamorig_RightLeg", "mixamorig_Spine"]:
-		var path := NodePath(prefix + bone)
-		var k := anim.find_track(path, Animation.TYPE_ROTATION_3D)
+	var turned := {}
+	for key: Array in keys:
+		turned.merge(key[1])
+	turned.merge(base)
+	for bone: String in turned:
+		var is_pos := bone == "Hips_y"
+		var path := NodePath(prefix + ("Hips" if is_pos else bone))
+		var type := Animation.TYPE_POSITION_3D if is_pos else Animation.TYPE_ROTATION_3D
+		var k := anim.find_track(path, type)
+		var rest := sk.get_bone_rest(sk.find_bone("mixamorig_" + ("Hips" if is_pos else bone)))
+		var start: Variant = rest.origin if is_pos else rest.basis.get_rotation_quaternion()
 		if k < 0:
-			k = anim.add_track(Animation.TYPE_ROTATION_3D)
+			k = anim.add_track(type)
 			anim.track_set_path(k, path)
 		else:
+			start = anim.track_get_key_value(k, 0)
 			anim.track_remove_key(k, 0)
-		tracks[bone] = k
-	for key: Array in KICK_KEYS:
-		anim.rotation_track_insert_key(tracks["mixamorig_RightUpLeg"], key[0], _turned(hips, thigh, key[1]))
-		anim.rotation_track_insert_key(tracks["mixamorig_RightLeg"], key[0], _turned(hips * thigh, shin, key[2]))
-		anim.rotation_track_insert_key(tracks["mixamorig_Spine"], key[0], _turned(hips, spine, key[3]))
+		for key: Array in keys:
+			var turn: Variant = key[1].get(bone, base.get(bone, 0.0 if is_pos else Vector3.ZERO))
+			if is_pos:
+				anim.position_track_insert_key(k, key[0], start + Vector3(0, turn, 0))
+			else:
+				var parent := _idle_global(idle, sk, prefix, sk.get_bone_parent(sk.find_bone("mixamorig_" + bone)))
+				anim.rotation_track_insert_key(k, key[0], _turned(parent, start, turn))
 	return anim
 
-# Local rotation of a bone turned by deg about the skeleton's X axis (the body's sideways axis),
+# Rotation of a bone in skeleton space in the Idle pose's first frame (-1: the skeleton itself).
+static func _idle_global(idle: Animation, sk: Skeleton3D, prefix: String, bone: int) -> Quaternion:
+	if bone < 0:
+		return Quaternion.IDENTITY
+	var name := sk.get_bone_name(bone)
+	var t := idle.find_track(NodePath(prefix + name.trim_prefix("mixamorig_")), Animation.TYPE_ROTATION_3D)
+	var local := idle.rotation_track_interpolate(t, 0.0) if t >= 0 else sk.get_bone_rest(bone).basis.get_rotation_quaternion()
+	return _idle_global(idle, sk, prefix, sk.get_bone_parent(bone)) * local
+
+# Local rotation of a bone turned by deg (degrees about the skeleton's axes, the body's own),
 # given its parent's rotation in skeleton space.
-static func _turned(parent: Quaternion, local: Quaternion, deg: float) -> Quaternion:
-	return parent.inverse() * Quaternion(Vector3.RIGHT, deg_to_rad(deg)) * parent * local
+static func _turned(parent: Quaternion, local: Quaternion, deg: Vector3) -> Quaternion:
+	var turn := Quaternion.from_euler(deg * PI / 180.0)
+	return parent.inverse() * turn * parent * local
 
 func _make_player(color: Color) -> PlayerNode:
 	var n := PlayerNode.new()
@@ -293,12 +326,17 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 			n.y_smooth = y # climbing: never lag below the step
 		else:
 			n.y_smooth = lerpf(n.y_smooth, y, 0.35) # falling off a ledge
-		_track(n, Vector3(pos.x, n.y_smooth, pos.y), p.life == PlayerState.Life.WAITING_RESPAWN)
+		var hop := 0.0
+		if p.knock_timer > 0.0 and not ghost:
+			var s := 1.0 - p.knock_timer / SimConfig.KNOCK_TIME
+			hop = 4.0 * HOP_HEIGHT * s * (1.0 - s)
+		_track(n, Vector3(pos.x, n.y_smooth + hop, pos.y), p.life == PlayerState.Life.WAITING_RESPAWN)
 		n.body.material_override = _ghost_mat if ghost else n.mat
 		var stunned := p.stun_timer > 0.0
 		n.stars.visible = stunned and not ghost
 		if stunned:
 			n.stars.rotation.y = _time * STAR_SPIN
+			n.stars.position.y = SIT_STAR_HEIGHT if _sitting(p) else STAR_HEIGHT
 		n.model.rotation.y = lerp_angle(n.model.rotation.y, _yaw(p.aim), TURN_SPEED)
 		var kicked := p.kick_tick != n.seen_kick
 		n.seen_kick = p.kick_tick
@@ -314,7 +352,11 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 static func _yaw(aim: Vector2i) -> float:
 	return atan2(float(aim.x), float(aim.y))
 
-# Idle, run, kick, lift then carry, from what the player is doing this tick.
+# Knocked out on the ground: stunned, and neither carried nor flying.
+static func _sitting(p: PlayerState) -> bool:
+	return p.stun_timer > 0.0 and p.life == PlayerState.Life.ALIVE and p.carried_by < 0
+
+# Idle, run, kick, lift, carry, then sitting knocked out, from what the player is doing this tick.
 func _animate(n: PlayerNode, p: PlayerState, kicked: bool) -> void:
 	var moved := n.last_pos != Vector2.INF and p.pos.distance_to(n.last_pos) > 0.01
 	n.last_pos = p.pos
@@ -330,16 +372,19 @@ func _animate(n: PlayerNode, p: PlayerState, kicked: bool) -> void:
 		var lift := n.anim.get_animation("Lift").length
 		n.anim.play("Lift", 0.1, lift / LIFT_TIME)
 		return
-	if n.anim.current_animation in ONE_SHOT_ANIMS and n.anim.is_playing():
+	var sitting := _sitting(p)
+	if not sitting and n.anim.current_animation in ONE_SHOT_ANIMS and n.anim.is_playing():
 		return
 	var want := "Idle"
-	if p.life == PlayerState.Life.ALIVE and p.carried_by < 0:
+	if sitting:
+		want = "Stunned"
+	elif p.life == PlayerState.Life.ALIVE and p.carried_by < 0:
 		if p.held != PlayerState.Held.NONE:
 			want = "Carry"
 		elif moved:
 			want = "Run"
 	if n.anim.current_animation != want:
-		n.anim.play(want, 0.15)
+		n.anim.play(want, 0.25 if sitting else 0.15)
 
 # A charred, black copy of the body left where a player was blown up, frozen in the pose they
 # died in; it fades out after a while.

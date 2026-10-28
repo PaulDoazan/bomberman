@@ -54,6 +54,17 @@ func test_rolling_bomb_stops_before_a_player() -> void:
 	assert_eq(b.cell, Vector2i(4, 1))
 	assert_true(w.players[1].stun_timer > SimConfig.BOMB_HIT_STUN_TIME - 1.0, "assommé par la bombe")
 	assert_eq(b.roll_dir, Vector2i.ZERO)
+	assert_almost(w.players[1].pos.x, 5.5 + SimConfig.KNOCK_DISTANCE, 0.01, "repoussé dans le sens de la bombe")
+	assert_almost(w.players[1].pos.y, 1.5, 0.001, "sans dévier")
+
+# Le recul d'un joueur touché par une bombe s'arrête contre un mur.
+func test_knock_back_stops_against_a_wall() -> void:
+	var w := _world(_lane(), [Vector2(1.5, 1.5), Vector2(6.5, 1.5)])
+	var b := _bomb(w, Vector2i(3, 1))
+	_go(w, 0, Vector2(3.5, 1.5), 1.0)
+	_wait(w, 0.5)
+	assert_true(w.players[1].stun_timer > 0.0, "assommé")
+	assert_almost(w.players[1].pos.x, 7.0 - SimConfig.PLAYER_HALF, 0.001, "plaqué contre le pilier")
 
 func test_rolling_bomb_does_not_climb_but_drops_down() -> void:
 	var a := Fixtures.flat(9, 3)
