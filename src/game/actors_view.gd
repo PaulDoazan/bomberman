@@ -8,6 +8,9 @@ const STAR_COUNT := 3
 const STAR_ORBIT := 0.4
 const STAR_HEIGHT := 1.05
 const STAR_SPIN := 6.0 # radians per second
+const CORPSE_TIME := 2.5 # seconds a burnt body stays on screen
+const CORPSE_FADE := 0.6 # last part of CORPSE_TIME, spent fading out
+const CORPSE_COLOR := Color(0.06, 0.05, 0.05)
 
 class PlayerNode:
 	extends Node3D
@@ -19,11 +22,13 @@ class PlayerNode:
 	var mat: StandardMaterial3D
 	var y_smooth := 0.0
 	var placed := false
+	var seen_death := -1 # died_tick already handled, so each death leaves one body
 
 var _players: Dictionary = {} # id -> PlayerNode
 var _bombs: Dictionary = {} # id -> MeshInstance3D
 var _blocks_flying: Dictionary = {} # FlyingObject instance id -> MeshInstance3D
 var _domes: Dictionary = {} # Explosion instance id -> MeshInstance3D
+var _corpses: Array[Dictionary] = [] # {node: Node3D, mat: StandardMaterial3D, born: float}
 
 var _capsule := CapsuleMesh.new()
 var _nose_mesh := BoxMesh.new()
@@ -71,6 +76,9 @@ func reset() -> void:
 		for n: Node3D in d.values():
 			n.queue_free()
 		d.clear()
+	for c: Dictionary in _corpses:
+		c["node"].queue_free()
+	_corpses.clear()
 	_tracks.clear()
 
 func _ready() -> void:
@@ -172,6 +180,7 @@ func sync(world: World, match_state: MatchState) -> void:
 	_sync_bombs(world)
 	_sync_flying(world)
 	_sync_explosions(world)
+	_sync_corpses()
 
 func _sync_players(world: World, match_state: MatchState) -> void:
 	for id: int in _players.keys():
@@ -184,7 +193,12 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		var n: PlayerNode = _players.get(id, null)
 		if n == null:
 			n = _make_player(mp.color if mp != null else Color.WHITE)
+			n.seen_death = p.died_tick
 			_players[id] = n
+		if p.died_tick != n.seen_death:
+			n.seen_death = p.died_tick
+			if p.death_cause == "explosion":
+				_spawn_corpse(Vector3(p.pos.x, n.y_smooth, p.pos.y), p.aim)
 		var ghost := p.life == PlayerState.Life.GHOST
 		n.visible = p.life != PlayerState.Life.WAITING_RESPAWN
 		var thrown := p.carried_by == Carry.THROWN
@@ -225,6 +239,38 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 			n.body.visible = true
 		n.held_bomb.visible = p.held == PlayerState.Held.BOMB
 		n.held_block.visible = p.held == PlayerState.Held.BLOCK
+
+# A charred, black copy of the body left where a player was blown up; it fades out after a while.
+func _spawn_corpse(at: Vector3, aim: Vector2i) -> void:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = CORPSE_COLOR
+	mat.roughness = 1.0
+	var node := Node3D.new()
+	var body := _mesh(_capsule, mat)
+	body.position.y = 0.45
+	var nose := _mesh(_nose_mesh, mat)
+	var look := Vector2(aim).normalized() * 0.3
+	nose.position = Vector3(look.x, 0.6, look.y)
+	node.add_child(body)
+	node.add_child(nose)
+	node.position = at
+	add_child(node)
+	_corpses.append({"node": node, "mat": mat, "born": _time})
+
+func _sync_corpses() -> void:
+	var kept: Array[Dictionary] = []
+	for c: Dictionary in _corpses:
+		var age: float = _time - c["born"]
+		if age >= CORPSE_TIME:
+			c["node"].queue_free()
+			continue
+		var fade := clampf((CORPSE_TIME - age) / CORPSE_FADE, 0.0, 1.0)
+		var mat: StandardMaterial3D = c["mat"]
+		if fade < 1.0:
+			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			mat.albedo_color.a = fade
+		kept.append(c)
+	_corpses = kept
 
 func _flight_of(world: World, kind: int, ref_id: int) -> FlyingObject:
 	for f: FlyingObject in world.flying:

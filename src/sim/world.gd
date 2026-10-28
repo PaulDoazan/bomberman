@@ -124,6 +124,7 @@ func _eliminate(p: PlayerState, cause: String) -> void:
 	p.life = PlayerState.Life.GHOST
 	Ghosts.on_became_ghost(self, p)
 	p.died_tick = tick
+	p.death_cause = cause
 
 func _update_respawns() -> void:
 	for p: PlayerState in players.values():
@@ -310,6 +311,7 @@ func kill(id: int, cause: String) -> void:
 	Ghosts.end_possession(self, p)
 	p.lives -= 1
 	p.died_tick = tick
+	p.death_cause = cause
 	events.append({"type": "death", "id": id, "cause": cause})
 	if p.lives > 0:
 		p.life = PlayerState.Life.WAITING_RESPAWN
