@@ -4,7 +4,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, pauldoazan/Bomberman]
+    branches: [main, pauldoazan/Bomberman, pauldoazan/positions-and-moves]
   workflow_dispatch:
 
 permissions:
