@@ -99,6 +99,7 @@ Transposition (choix Claude) :
 - Comme dans le manuel de BM64, **le vivant possédé fait lâcher le fantôme en secouant** (faire tourner vite le stick) : chaque secousse, comptée comme pour se réveiller, retire 0,15 s à la possession.
 - Quand il lâche sa victime, quelle qu'en soit la raison, le fantôme est **éjecté** (décision utilisateur) : il est projeté 2 cases en arrière de la victime en 0,5 s, en arc et en vrillant, sans pouvoir se diriger.
 - Après une possession, le fantôme a un **temps de recharge d'environ 10 s**.
+- Le fantôme va **à la même vitesse qu'un vivant** (3,2 cases/s). Le manuel dit qu'il « peut faire la même chose qu'un Bomberman normal » sauf poser des bombes, et ne parle pas de vitesse.
 - Un fantôme ne ressuscite pas. Il redevient joueur normal à la manche suivante.
 - Les bots deviennent aussi des fantômes.
 

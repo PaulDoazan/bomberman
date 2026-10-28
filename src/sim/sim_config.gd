@@ -18,7 +18,7 @@ const MAP_SIZE_LABELS := {
 }
 
 const PLAYER_SPEED := 3.2
-const GHOST_SPEED := 3.6
+const GHOST_SPEED := 3.2 # as fast as the living: the original manual gives ghosts the same moves
 const PLAYER_HALF := 0.35
 const CORNER_ASSIST := 0.35
 const STOP_DISTANCE := 0.1
