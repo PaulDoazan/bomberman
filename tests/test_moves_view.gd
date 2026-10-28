@@ -44,3 +44,34 @@ func test_bomb_hit_hops_then_sits() -> void:
 	view.sync(w, ms)
 	assert_eq(n.anim.current_animation, "Idle", "relevé")
 	view.free()
+
+# Picking a bomb up crouches and lifts it from the ground to overhead, holding keeps the arms
+# up, and throwing it flings the arms forward.
+func test_pick_up_hold_then_throw() -> void:
+	var ms := MatchState.new(SimConfig.new(), RandomNumberGenerator.new())
+	var w := ms.world
+	var view := ActorsView.new()
+	view._ready()
+	w.add_bomb(0, w.players[0].cell(), 100.0)
+	view.sync(w, ms)
+	var n: ActorsView.PlayerNode = view._players[0]
+	var act := PlayerIntent.new()
+	act.action = true
+	w.step({0: act})
+	view.sync(w, ms)
+	assert_eq(n.anim.current_animation, "PickUp", "ramasse")
+	assert_true(n.held_bomb.position.y < 0.5, "la bombe part du sol")
+	n.anim.advance(0.2)
+	view.sync(w, ms)
+	var y := n.held_bomb.position.y
+	assert_true(y > 0.5 and y < ActorsView.CARRY_HEIGHT, "monte avec les mains")
+	n.anim.advance(0.2)
+	view.sync(w, ms)
+	assert_almost(n.held_bomb.position.y, ActorsView.CARRY_HEIGHT, 0.01, "au-dessus de la tête")
+	w.step({})
+	view.sync(w, ms)
+	assert_eq(n.anim.current_animation, "Hold", "bras en haut")
+	w.step({0: act})
+	view.sync(w, ms)
+	assert_eq(n.anim.current_animation, "Throw", "lance")
+	view.free()

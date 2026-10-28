@@ -116,6 +116,7 @@ static func throw(world: World, p: PlayerState) -> void:
 	world.flying.append(f)
 	p.held = PlayerState.Held.NONE
 	p.held_id = -1
+	p.throw_tick = world.tick
 
 # Carried players follow their carrier and break free when their timer runs out.
 static func update_carried(world: World) -> void:

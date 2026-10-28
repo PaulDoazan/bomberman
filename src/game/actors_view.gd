@@ -18,14 +18,15 @@ const PALETTE := preload("res://assets/characters/bomberman_palette.png")
 const TINT_SHADER := preload("res://src/game/player_tint.gdshader")
 const MODEL_SCALE := 1.2 / 1.75 # the model is 1.75 units tall; players stand about 1.2 cells
 const TURN_SPEED := 0.35 # fraction of the remaining angle turned per tick
-const LIFT_TIME := 0.3 # seconds the lift animation is squeezed into
-const LOOPED_ANIMS := ["Idle", "Walk", "Run", "Carry"]
-const ONE_SHOT_ANIMS := ["Lift", "Kick"] # played to the end before going back to the others
+const LOOPED_ANIMS := ["Idle", "Walk", "Run"]
+const ONE_SHOT_ANIMS := ["PickUp", "Kick", "Throw"] # played to the end before going back to the others
 # Moves built from the Idle pose (the model has none of its own). Each key is [time, turns],
 # a turn being a bone's rotation in degrees about the body's axes, on top of its parent's:
-# about X (sideways) negative swings a leg forward or leans back, positive bends a knee; about
-# Z (forward) it tilts sideways. "Hips_y" lowers the hips (skeleton units). Bones a move turns
-# somewhere are back to the Idle pose in the keys that leave them out.
+# about X (sideways) negative swings a leg or an arm forward (then up) or leans back, positive
+# bends a knee or leans forward; about Z (forward) positive moves a bone towards the body's
+# left. "Hips_y" lowers the hips (skeleton units). Bones a move turns somewhere are back to the
+# Idle pose in the keys that leave them out. A move "on" another animation plays it underneath,
+# with the turned bones held still; without keys it lasts as long as that animation.
 const KICK := {"loop": false, "keys": [
 	[0.0, {}],
 	[0.1, {"RightUpLeg": Vector3(25, 0, 0), "RightLeg": Vector3(70, 0, 0)}],
@@ -36,6 +37,29 @@ const KICK := {"loop": false, "keys": [
 # Sitting on the ground, knocked out, the head lolling from side to side.
 const SIT := {"Hips_y": -0.3, "RightUpLeg": Vector3(-80, 0, 0), "LeftUpLeg": Vector3(-80, 0, 0),
 		"RightLeg": Vector3(15, 0, 0), "LeftLeg": Vector3(15, 0, 0), "Spine": Vector3(-15, 0, 0)}
+# Both arms raised beside the head, holding a bomb, a block or a player up there.
+const ARMS_UP := {"RightArm": Vector3(-170, 0, -35), "LeftArm": Vector3(-170, 0, 35),
+		"RightForeArm": Vector3(0, 0, 25), "LeftForeArm": Vector3(0, 0, -25)}
+const HOLD := {"loop": true, "on": "Idle"}
+const HOLD_RUN := {"loop": true, "on": "Run"}
+# Crouching with the arms down in front to grab what lies ahead, then rising with it overhead.
+const PICK_UP := {"loop": false, "keys": [
+	[0.0, {}],
+	[0.1, {"Hips_y": -0.09, "RightUpLeg": Vector3(-50, 0, 0), "LeftUpLeg": Vector3(-50, 0, 0),
+			"RightLeg": Vector3(90, 0, 0), "LeftLeg": Vector3(90, 0, 0),
+			"RightFoot": Vector3(-40, 0, 0), "LeftFoot": Vector3(-40, 0, 0), "Spine": Vector3(35, 0, 0),
+			"RightArm": Vector3(-40, 0, 0), "LeftArm": Vector3(-40, 0, 0)}],
+	[0.3, ARMS_UP],
+]}
+const PICK_UP_GRAB := 0.1 # time in PICK_UP when the hands reach what they lift
+# Arms swung back over the head, then flung forward while leaning in.
+const THROW := {"loop": false, "keys": [
+	[0.0, ARMS_UP],
+	[0.08, {"RightArm": Vector3(-200, 0, -25), "LeftArm": Vector3(-200, 0, 25), "Spine": Vector3(-12, 0, 0),
+			"RightForeArm": Vector3(0, 0, 25), "LeftForeArm": Vector3(0, 0, -25)}],
+	[0.18, {"RightArm": Vector3(-95, 0, 0), "LeftArm": Vector3(-95, 0, 0), "Spine": Vector3(20, 0, 0)}],
+	[0.45, {}],
+]}
 const STUNNED := {"loop": true, "keys": [
 	[0.0, {"Head": Vector3(15, 0, 18), "Spine1": Vector3(0, 0, 4)}],
 	[0.7, {"Head": Vector3(15, 0, -18), "Spine1": Vector3(0, 0, -4)}],
@@ -57,6 +81,8 @@ class PlayerNode:
 	var placed := false
 	var seen_death := -1 # died_tick already handled, so each death leaves one body
 	var seen_kick := -1 # kick_tick already animated
+	var seen_throw := -1 # throw_tick already animated
+	var lift_from := Vector3.ZERO # where what is being picked up lay, from the player's feet
 
 var _players: Dictionary = {} # id -> PlayerNode
 var _bombs: Dictionary = {} # id -> MeshInstance3D
@@ -164,28 +190,33 @@ func _make_model() -> Node3D:
 		var lib := ap.get_animation_library("")
 		lib.add_animation("Kick", _make_move(ap, sk, KICK))
 		lib.add_animation("Stunned", _make_move(ap, sk, STUNNED, SIT))
+		lib.add_animation("PickUp", _make_move(ap, sk, PICK_UP))
+		lib.add_animation("Hold", _make_move(ap, sk, HOLD, ARMS_UP))
+		lib.add_animation("HoldRun", _make_move(ap, sk, HOLD_RUN, ARMS_UP))
+		lib.add_animation("Throw", _make_move(ap, sk, THROW))
 	return model
 
-# The Idle pose at its first frame, every track keyed once, turned per the move's keys (and
-# per base at every key).
+# The Idle pose at its first frame (or the animation the move is "on"), every track keyed, with
+# the bones turned per the move's keys (and per base at every key).
 static func _make_move(ap: AnimationPlayer, sk: Skeleton3D, move: Dictionary, base := {}) -> Animation:
 	var idle := ap.get_animation("Idle")
 	var prefix := String(idle.track_get_path(0)).get_slice(":", 0) + ":mixamorig_"
-	var keys: Array = move["keys"]
-	var anim := Animation.new()
+	var src := ap.get_animation(move.get("on", "Idle"))
+	var keys: Array = move.get("keys", [[0.0, {}], [src.length, {}]])
+	var anim: Animation = src.duplicate() if move.has("on") else Animation.new()
 	anim.length = keys[-1][0]
-	if move["loop"]:
-		anim.loop_mode = Animation.LOOP_LINEAR
-	for t in idle.get_track_count():
-		var k := anim.add_track(idle.track_get_type(t))
-		anim.track_set_path(k, idle.track_get_path(t))
-		match idle.track_get_type(t):
-			Animation.TYPE_POSITION_3D:
-				anim.position_track_insert_key(k, 0.0, idle.position_track_interpolate(t, 0.0))
-			Animation.TYPE_ROTATION_3D:
-				anim.rotation_track_insert_key(k, 0.0, idle.rotation_track_interpolate(t, 0.0))
-			Animation.TYPE_SCALE_3D:
-				anim.scale_track_insert_key(k, 0.0, idle.scale_track_interpolate(t, 0.0))
+	anim.loop_mode = Animation.LOOP_LINEAR if move["loop"] else Animation.LOOP_NONE
+	if not move.has("on"):
+		for t in idle.get_track_count():
+			var k := anim.add_track(idle.track_get_type(t))
+			anim.track_set_path(k, idle.track_get_path(t))
+			match idle.track_get_type(t):
+				Animation.TYPE_POSITION_3D:
+					anim.position_track_insert_key(k, 0.0, idle.position_track_interpolate(t, 0.0))
+				Animation.TYPE_ROTATION_3D:
+					anim.rotation_track_insert_key(k, 0.0, idle.rotation_track_interpolate(t, 0.0))
+				Animation.TYPE_SCALE_3D:
+					anim.scale_track_insert_key(k, 0.0, idle.scale_track_interpolate(t, 0.0))
 	var turned := {}
 	for key: Array in keys:
 		turned.merge(key[1])
@@ -202,7 +233,8 @@ static func _make_move(ap: AnimationPlayer, sk: Skeleton3D, move: Dictionary, ba
 			anim.track_set_path(k, path)
 		else:
 			start = anim.track_get_key_value(k, 0)
-			anim.track_remove_key(k, 0)
+			while anim.track_get_key_count(k) > 0:
+				anim.track_remove_key(k, 0)
 		for key: Array in keys:
 			var turn: Variant = key[1].get(bone, base.get(bone, 0.0 if is_pos else Vector3.ZERO))
 			if is_pos:
@@ -297,6 +329,7 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 			n = _make_player(mp.color if mp != null else Color.WHITE)
 			n.seen_death = p.died_tick
 			n.seen_kick = p.kick_tick
+			n.seen_throw = p.throw_tick
 			_players[id] = n
 		if p.died_tick != n.seen_death:
 			n.seen_death = p.died_tick
@@ -338,15 +371,38 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 			n.stars.rotation.y = _time * STAR_SPIN
 			n.stars.position.y = SIT_STAR_HEIGHT if _sitting(p) else STAR_HEIGHT
 		n.model.rotation.y = lerp_angle(n.model.rotation.y, _yaw(p.aim), TURN_SPEED)
+		if n.last_held == PlayerState.Held.NONE and p.held != PlayerState.Held.NONE:
+			n.lift_from = _lying_at(world, p) - Vector3(pos.x, n.y_smooth, pos.y)
 		var kicked := p.kick_tick != n.seen_kick
 		n.seen_kick = p.kick_tick
-		_animate(n, p, kicked)
+		var threw := p.throw_tick != n.seen_throw
+		n.seen_throw = p.throw_tick
+		_animate(n, p, kicked, threw)
 		if p.invulnerable_timer > 0.0 and not ghost:
 			n.model.visible = int(_time * 10.0) % 2 == 0
 		else:
 			n.model.visible = true
 		n.held_bomb.visible = p.held == PlayerState.Held.BOMB
 		n.held_block.visible = p.held == PlayerState.Held.BLOCK
+		n.held_bomb.position = _held_at(n)
+		n.held_block.position = _held_at(n)
+
+# Centre of what p just picked up, where it lay before (the drawn bomb, or the block's cell).
+func _lying_at(world: World, p: PlayerState) -> Vector3:
+	if p.held == PlayerState.Held.BOMB and _bombs.has(p.held_id):
+		return _tracks[_bombs[p.held_id]][1]
+	var c := p.cell() + p.facing
+	return Vector3(c.x + 0.5, _cell_y(world, Arena.center_of(c)) + 0.5 * _block_mesh.size.y, c.y + 0.5)
+
+# Where what a player holds is drawn, from their feet: where it lay until the hands reach it
+# while picking it up, then rising with them overhead.
+static func _held_at(n: PlayerNode) -> Vector3:
+	var top := Vector3(0.0, CARRY_HEIGHT, 0.0)
+	if n.anim.current_animation != "PickUp":
+		return top
+	var length := n.anim.current_animation_length
+	var s := clampf((n.anim.current_animation_position - PICK_UP_GRAB) / (length - PICK_UP_GRAB), 0.0, 1.0)
+	return n.lift_from.lerp(top, s)
 
 # Yaw that turns the model (facing +Z) towards an aim direction on the grid (x -> X, y -> Z).
 static func _yaw(aim: Vector2i) -> float:
@@ -356,8 +412,9 @@ static func _yaw(aim: Vector2i) -> float:
 static func _sitting(p: PlayerState) -> bool:
 	return p.stun_timer > 0.0 and p.life == PlayerState.Life.ALIVE and p.carried_by < 0
 
-# Idle, run, kick, lift, carry, then sitting knocked out, from what the player is doing this tick.
-func _animate(n: PlayerNode, p: PlayerState, kicked: bool) -> void:
+# Idle, run, kick, pick up, hold, throw, then sitting knocked out, from what the player is doing
+# this tick.
+func _animate(n: PlayerNode, p: PlayerState, kicked: bool, threw: bool) -> void:
 	var moved := n.last_pos != Vector2.INF and p.pos.distance_to(n.last_pos) > 0.01
 	n.last_pos = p.pos
 	var lifting := n.last_held == PlayerState.Held.NONE and p.held != PlayerState.Held.NONE
@@ -369,8 +426,10 @@ func _animate(n: PlayerNode, p: PlayerState, kicked: bool) -> void:
 			n.anim.play("Kick", 0.05)
 		return
 	if lifting:
-		var lift := n.anim.get_animation("Lift").length
-		n.anim.play("Lift", 0.1, lift / LIFT_TIME)
+		n.anim.play("PickUp", 0.05)
+		return
+	if threw:
+		n.anim.play("Throw", 0.05)
 		return
 	var sitting := _sitting(p)
 	if not sitting and n.anim.current_animation in ONE_SHOT_ANIMS and n.anim.is_playing():
@@ -380,7 +439,7 @@ func _animate(n: PlayerNode, p: PlayerState, kicked: bool) -> void:
 		want = "Stunned"
 	elif p.life == PlayerState.Life.ALIVE and p.carried_by < 0:
 		if p.held != PlayerState.Held.NONE:
-			want = "Carry"
+			want = "HoldRun" if moved else "Hold"
 		elif moved:
 			want = "Run"
 	if n.anim.current_animation != want:
