@@ -12,14 +12,14 @@ static func generate(size: Vector2i, player_count: int, rng: RandomNumberGenerat
 
 	# Raised levels and pit (inclusive bounds). The temple backs onto the far edge (y = 0),
 	# so nobody can walk behind the summit.
-	var a1 := roundi(w * 0.22) - 1
+	var a1 := roundi(w * 0.22)
 	var l1_y0 := 0
-	var l1_y1 := roundi(h * 0.44)
+	var l1_y1 := roundi(h * 0.44) - 1
 	var a2 := maxi(1, roundi(w * 0.09))
 	var l2_y0 := 0
 	var l2_y1 := maxi(2, roundi(h * 0.2)) - 1
 	var ap := roundi(w * 0.13) + 1
-	var pit_y0 := roundi(h * 0.6) + 3
+	var pit_y0 := roundi(h * 0.6) + 1
 	var pit_y1 := h - 2
 	var l1_x0 := cx - a1
 	var l1_x1 := cx + a1
