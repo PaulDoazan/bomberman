@@ -7,6 +7,7 @@ var _chips: Dictionary = {} # id -> Label
 var _warning: Label
 var _panel: PanelContainer
 var _panel_text: Label
+var _fullscreen: Button
 var bomb_button: BombButton # touch screens only; the input controller reads touches on it
 var joystick: TouchJoystick # touch screens only
 
@@ -62,6 +63,16 @@ func _ready() -> void:
 	_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_child(_bar)
 
+	# Phones: browsers only allow fullscreen from a tap, which the button press is.
+	_fullscreen = Button.new()
+	_fullscreen.focus_mode = Control.FOCUS_NONE
+	_fullscreen.visible = DisplayServer.is_touchscreen_available()
+	_fullscreen.pressed.connect(_on_fullscreen)
+	top.add_child(_fullscreen)
+	_update_fullscreen_text()
+	# Leaving fullscreen with the browser's own gesture or back button updates the label too.
+	get_viewport().size_changed.connect(_update_fullscreen_text)
+
 	var quit := Button.new()
 	quit.text = "Quitter"
 	quit.focus_mode = Control.FOCUS_NONE # arrows and Space must never reach the button
@@ -93,6 +104,16 @@ func _ready() -> void:
 	_panel_text = Label.new()
 	_panel_text.add_theme_font_size_override("font_size", 22)
 	margin.add_child(_panel_text)
+
+func _is_fullscreen() -> bool:
+	return DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+
+func _on_fullscreen() -> void:
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if _is_fullscreen() else DisplayServer.WINDOW_MODE_FULLSCREEN)
+	_update_fullscreen_text()
+
+func _update_fullscreen_text() -> void:
+	_fullscreen.text = "Quitter le plein écran" if _is_fullscreen() else "Plein écran"
 
 func _on_quit() -> void:
 	get_tree().change_scene_to_file("res://src/ui/settings_screen.tscn")
