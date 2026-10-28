@@ -8,6 +8,7 @@ func _world(a: Arena, positions: Array[Vector2]) -> World:
 	for i in positions.size():
 		w.players[i].pos = positions[i]
 		w.players[i].facing = Vector2i(1, 0)
+		w.players[i].aim = Vector2i(1, 0)
 	return w
 
 func _act() -> Dictionary:
@@ -230,3 +231,13 @@ func test_thrown_block_skips_stairs() -> void:
 	_flight(w)
 	assert_eq(a.tile_at(Vector2i(4, 2)), Arena.Tile.STAIRS, "l'escalier reste un escalier")
 	assert_eq(a.tile_at(Vector2i(5, 2)), Arena.Tile.BLOCK, "le bloc atterrit après")
+
+func test_throw_follows_diagonal_aim() -> void:
+	var a := Fixtures.flat(9, 9)
+	var w := _world(a, [Vector2(1.5, 1.5)])
+	w.players[0].aim = Vector2i(1, 1)
+	w.players[0].held = PlayerState.Held.BLOCK
+	w.step(_act())
+	_flight(w)
+	var d := roundi(SimConfig.THROW_DISTANCE / sqrt(2.0))
+	assert_eq(a.tile_at(Vector2i(1 + d, 1 + d)), Arena.Tile.BLOCK, "atterrit en diagonale")

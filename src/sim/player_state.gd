@@ -7,6 +7,7 @@ enum Held { NONE, BOMB, PLAYER, BLOCK }
 var id: int
 var pos: Vector2
 var facing := Vector2i(0, 1)
+var aim := Vector2i(0, 1) # like facing but in 8 directions: where throws go and the body looks
 var lives: int
 var life := Life.ALIVE
 var respawn_timer := 0.0

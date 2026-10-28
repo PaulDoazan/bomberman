@@ -43,9 +43,9 @@ Le multijoueur en ligne viendra dans une étape suivante, et le POC doit être c
 
 - **Clic gauche maintenu** : le perso avance **en ligne droite vers le pointeur** tant que le bouton est enfoncé. Il n'y a **pas de calcul de chemin** : c'est au joueur de contourner les obstacles avec la souris. Même principe qu'Agar.io, mais sur une grille.
   - Aide aux mouvements (validée) : le perso **glisse le long des murs** quand il les frôle et se **recentre doucement dans un couloir** quand il est presque aligné, comme l'aide aux coins des Bomberman au clavier.
-  - Le perso regarde dans la direction de son dernier déplacement.
+  - Le perso regarde dans la direction de son dernier déplacement, sur **8 directions** (diagonales à 45° comprises, décision utilisateur). Le coup de pied et la saisie de l'objet devant soi restent sur les 4 directions de la grille.
 - **Espace** : pose une bombe sur la case du perso.
-- **Clic droit** : soulève l'objet qui se trouve devant le perso ou sous lui. Un deuxième clic droit le lance **dans la direction où regarde le perso**, et non vers la souris.
+- **Clic droit** : soulève l'objet qui se trouve devant le perso ou sous lui. Un deuxième clic droit le lance **dans la direction où regarde le perso**, et non vers la souris. On peut donc lancer dans les 8 directions. En diagonale, l'objet va environ aussi loin que tout droit (2 cases en diagonale au lieu de 3).
   - Objets qu'on peut soulever : ses bombes, celles des autres, les **autres joueurs**, les **blocs destructibles**.
 
 ## La map (décision utilisateur : option A, « fidèle, en plus grand »)

@@ -89,7 +89,7 @@ static func _hold_bomb(p: PlayerState, b: BombState) -> void:
 	p.held_id = b.id
 
 static func throw(world: World, p: PlayerState) -> void:
-	if p.facing == Vector2i.ZERO:
+	if p.aim == Vector2i.ZERO:
 		return
 	if (p.held == PlayerState.Held.BOMB and not world.bombs.has(p.held_id)) \
 			or (p.held == PlayerState.Held.PLAYER and not world.players.has(p.held_id)):
@@ -100,8 +100,10 @@ static func throw(world: World, p: PlayerState) -> void:
 	f.kind = p.held
 	f.ref_id = p.held_id
 	f.from = p.pos
-	f.dir = p.facing
-	var land := _find_landing(world, p.cell() + p.facing * SimConfig.THROW_DISTANCE, p.facing, p.held)
+	f.dir = p.aim
+	# Diagonal throws cover about the same distance as straight ones.
+	var dist := SimConfig.THROW_DISTANCE if p.aim.x == 0 or p.aim.y == 0 else roundi(SimConfig.THROW_DISTANCE / sqrt(2.0))
+	var land := _find_landing(world, p.cell() + p.aim * dist, p.aim, p.held)
 	if world.arena.in_bounds(land):
 		f.landing = land
 	f.to = Arena.center_of(land)

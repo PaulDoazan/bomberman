@@ -57,6 +57,11 @@ static func _dominant_dir(d: Vector2) -> Vector2i:
 		return Vector2i(1 if d.x >= 0.0 else -1, 0)
 	return Vector2i(0, 1 if d.y >= 0.0 else -1)
 
+# The nearest of the 8 directions (45 degree sectors).
+static func _aim_dir(d: Vector2) -> Vector2i:
+	var a := roundi(d.angle() / (PI / 4.0)) * (PI / 4.0)
+	return Vector2i(roundi(cos(a)), roundi(sin(a)))
+
 static func _toward(from: float, to: float, max_step: float) -> float:
 	var diff := to - from
 	if absf(diff) <= max_step:
@@ -74,6 +79,7 @@ static func move(world: World, p: PlayerState, target: Vector2, speed: float, dt
 		step = d * dist
 	var dom := _dominant_dir(d)
 	p.facing = dom
+	p.aim = _aim_dir(d)
 	var dom_axis := 0 if dom.x != 0 else 1
 	var perp_axis := 1 - dom_axis
 
@@ -114,6 +120,7 @@ static func move_free(world: World, p: PlayerState, target: Vector2, speed: floa
 		return
 	var d := to_target / dist
 	p.facing = _dominant_dir(d)
+	p.aim = _aim_dir(d)
 	p.pos += d * minf(speed * dt, dist)
 	var h := 0.01
 	p.pos.x = clampf(p.pos.x, h, world.arena.width - h)

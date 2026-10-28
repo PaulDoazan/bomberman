@@ -216,8 +216,9 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		n.stars.visible = stunned and not ghost
 		if stunned:
 			n.stars.rotation.y = _time * STAR_SPIN
-		n.nose.position.x = p.facing.x * 0.3
-		n.nose.position.z = p.facing.y * 0.3
+		var look := Vector2(p.aim).normalized() * 0.3
+		n.nose.position.x = look.x
+		n.nose.position.z = look.y
 		if p.invulnerable_timer > 0.0 and not ghost:
 			n.body.visible = int(_time * 10.0) % 2 == 0
 		else:

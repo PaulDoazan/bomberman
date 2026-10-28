@@ -105,3 +105,12 @@ func test_can_move_along_stairs_when_off_lane() -> void:
 	var w := _world(_stairs_arena(), [Vector2(2.5, 2.2)])
 	_go(w, 0, Vector2(3.5, 2.5), 1.5)
 	assert_eq(w.players[0].cell(), Vector2i(3, 2))
+
+func test_aim_follows_eight_directions() -> void:
+	var w := _world(Fixtures.flat(9, 9), [Vector2(4.5, 4.5)])
+	_go(w, 0, Vector2(8.5, 0.5), 0.1)
+	assert_eq(w.players[0].aim, Vector2i(1, -1), "diagonale")
+	assert_eq(w.players[0].facing, Vector2i(1, 0), "facing reste orthogonal")
+	w.players[0].pos = Vector2(4.5, 4.5)
+	_go(w, 0, Vector2(4.8, 8.5), 0.1)
+	assert_eq(w.players[0].aim, Vector2i(0, 1), "presque droit : orthogonal")
