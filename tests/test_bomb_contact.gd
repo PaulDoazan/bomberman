@@ -132,3 +132,22 @@ func test_rolling_bomb_stops_against_a_pillar_face() -> void:
 	assert_eq(b.roll_dir, Vector2i.ZERO, "arrêtée")
 	assert_almost(b.pos().x, 6.0 - SimConfig.BOMB_BODY_RADIUS, 0.01, "au contact du pilier")
 	assert_almost(b.pos().y, 2.7, 0.0001, "sans décalage")
+
+# Une bombe qui roule s'arrête quand sa sphère touche celle de l'autre bombe, pas avant, même
+# décentrées, puis l'autre repart.
+func test_rolling_bomb_stops_exactly_against_another_bomb() -> void:
+	var w := _world(Fixtures.flat(13, 5), [Vector2(0.5, 0.5)])
+	var b1 := w.add_bomb(0, Vector2i(2, 2), 100.0)
+	b1.offset = Vector2(0.3, 0.2)
+	var b2 := w.add_bomb(0, Vector2i(6, 2), 100.0)
+	b2.offset = Vector2(-0.2, 0.2)
+	var other_start := b2.pos()
+	w.players[0].aim = Vector2i(1, 0)
+	Kick.kick(w, w.players[0], b1)
+	var stopped_gap := INF
+	for _t in 60:
+		w.step({})
+		if b1.roll_dir == Vector2i.ZERO and stopped_gap == INF:
+			stopped_gap = b1.pos().distance_to(other_start) - 2.0 * SimConfig.BOMB_BODY_RADIUS
+	assert_almost(stopped_gap, 0.0, 0.01, "sphères au contact")
+	assert_true(b2.pos().x > other_start.x + 1.0, "l'autre bombe est repartie")
