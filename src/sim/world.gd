@@ -277,7 +277,9 @@ func _update_explosions() -> void:
 func _update_bombs() -> void:
 	var queue: Array[BombState] = []
 	for b: BombState in bombs.values():
-		b.fuse -= SimConfig.DT # a thrown bomb's fuse never stops
+		# As in Bomberman 64, a held bomb's fuse stops until it is thrown; in flight it burns.
+		if b.state != BombState.State.HELD:
+			b.fuse -= SimConfig.DT
 		if b.fuse <= 0.0 or (b.state != BombState.State.FLYING and _in_blast(bomb_cell(b))):
 			queue.append(b)
 	if queue.is_empty():
