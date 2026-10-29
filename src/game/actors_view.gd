@@ -2,6 +2,12 @@ class_name ActorsView
 extends Node3D
 
 const GHOST_HOVER := 1.5
+# Walking off a ledge jumps down: a small hop up, then a fall under gravity to the level below.
+const LEDGE_DROP := 0.2 # a drop this big in one tick is a ledge (stairs go down smoothly)
+const JUMP_SPEED := 2.5
+const GRAVITY := 20.0
+const EJECT_HOP := 1.2 # height of the arc of a ghost thrown off its victim
+const EJECT_SPINS := 2.0 # turns it makes on the way
 const CARRY_HEIGHT := 1.5
 const THROW_ARC := 1.5
 const STAR_COUNT := 3
@@ -85,6 +91,8 @@ class PlayerNode:
 	var last_pos := Vector2.INF
 	var last_held := PlayerState.Held.NONE
 	var y_smooth := 0.0
+	var fall_v := 0.0 # vertical speed while jumping down off a ledge
+	var falling := false
 	var placed := false
 	var seen_death := -1 # died_tick already handled, so each death leaves one body
 	var seen_kick := -1 # kick_tick already animated
@@ -358,15 +366,22 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 			var carrier: PlayerState = world.players[p.carried_by]
 			pos = carrier.pos
 			y = _cell_y(world, pos) + CARRY_HEIGHT
+		var ejected := 0.0 # progress of a ghost's ejection, 0 when not ejected
 		if ghost:
 			y += GHOST_HOVER
-		if not n.placed or thrown or p.carried_by >= 0:
+			if p.eject_timer > 0.0:
+				ejected = 1.0 - p.eject_timer / SimConfig.EJECT_TIME
+				y += sin(PI * ejected) * EJECT_HOP
+		if not n.placed or thrown or p.carried_by >= 0 or ejected > 0.0:
 			n.y_smooth = y
 			n.placed = true
-		elif y >= n.y_smooth:
-			n.y_smooth = y # climbing: never lag below the step
+			n.falling = false
+		elif ghost:
+			n.y_smooth = y if y >= n.y_smooth else lerpf(n.y_smooth, y, 0.35) # floats down
 		else:
-			n.y_smooth = lerpf(n.y_smooth, y, 0.35) # falling off a ledge
+			_fall(n, y)
+		if p.life == PlayerState.Life.WAITING_RESPAWN:
+			n.placed = false # the respawn appears in place, without jumping there
 		var hop := 0.0
 		if p.knock_timer > 0.0 and not ghost:
 			var s := 1.0 - p.knock_timer / SimConfig.KNOCK_TIME
@@ -378,7 +393,10 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		if stunned:
 			n.stars.rotation.y = _time * STAR_SPIN
 			n.stars.position.y = SIT_STAR_HEIGHT if _sitting(p) else STAR_HEIGHT
-		n.model.rotation.y = lerp_angle(n.model.rotation.y, _yaw(p.aim), TURN_SPEED)
+		if ejected > 0.0:
+			n.model.rotation.y = _yaw(p.aim) + ejected * EJECT_SPINS * TAU
+		else:
+			n.model.rotation.y = lerp_angle(n.model.rotation.y, _yaw(p.aim), TURN_SPEED)
 		if n.last_held == PlayerState.Held.NONE and p.held != PlayerState.Held.NONE:
 			n.lift_from = _lying_at(world, p) - Vector3(pos.x, n.y_smooth, pos.y)
 		var kicked := p.kick_tick != n.seen_kick
@@ -411,6 +429,21 @@ static func _held_at(n: PlayerNode) -> Vector3:
 	var length := n.anim.current_animation_length
 	var s := clampf((n.anim.current_animation_position - PICK_UP_GRAB) / (length - PICK_UP_GRAB), 0.0, 1.0)
 	return n.lift_from.lerp(top, s)
+
+# Moves a living body's height towards the ground y under it: straight up a step, along a
+# stair, or in a jump off a ledge.
+static func _fall(n: PlayerNode, y: float) -> void:
+	if not n.falling and n.y_smooth - y > LEDGE_DROP:
+		n.falling = true
+		n.fall_v = JUMP_SPEED
+	if not n.falling:
+		n.y_smooth = y
+		return
+	n.fall_v -= GRAVITY * SimConfig.DT
+	n.y_smooth += n.fall_v * SimConfig.DT
+	if n.y_smooth <= y:
+		n.y_smooth = y
+		n.falling = false
 
 # Yaw that turns the model (facing +Z) towards an aim direction on the grid (x -> X, y -> Z).
 static func _yaw(aim: Vector2i) -> float:

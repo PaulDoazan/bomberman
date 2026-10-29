@@ -69,9 +69,8 @@ static func pick_up(world: World, p: PlayerState) -> void:
 	if b != null:
 		_hold_bomb(p, b)
 		return
-	for other: PlayerState in _free_players_at(world, front):
-		if other == p:
-			continue
+	var other := _player_in_reach(world, p)
+	if other != null:
 		other.carried_by = p.id
 		other.carried_timer = SimConfig.CARRY_ESCAPE
 		p.held = PlayerState.Held.PLAYER
@@ -81,6 +80,24 @@ static func pick_up(world: World, p: PlayerState) -> void:
 		world.arena.set_tile(front, Arena.Tile.FLOOR)
 		p.held = PlayerState.Held.BLOCK
 		p.held_id = -1
+
+# The nearest free player p can grab: within GRAB_REACH and ahead (within 60 degrees of aim), or
+# so close their bodies overlap. Players walk through each other, so they are found by distance,
+# not by cell.
+static func _player_in_reach(world: World, p: PlayerState) -> PlayerState:
+	var best: PlayerState = null
+	var best_d := INF
+	var ahead := Vector2(p.aim).normalized()
+	for other: PlayerState in world.players.values():
+		if other == p or other.life != PlayerState.Life.ALIVE or other.carried_by != -1:
+			continue
+		var to := other.pos - p.pos
+		var d := to.length()
+		var close := d < 2.0 * SimConfig.PLAYER_BODY_RADIUS
+		if d < best_d and (close or (d <= SimConfig.GRAB_REACH and to.dot(ahead) > d * 0.5)):
+			best = other
+			best_d = d
+	return best
 
 static func _hold_bomb(p: PlayerState, b: BombState) -> void:
 	b.state = BombState.State.HELD

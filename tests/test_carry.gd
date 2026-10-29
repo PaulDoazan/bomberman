@@ -247,3 +247,18 @@ func test_throw_follows_diagonal_aim() -> void:
 	_flight(w)
 	var d := roundi(SimConfig.THROW_DISTANCE / sqrt(2.0))
 	assert_eq(a.tile_at(Vector2i(1 + d, 1 + d)), Arena.Tile.BLOCK, "atterrit en diagonale")
+
+# Un joueur assommé tout contre soi (même case, ou en biais devant) se saisit aussi.
+func test_pick_up_a_stunned_player_standing_close() -> void:
+	for at: Vector2 in [Vector2(2.9, 2.5), Vector2(3.2, 3.1)]:
+		var w := _world(Fixtures.flat(9, 5), [Vector2(2.5, 2.5), at])
+		w.players[1].stun_timer = SimConfig.BOMB_HIT_STUN_TIME
+		w.step(_act())
+		assert_eq(w.players[1].carried_by, 0, "saisi (%s)" % at)
+		assert_eq(w.players[0].held, PlayerState.Held.PLAYER)
+
+func test_no_pick_up_of_a_player_behind() -> void:
+	var w := _world(Fixtures.flat(9, 5), [Vector2(2.5, 2.5), Vector2(1.6, 2.5)])
+	w.players[1].stun_timer = SimConfig.BOMB_HIT_STUN_TIME
+	w.step(_act())
+	assert_eq(w.players[1].carried_by, -1)

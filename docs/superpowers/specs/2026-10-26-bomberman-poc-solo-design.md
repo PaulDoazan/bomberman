@@ -19,7 +19,7 @@ Le multijoueur en ligne viendra dans une étape suivante, et le POC doit être c
 - Bombes, explosions, blocs destructibles.
 - Soulever et lancer : bombes (les siennes et celles des autres), joueurs, blocs. Comme dans Bomberman 64 (décision utilisateur), **la mèche d'une bombe tenue s'arrête** : on peut la garder en main aussi longtemps qu'on veut. Elle reprend où elle en était une fois la bombe lancée, et brûle pendant le vol. Une bombe tenue touchée par une explosion saute quand même. Source : le manuel ne dit rien de la mèche ; le guide de stratégie de Cheat Code Central indique qu'on peut tenir la bombe aussi longtemps qu'on veut sans crainte.
 - Coup de pied : en continuant de pousser un court instant (0,2 s) contre une bombe, on la kicke. Elle roule dans la direction où regarde le perso, sur 8 directions (6 cases/s), jusqu'au prochain obstacle : pilier, bloc, bombe, joueur, eau ou niveau plus haut. Elle roule comme une boule, depuis sa position exacte et non sur des rails passant par le centre des cases (décision utilisateur), et s'arrête au contact exact de l'obstacle. En diagonale (décision utilisateur), une bombe qui rencontre un mur sur un côté le longe, puis repart à 45° une fois le mur dépassé. Elle s'arrête dans un coin. Une bombe en ligne droite qui frôle seulement le coin d'un pilier glisse dessus et continue (décision utilisateur). Choix Claude : un obstacle pris pile par l'angle l'arrête comme un mur de face, et un joueur ou une bombe sur la trajectoire n'est pas un mur (le joueur est assommé, la bombe reçoit le mouvement). Elle peut tomber d'un niveau et continuer à rouler, et sa mèche continue de tourner. Appuyer de nouveau sur Espace en restant sur une bombe la kicke aussi. Une bombe qui roule et percute une bombe immobile s'arrête et lui transmet son mouvement.
-- Assommé : une bombe qui nous roule dessus, ou qu'on nous lance sur la tête, nous assomme 3 s (la doc de BM64 dit seulement « longtemps » sans chiffre : valeur choisie). Des étoiles tournent au-dessus de la tête tant qu'on est assommé. On se réveille plus vite en secouant : chaque appui sur une flèche, ou chaque 250 px de souris secouée, retire 0,15 s.
+- Assommé : une bombe qui nous roule dessus, ou qu'on nous lance sur la tête, nous assomme 3 s (la doc de BM64 dit seulement « longtemps » sans chiffre : valeur choisie). Des étoiles tournent au-dessus de la tête tant qu'on est assommé. On se réveille plus vite en secouant : chaque appui sur une flèche, chaque 250 px de souris secouée, ou chaque quart de tour du joystick tactile, retire 0,15 s.
 - Montée des eaux à la fin du chrono, noyade.
 - Fantômes qui possèdent les vivants.
 - Manches enchaînées sans fin, avec score de victoires.
@@ -48,6 +48,7 @@ Le multijoueur en ligne viendra dans une étape suivante, et le POC doit être c
 - **Clic droit** : soulève l'objet qui se trouve devant le perso ou sous lui. Un deuxième clic droit le lance **dans la direction où regarde le perso**, et non vers la souris. On peut donc lancer dans les 8 directions. En diagonale, l'objet va environ aussi loin que tout droit (2 cases en diagonale au lieu de 3).
 - **Écran tactile** (décision utilisateur, à la façon d'Among Us) : un **joystick fixe en bas à gauche** dirige le perso dans la direction poussée, et un **bouton en forme de bombe en bas à droite** pose une bombe. Un **bouton rond à sa gauche** soulève ou lance (décision utilisateur) : il affiche « PRENDRE » les mains vides et « LANCER » quand on porte quelque chose. On peut utiliser joystick et boutons en même temps. Toucher ailleurs ne dirige pas le perso. Un bouton « Plein écran » dans la barre du haut passe en plein écran et en sort (décision utilisateur). Ces contrôles n'apparaissent que sur les écrans tactiles.
   - Objets qu'on peut soulever : ses bombes, celles des autres, les **autres joueurs**, les **blocs destructibles**.
+  - Un joueur, notamment **assommé** (le manuel de BM64 parle de ramasser « un ennemi paralysé », décision utilisateur), se saisit **au contact** et non à la case : à 1,1 case au plus devant soi (dans un cône de 60° autour du regard), ou n'importe où s'il est collé à soi. Les joueurs se traversent, ils peuvent donc partager une case.
 
 ## La map (décision utilisateur : option A, « fidèle, en plus grand »)
 
@@ -60,7 +61,7 @@ Choix de conception (Claude) :
 - **8 piliers indestructibles** seulement (décision utilisateur), fixes, sur le sol (niveau 0), placés en miroir de part et d'autre du temple.
 - **Blocs destructibles** tirés au hasard à chaque manche (environ 15 % des cases libres), en laissant toujours libres les cases à 2 pas ou moins d'un point de départ et les escaliers. Il n'y en a pas sur le sommet.
 - **Points de départ** répartis sur le pourtour du sol, autant que de joueurs (2 à 10).
-- On ne **monte** d'un niveau **que par les escaliers**, qu'on peut emprunter dans toutes les directions. Depuis le bord d'un niveau, on peut **sauter vers un niveau plus bas**. Un objet lancé peut atterrir sur un autre niveau.
+- On ne **monte** d'un niveau **que par les escaliers**, qu'on peut emprunter dans toutes les directions. Depuis le bord d'un niveau, on peut **sauter vers un niveau plus bas**. On voit un **vrai saut** (décision utilisateur) : le perso monte un peu, puis retombe sous l'effet de la gravité jusqu'au niveau du dessous, sans s'arrêter d'avancer. Une marche d'escalier se descend sans saut. Le saut est seulement affiché : les règles ne changent pas. Un objet lancé peut atterrir sur un autre niveau.
 - **Caméra fixe en 3D**, inclinée comme sur la capture, qui cadre toute la map. Elle doit rester lisible jusqu'à la taille maximale autorisée.
 
 ## Règles d'une manche
@@ -95,7 +96,10 @@ Dans Bomberman 64, un joueur éliminé revient en fantôme. Il peut **prendre le
 Transposition (choix Claude) :
 - Un joueur qui a perdu **toutes ses vies** devient un **fantôme** pour le reste de la manche. Il flotte et traverse murs et étages, et se déplace au clic gauche maintenu.
 - En touchant un vivant, il le **possède pendant environ 5 s** : sa souris dirige le déplacement du vivant, qui perd le contrôle. Le fantôme ne peut ni poser de bombe ni lancer d'objet.
+- Comme dans le manuel de BM64, **le vivant possédé fait lâcher le fantôme en secouant** (faire tourner vite le stick) : chaque secousse, comptée comme pour se réveiller, retire 0,15 s à la possession.
+- Quand il lâche sa victime, quelle qu'en soit la raison, le fantôme est **éjecté** (décision utilisateur) : il est projeté 2 cases en arrière de la victime en 0,5 s, en arc et en vrillant, sans pouvoir se diriger.
 - Après une possession, le fantôme a un **temps de recharge d'environ 10 s**.
+- Le fantôme va **à la même vitesse qu'un vivant** (3,2 cases/s). Le manuel dit qu'il « peut faire la même chose qu'un Bomberman normal » sauf poser des bombes, et ne parle pas de vitesse.
 - Un fantôme ne ressuscite pas. Il redevient joueur normal à la manche suivante.
 - Les bots deviennent aussi des fantômes.
 

@@ -5,7 +5,8 @@ extends RefCounted
 
 const TIMER_EPS := 1e-6
 
-# Ends the possession of victim p (if any): the ghost is freed and its cooldown starts.
+# Ends the possession of victim p (if any): the ghost is thrown off backwards and its cooldown
+# starts.
 static func end_possession(world: World, p: PlayerState) -> void:
 	if p.possessed_by == -1:
 		return
@@ -14,7 +15,27 @@ static func end_possession(world: World, p: PlayerState) -> void:
 		ghost.possess_target = -1
 		ghost.possess_timer = 0.0
 		ghost.possess_cooldown = SimConfig.POSSESS_COOLDOWN
+		if ghost.life == PlayerState.Life.GHOST:
+			ghost.eject_dir = -Vector2(p.aim).normalized()
+			ghost.eject_timer = SimConfig.EJECT_TIME
 	p.possessed_by = -1
+
+# The victim shakes (spinning the stick, like in the original): each shake cuts the possession.
+static func shake_off(world: World, victim: PlayerState, shakes: float) -> void:
+	var ghost: PlayerState = world.players.get(victim.possessed_by, null)
+	if ghost != null:
+		ghost.possess_timer = maxf(0.0, ghost.possess_timer - shakes * SimConfig.STRUGGLE_TIME)
+
+# One tick of a ghost's ejection: it flies EJECT_DISTANCE over EJECT_TIME, out of control.
+static func update_eject(world: World, ghost: PlayerState) -> void:
+	var dt := minf(SimConfig.DT, ghost.eject_timer)
+	ghost.eject_timer = maxf(0.0, ghost.eject_timer - SimConfig.DT)
+	if ghost.eject_timer <= TIMER_EPS:
+		ghost.eject_timer = 0.0
+	ghost.pos += ghost.eject_dir * SimConfig.EJECT_DISTANCE / SimConfig.EJECT_TIME * dt
+	var h := 0.01
+	ghost.pos.x = clampf(ghost.pos.x, h, world.arena.width - h)
+	ghost.pos.y = clampf(ghost.pos.y, h, world.arena.height - h)
 
 # p has just become a ghost: it can no longer be possessed, and starts with a clean slate.
 static func on_became_ghost(world: World, p: PlayerState) -> void:
@@ -22,6 +43,7 @@ static func on_became_ghost(world: World, p: PlayerState) -> void:
 	p.possess_target = -1
 	p.possess_timer = 0.0
 	p.possess_cooldown = 0.0
+	p.eject_timer = 0.0
 
 static func tick_timers(p: PlayerState) -> void:
 	p.possess_timer = maxf(0.0, p.possess_timer - SimConfig.DT)

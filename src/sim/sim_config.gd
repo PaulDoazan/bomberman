@@ -18,7 +18,7 @@ const MAP_SIZE_LABELS := {
 }
 
 const PLAYER_SPEED := 3.2
-const GHOST_SPEED := 3.6
+const GHOST_SPEED := 3.2 # as fast as the living: the original manual gives ghosts the same moves
 const PLAYER_HALF := 0.35
 const CORNER_ASSIST := 0.35
 const STOP_DISTANCE := 0.1
@@ -41,6 +41,8 @@ const WATER_START_H2 := -3
 const POSSESS_DURATION := 5.0
 const POSSESS_COOLDOWN := 10.0
 const POSSESS_REACH := 0.6
+const EJECT_DISTANCE := 2.0 # cells a ghost is thrown back when it lets go of its victim
+const EJECT_TIME := 0.5
 
 const THROW_DISTANCE := 3
 const THROW_FLIGHT := 0.5
@@ -50,6 +52,7 @@ const KNOCK_DISTANCE := 0.4 # cells a player hit by a bomb is knocked back
 const KNOCK_TIME := 0.3 # seconds the knock-back lasts (a small hop in the view)
 const STRUGGLE_TIME := 0.15 # seconds of stun removed per shake
 const CARRY_ESCAPE := 3.0
+const GRAB_REACH := 1.1 # how far ahead a player can grab another
 
 const KICK_PUSH_TIME := 0.2 # seconds pushing against a bomb before kicking it
 const KICK_SPEED := 6.0 # cells per second
