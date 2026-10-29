@@ -63,6 +63,7 @@ Choix de conception (Claude) :
 - **Points de départ** répartis sur le pourtour du sol, autant que de joueurs (2 à 10).
 - On ne **monte** d'un niveau **que par les escaliers**, qu'on peut emprunter dans toutes les directions. Depuis le bord d'un niveau, on peut **sauter vers un niveau plus bas**. On voit un **vrai saut** (décision utilisateur) : le perso monte un peu, puis retombe sous l'effet de la gravité jusqu'au niveau du dessous, sans s'arrêter d'avancer. Une marche d'escalier se descend sans saut. Le saut est seulement affiché : les règles ne changent pas. Un objet lancé peut atterrir sur un autre niveau.
 - **Caméra fixe en 3D**, inclinée comme sur la capture, qui cadre toute la map. Elle doit rester lisible jusqu'à la taille maximale autorisée.
+  - La map est **centrée à l'écran** et cadrée **aussi grande que possible sans passer sous la colonne des joueurs** (décisions utilisateur) : la largeur de la colonne est gardée libre des deux côtés. Elle a **la même marge en haut et en bas** (environ 21 px pour un écran de 720 px de haut, la marge du bas d'avant). Sur un téléphone à l'horizontale (19,5:9), la map normale prend toute la hauteur ; dès que c'est la largeur qui la limite, elle reste centrée en hauteur.
 
 ## Règles d'une manche
 
@@ -115,7 +116,7 @@ Niveau correct, sans viser un champion :
 ## Écrans
 
 - **Réglages** (avant de jouer) : nombre de bots (1 à 9), taille de la map, durée du chrono, nombre de vies (3 par défaut), puis bouton « Jouer ». Ces réglages serviront plus tard dans le salon en ligne.
-- **Jeu** : la map, le chrono et un bandeau des joueurs avec leurs vies restantes et leurs victoires, comme le haut de la capture.
+- **Jeu** : la map, le chrono en haut à gauche, et les joueurs avec leurs vies restantes et leurs victoires **en colonne à gauche de l'écran**, sous le chrono (décision utilisateur, pour laisser la hauteur à la map). Chaque joueur est un **carré** de sa couleur (décision utilisateur) avec, l'un sous l'autre, son nom, ses vies (ou 👻) et ses victoires. Choix Claude : au-delà de 6 joueurs, les carrés passent sur deux colonnes pour rester au-dessus du joystick tactile.
 - **Fin de manche** : tableau des scores, puis enchaînement.
 
 ## Préparer le multijoueur (contrainte d'architecture)
