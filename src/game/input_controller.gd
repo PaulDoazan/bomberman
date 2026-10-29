@@ -3,6 +3,7 @@ extends Node
 
 var _bomb_pressed := false
 var _action_pressed := false
+var _detonate_pressed := false
 # Latched from _unhandled_input so a click taken by a GUI control (Quitter, end-of-round panel)
 # never steers the player.
 var _move_held := false
@@ -11,9 +12,10 @@ const MOUSE_SHAKE_PX := 250.0
 var _shakes := 0.0
 var _mouse_travel := 0.0
 # Touch screens: a finger on bomb_area places a bomb, one on action_area picks up or throws,
-# and the joystick steers, all at once.
+# one on detonate_area sets off a remote bomb, and the joystick steers, all at once.
 var bomb_area: Control = null
 var action_area: Control = null
+var detonate_area: Control = null
 var joystick: TouchJoystick = null
 
 # _input, not _unhandled_input: shaking the mouse over the HUD still counts.
@@ -24,6 +26,8 @@ func _input(event: InputEvent) -> void:
 			_bomb_pressed = true
 		elif t.pressed and _touches(action_area, t.position):
 			_action_pressed = true
+		elif t.pressed and _touches(detonate_area, t.position):
+			_detonate_pressed = true
 	if event is InputEventMouseMotion:
 		_mouse_travel += (event as InputEventMouseMotion).relative.length()
 	for a in ["move_left", "move_right", "move_up", "move_down"]:
@@ -42,6 +46,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_bomb_pressed = true
 	if event.is_action_pressed("action"):
 		_action_pressed = true
+	if event.is_action_pressed("detonate"):
+		_detonate_pressed = true
 
 func wants_move() -> bool:
 	# A release over a GUI control never reaches _unhandled_input: also check the button state.
@@ -88,5 +94,7 @@ func _consume_buttons(intent: PlayerIntent) -> void:
 	_mouse_travel -= mouse_shakes * MOUSE_SHAKE_PX
 	intent.place_bomb = _bomb_pressed
 	intent.action = _action_pressed
+	intent.detonate = _detonate_pressed
 	_bomb_pressed = false
 	_action_pressed = false
+	_detonate_pressed = false

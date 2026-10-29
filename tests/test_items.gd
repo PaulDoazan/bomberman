@@ -264,10 +264,10 @@ func test_evil_effects() -> void:
 	assert_true(swapped, "Mélange : places échangées")
 
 func test_twister_flings_whoever_it_touches() -> void:
-	var w := _world([Vector2(4.5, 1.5)])
+	var w := _world([Vector2(4.5, 4.5)], Fixtures.flat(9, 9)) # flung 3 cells any way, it lands
 	w.evil = SimConfig.Evil.TWISTER
 	w.evil_timer = 5.0
-	w.twister_pos = Vector2(4.5, 1.5)
+	w.twister_pos = Vector2(4.5, 4.5)
 	w.twister_dir = Vector2.RIGHT
 	w.step({})
 	var p := w.players[0] as PlayerState

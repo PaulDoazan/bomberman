@@ -5,12 +5,17 @@ var _timer_label: Label
 var _bar: GridContainer # one square chip per player, in a column on the left
 var _chips: Dictionary = {} # id -> Label
 var _warning: Label
+var _status: Label # the local player's items and sickness
+var _evil: Label # what Evil is doing to everyone
+var _disco: ColorRect # Disco: the screen flashes in rainbow colours
+var _time := 0.0
 var _panel: PanelContainer
 var _panel_text: Label
 var _fullscreen: Button
 var bomb_button: BombButton # touch screens only; the input controller reads touches on it
 var joystick: TouchJoystick # touch screens only
 var action_button: ActionButton # touch screens only: pick up / throw
+var detonate_button: DetonateButton # touch screens only, while the local player has the Remote
 
 const COLUMN_TOP := 52.0 # below the timer
 const CHIP_SIZE := 64.0
@@ -30,6 +35,12 @@ func _ready() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+
+	_disco = ColorRect.new()
+	_disco.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_disco.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_disco.visible = false
+	root.add_child(_disco)
 
 	# Touch controls, under the rest of the HUD, like Among Us: a fixed joystick bottom left, the
 	# bomb button bottom right and the pick up / throw button to its left. The layer stops mouse events so the click emulated from a
@@ -62,6 +73,15 @@ func _ready() -> void:
 	action_button.offset_right = -230 # left of the bomb button
 	action_button.offset_bottom = -30
 	touch.add_child(action_button)
+	detonate_button = DetonateButton.new()
+	detonate_button.custom_minimum_size = Vector2(130, 130)
+	detonate_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	detonate_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	detonate_button.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	detonate_button.offset_right = -54 # above the bomb button
+	detonate_button.offset_bottom = -230
+	detonate_button.visible = false
+	touch.add_child(detonate_button)
 
 	var top := HBoxContainer.new()
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -78,6 +98,11 @@ func _ready() -> void:
 	_timer_label.add_theme_constant_override("outline_size", 6)
 	_timer_label.custom_minimum_size = Vector2(220, 0)
 	top.add_child(_timer_label)
+
+	_status = _outlined(20)
+	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_status.clip_text = true
+	top.add_child(_status)
 
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -119,6 +144,14 @@ func _ready() -> void:
 	_warning.visible = false
 	root.add_child(_warning)
 
+	_evil = _outlined(34)
+	_evil.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_evil.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_evil.offset_top = 150
+	_evil.add_theme_color_override("font_color", Color(0.85, 0.55, 1.0))
+	_evil.visible = false
+	root.add_child(_evil)
+
 	_panel = PanelContainer.new()
 	_panel.set_anchors_preset(Control.PRESET_CENTER)
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -132,6 +165,31 @@ func _ready() -> void:
 	_panel_text = Label.new()
 	_panel_text.add_theme_font_size_override("font_size", 22)
 	margin.add_child(_panel_text)
+
+static func _outlined(font_size: int) -> Label:
+	var l := Label.new()
+	l.add_theme_font_size_override("font_size", font_size)
+	l.add_theme_color_override("font_outline_color", Color.BLACK)
+	l.add_theme_constant_override("outline_size", 6)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+# What p has picked up, and the sickness they have: "Feu 2 · Bombes 3 · Télécommande · …".
+static func status_text(p: PlayerState) -> String:
+	var parts: Array[String] = []
+	if p.fire > 1:
+		parts.append("Feu %d" % p.fire)
+	if p.max_bombs > SimConfig.MAX_BOMBS:
+		parts.append("Bombes %d" % p.max_bombs)
+	if p.power:
+		parts.append("Puissance")
+	if p.remote:
+		parts.append("Télécommande (E)")
+	if p.heart:
+		parts.append("Cœur")
+	if p.sick != SimConfig.Sick.NONE:
+		parts.append("Malade : %s %d s" % [SimConfig.SICK_LABELS[p.sick], ceili(p.sick_timer)])
+	return " · ".join(parts)
 
 func _is_fullscreen() -> bool:
 	return DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
@@ -159,6 +217,15 @@ func sync(match_state: MatchState) -> void:
 	_sync_chips(match_state)
 	var me: PlayerState = world.players.get(0, null) # the local player
 	action_button.holding = me != null and me.held != PlayerState.Held.NONE
+	detonate_button.visible = me != null and me.remote
+	_status.text = status_text(me) if me != null and me.life == PlayerState.Life.ALIVE else ""
+	_evil.visible = world.evil != SimConfig.Evil.NONE
+	if _evil.visible:
+		_evil.text = "Le Mal : %s ! %d s" % [SimConfig.EVIL_LABELS[world.evil], ceili(world.evil_timer)]
+	_time += SimConfig.DT
+	_disco.visible = world.evil == SimConfig.Evil.DISCO
+	if _disco.visible:
+		_disco.color = Color.from_hsv(fmod(_time * 1.5, 1.0), 0.9, 1.0, 0.25)
 	_warning.visible = world.water_warning and match_state.phase == MatchState.Phase.PLAYING
 	_panel.visible = match_state.phase == MatchState.Phase.ROUND_OVER
 	if _panel.visible:

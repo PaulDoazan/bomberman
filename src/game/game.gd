@@ -22,6 +22,7 @@ func _ready() -> void:
 		input_controller.bomb_area = hud.bomb_button
 		input_controller.joystick = hud.joystick
 		input_controller.action_area = hud.action_button
+		input_controller.detonate_area = hud.detonate_button
 	match_state = MatchState.new(Session.config, rng)
 	if hud:
 		camera_rig.side_inset = Hud.column_inset(match_state.players.size())

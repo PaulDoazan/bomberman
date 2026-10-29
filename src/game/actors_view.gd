@@ -15,6 +15,11 @@ const STAR_ORBIT := 0.4
 const STAR_HEIGHT := 1.4
 const SIT_STAR_HEIGHT := 1.2 # stars above a player sitting knocked out
 const HOP_HEIGHT := 0.35 # top of the hop of a player knocked back by a bomb
+const BIG_SCALE := 1.5 # a big player (Big sickness, Gulliver), drawn larger
+const TINY_SCALE := 0.6
+const SICK_BADGE_HEIGHT := 1.75 # a little skull above the head of a sick player
+const FIRE_TINT := Color(1.0, 0.45, 0.05) # a player on fire flickers towards it
+const PUMP_GROWTH := 0.2 # a pumped bomb looks this much bigger per pump
 const STAR_SPIN := 6.0 # radians per second
 const CORPSE_TIME := 2.5 # seconds a burnt body stays on screen
 const CORPSE_FADE := 0.6 # last part of CORPSE_TIME, spent fading out
@@ -86,6 +91,10 @@ class PlayerNode:
 	var anim: AnimationPlayer
 	var held_bomb: MeshInstance3D
 	var held_block: MeshInstance3D
+	var held_item: Node3D # a skull being carried
+	var sick_badge: Node3D
+	var color: Color
+	var size := 1.0 # drawn size, eased towards the target
 	var stars: Node3D # spins above the head while stunned
 	var mat: ShaderMaterial
 	var last_pos := Vector2.INF
@@ -101,7 +110,7 @@ class PlayerNode:
 
 var _players: Dictionary = {} # id -> PlayerNode
 var _bombs: Dictionary = {} # id -> MeshInstance3D
-var _blocks_flying: Dictionary = {} # FlyingObject instance id -> MeshInstance3D
+var _blocks_flying: Dictionary = {} # FlyingObject instance id -> Node3D (a block or a skull)
 var _domes: Dictionary = {} # Explosion instance id -> MeshInstance3D
 var _corpses: Array[Dictionary] = [] # {node: Node3D, mat: StandardMaterial3D, born: float}
 
@@ -110,6 +119,8 @@ var _block_mesh := BoxMesh.new()
 var _dome_mesh := SphereMesh.new()
 var _ghost_mat := StandardMaterial3D.new()
 var _bomb_mat := StandardMaterial3D.new()
+var _remote_mat := StandardMaterial3D.new()
+var _items := ItemsView.new()
 var _block_mat := StandardMaterial3D.new()
 var _dome_mat := StandardMaterial3D.new()
 var _star_mesh := _make_star_mesh(0.16, 0.07)
@@ -151,6 +162,7 @@ func reset() -> void:
 		c["node"].queue_free()
 	_corpses.clear()
 	_tracks.clear()
+	_items.reset()
 
 func _ready() -> void:
 	_bomb_mesh.radius = SimConfig.BOMB_BODY_RADIUS
@@ -162,6 +174,8 @@ func _ready() -> void:
 	_ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_ghost_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_bomb_mat.albedo_color = Color("111111")
+	_remote_mat.albedo_color = Color("16306e") # remote bombs are dark blue
+	add_child(_items)
 	_block_mat.albedo_color = Color("9a6a35")
 	_dome_mat.albedo_color = Color(1.0, 0.5, 0.1, 0.55)
 	_dome_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -281,6 +295,7 @@ func _make_player(color: Color) -> PlayerNode:
 	n.mat.shader = TINT_SHADER
 	n.mat.set_shader_parameter("palette", PALETTE)
 	n.mat.set_shader_parameter("tint", color)
+	n.color = color
 	n.model = _make_model()
 	n.body = n.model.find_child("Body", true, false)
 	n.body.material_override = n.mat
@@ -297,7 +312,11 @@ func _make_player(color: Color) -> PlayerNode:
 		var a := TAU * i / STAR_COUNT
 		s.position = Vector3(cos(a), 0.0, sin(a)) * STAR_ORBIT
 		n.stars.add_child(s)
-	for c in [n.model, n.held_bomb, n.held_block, n.stars]:
+	n.held_item = ItemsView.make_item(SimConfig.Item.SKULL)
+	n.sick_badge = ItemsView.make_item(SimConfig.Item.SKULL)
+	n.sick_badge.scale = Vector3.ONE * 0.6
+	n.sick_badge.position.y = SICK_BADGE_HEIGHT
+	for c in [n.model, n.held_bomb, n.held_block, n.held_item, n.sick_badge, n.stars]:
 		n.add_child(c)
 	add_child(n)
 	return n
@@ -331,6 +350,7 @@ func sync(world: World, match_state: MatchState) -> void:
 	_sync_flying(world)
 	_sync_explosions(world)
 	_sync_corpses()
+	_items.sync(world)
 
 func _sync_players(world: World, match_state: MatchState) -> void:
 	for id: int in _players.keys():
@@ -412,13 +432,36 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		n.held_block.visible = p.held == PlayerState.Held.BLOCK
 		n.held_bomb.position = _held_at(n)
 		n.held_block.position = _held_at(n)
+		n.held_item.visible = p.held == PlayerState.Held.ITEM
+		n.held_item.position = _held_at(n)
+		var held: BombState = world.bombs.get(p.held_id, null) if p.held == PlayerState.Held.BOMB else null
+		n.held_bomb.scale = Vector3.ONE * (1.0 + PUMP_GROWTH * held.pump if held != null and not held.disguised else 1.0)
+		_show_sickness(world, n, p, ghost)
+
+# Size, flames and the skull badge of a sick player (or of everyone under Gulliver).
+func _show_sickness(world: World, n: PlayerNode, p: PlayerState, ghost: bool) -> void:
+	var want := 1.0
+	if not ghost and (p.sick == SimConfig.Sick.BIG or world.evil == SimConfig.Evil.GULLIVER):
+		want = BIG_SCALE
+	elif not ghost and p.sick == SimConfig.Sick.TINY:
+		want = TINY_SCALE
+	n.size = lerpf(n.size, want, 0.2)
+	n.model.scale = Vector3.ONE * MODEL_SCALE * n.size
+	n.sick_badge.visible = p.sick != SimConfig.Sick.NONE and not ghost
+	n.sick_badge.position.y = SICK_BADGE_HEIGHT * n.size
+	n.sick_badge.rotation.y = _time * 2.0
+	var tint := n.color
+	if p.sick == SimConfig.Sick.FIRE and not ghost:
+		tint = n.color.lerp(FIRE_TINT, 0.5 + 0.4 * sin(_time * 25.0))
+	n.mat.set_shader_parameter("tint", tint)
 
 # Centre of what p just picked up, where it lay before (the drawn bomb, or the block's cell).
 func _lying_at(world: World, p: PlayerState) -> Vector3:
 	if p.held == PlayerState.Held.BOMB and _bombs.has(p.held_id):
 		return _tracks[_bombs[p.held_id]][1]
 	var c := p.cell() + p.facing
-	return Vector3(c.x + 0.5, _cell_y(world, Arena.center_of(c)) + 0.5 * _block_mesh.size.y, c.y + 0.5)
+	var up := ItemsView.HOVER if p.held == PlayerState.Held.ITEM else 0.5 * _block_mesh.size.y
+	return Vector3(c.x + 0.5, _cell_y(world, Arena.center_of(c)) + up, c.y + 0.5)
 
 # Where what a player holds is drawn, from their feet: where it lay until the hands reach it
 # while picking it up, then rising with them overhead.
@@ -560,21 +603,22 @@ func _sync_bombs(world: World) -> void:
 		elif b.state == BombState.State.PLACED:
 			var at := b.pos()
 			_track(m, Vector3(at.x, world.arena.h2_at(b.cell) * 0.5 + SimConfig.BOMB_BODY_RADIUS, at.y))
-		var s := 1.0
-		if b.fuse < 0.5:
-			s = 1.0 + 0.25 * (1.0 - b.fuse / 0.5)
+		var s := 1.0 if b.disguised else 1.0 + PUMP_GROWTH * b.pump # a disguised bomb looks plain
+		if b.fuse < 0.5 and not b.remote:
+			s *= 1.0 + 0.25 * (1.0 - b.fuse / 0.5)
 		m.scale = Vector3.ONE * s
+		m.material_override = _remote_mat if b.remote else _bomb_mat
 
 func _sync_flying(world: World) -> void:
 	var alive: Dictionary = {}
 	for f: FlyingObject in world.flying:
-		if f.kind != PlayerState.Held.BLOCK:
+		if f.kind != PlayerState.Held.BLOCK and f.kind != PlayerState.Held.ITEM:
 			continue
 		var key := f.get_instance_id()
 		alive[key] = true
-		var m: MeshInstance3D = _blocks_flying.get(key, null)
+		var m: Node3D = _blocks_flying.get(key, null)
 		if m == null:
-			m = _mesh(_block_mesh, _block_mat)
+			m = _mesh(_block_mesh, _block_mat) if f.kind == PlayerState.Held.BLOCK else ItemsView.make_item(f.ref_id)
 			add_child(m)
 			_blocks_flying[key] = m
 			_track(m, _arc(world, f), true)
