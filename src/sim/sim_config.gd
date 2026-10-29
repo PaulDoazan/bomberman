@@ -5,10 +5,12 @@ const TICK_RATE := 30
 const DT := 1.0 / 30.0
 
 const MAP_SIZES := {
-	"petite": Vector2i(15, 13),
-	"normale": Vector2i(19, 15),
-	"grande": Vector2i(25, 19),
-	"immense": Vector2i(31, 23),
+	# About 1.2 times wider than they were, for landscape phone screens (odd widths): the most
+	# that still fills the screen height there, right of the HUD column.
+	"petite": Vector2i(17, 13),
+	"normale": Vector2i(23, 15),
+	"grande": Vector2i(31, 19),
+	"immense": Vector2i(37, 23),
 }
 const MAP_SIZE_LABELS := {
 	"petite": "Petite",

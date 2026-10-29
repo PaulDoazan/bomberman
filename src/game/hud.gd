@@ -2,7 +2,7 @@ class_name Hud
 extends CanvasLayer
 
 var _timer_label: Label
-var _bar: HBoxContainer
+var _bar: GridContainer # one square chip per player, in a column on the left
 var _chips: Dictionary = {} # id -> Label
 var _warning: Label
 var _panel: PanelContainer
@@ -11,6 +11,19 @@ var _fullscreen: Button
 var bomb_button: BombButton # touch screens only; the input controller reads touches on it
 var joystick: TouchJoystick # touch screens only
 var action_button: ActionButton # touch screens only: pick up / throw
+
+const COLUMN_TOP := 52.0 # below the timer
+const CHIP_SIZE := 64.0
+const CHIP_GAP := 4.0
+const ONE_COLUMN_MAX := 6 # more players than this: two columns, so the chips stay above the joystick
+
+static func column_count(players: int) -> int:
+	return 1 if players <= ONE_COLUMN_MAX else 2
+
+# Screen width the chip column takes, kept clear of the arena (on both sides, so it stays centred).
+static func column_inset(players: int) -> float:
+	var n := column_count(players)
+	return 8.0 + n * CHIP_SIZE + (n - 1) * CHIP_GAP + 8.0
 
 func _ready() -> void:
 	var root := Control.new()
@@ -66,11 +79,17 @@ func _ready() -> void:
 	_timer_label.custom_minimum_size = Vector2(220, 0)
 	top.add_child(_timer_label)
 
-	_bar = HBoxContainer.new()
-	_bar.add_theme_constant_override("separation", 4)
-	_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(spacer)
+
+	_bar = GridContainer.new()
+	_bar.position = Vector2(8.0, COLUMN_TOP)
+	_bar.add_theme_constant_override("h_separation", int(CHIP_GAP))
+	_bar.add_theme_constant_override("v_separation", int(CHIP_GAP))
 	_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	top.add_child(_bar)
+	root.add_child(_bar)
 
 	# Phones: browsers only allow fullscreen from a tap, which the button press is.
 	_fullscreen = Button.new()
@@ -145,24 +164,23 @@ func sync(match_state: MatchState) -> void:
 	if _panel.visible:
 		_panel_text.text = _scoreboard_text(match_state)
 
+# Square chips: name, lives (or a ghost), wins, one under the other.
 func _sync_chips(m: MatchState) -> void:
-	var small := m.players.size() > 6
+	_bar.columns = column_count(m.players.size())
 	for mp in m.players:
 		var chip: Label = _chips.get(mp.id)
 		if chip == null:
 			chip = Label.new()
 			chip.add_theme_color_override("font_color", _text_color(mp.color))
-			chip.add_theme_font_size_override("font_size", 16 if small else 20)
-			chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			chip.add_theme_font_size_override("font_size", 14)
+			chip.add_theme_constant_override("line_spacing", -2)
+			chip.custom_minimum_size = Vector2(CHIP_SIZE, CHIP_SIZE)
 			chip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			chip.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 			chip.clip_text = true
 			var sb := StyleBoxFlat.new()
 			sb.bg_color = mp.color
 			sb.set_corner_radius_all(6)
-			sb.content_margin_left = 6
-			sb.content_margin_right = 6
-			sb.content_margin_top = 2
-			sb.content_margin_bottom = 2
 			chip.add_theme_stylebox_override("normal", sb)
 			_bar.add_child(chip)
 			_chips[mp.id] = chip
@@ -170,7 +188,7 @@ func _sync_chips(m: MatchState) -> void:
 		var status := "♥ 0"
 		if ps != null:
 			status = "👻" if ps.life == PlayerState.Life.GHOST else "♥ %d" % ps.lives
-		chip.text = "%s %s 🏆 %d" % [mp.name, status, mp.wins] if not small else "%s %s 🏆%d" % [mp.name.replace("Bot ", "B"), status, mp.wins]
+		chip.text = "%s\n%s\n🏆 %d" % [mp.name, status, mp.wins]
 
 static func _text_color(c: Color) -> Color:
 	return Color.BLACK if c.get_luminance() > 0.45 else Color.WHITE

@@ -4,21 +4,26 @@ extends RefCounted
 # Where the left-half pillars go, as fractions of the map size (each is mirrored on the right).
 const PILLAR_ANCHORS: Array[Vector2] = [Vector2(0.1, 0.2), Vector2(0.1, 0.55), Vector2(0.3, 0.7), Vector2(0.15, 0.9)]
 
+# Maps were made about 1.2 times wider for landscape screens; the temple kept the size it had,
+# so the extra width is open ground on both sides.
+const WIDTH_STRETCH := 1.2
+
 static func generate(size: Vector2i, player_count: int, rng: RandomNumberGenerator) -> Arena:
 	var w := size.x
 	var h := size.y
 	var a := Arena.create(w, h)
 	var cx := w / 2
+	var tw := roundi(w / WIDTH_STRETCH) # width the temple is sized from
 
 	# Raised levels and pit (inclusive bounds). The temple backs onto the far edge (y = 0),
 	# so nobody can walk behind the summit.
-	var a1 := roundi(w * 0.22)
+	var a1 := roundi(tw * 0.22)
 	var l1_y0 := 0
 	var l1_y1 := roundi(h * 0.44) - 1
-	var a2 := maxi(1, roundi(w * 0.09))
+	var a2 := maxi(1, roundi(tw * 0.09))
 	var l2_y0 := 0
 	var l2_y1 := maxi(2, roundi(h * 0.2)) - 1
-	var ap := roundi(w * 0.13) + 1
+	var ap := roundi(tw * 0.13) + 1
 	var pit_y0 := roundi(h * 0.6) + 1
 	var pit_y1 := h - 2
 	var l1_x0 := cx - a1

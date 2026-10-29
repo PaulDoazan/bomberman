@@ -53,7 +53,7 @@ Le multijoueur en ligne viendra dans une étape suivante, et le POC doit être c
 ## La map (décision utilisateur : option A, « fidèle, en plus grand »)
 
 - Le temple de la capture : **fosse** pavée (niveau -1) devant, **sol** (niveau 0), **1er étage** (niveau 1), **sommet** (niveau 2) avec une **dalle rose** décorative au centre. Des **escaliers** relient les niveaux. De l'eau entoure la map. Le 1er étage et le sommet sont **adossés au fond de la map** (décision utilisateur) : impossible de passer derrière le sommet.
-- **Taille par défaut : 2 fois la surface de l'originale**, soit environ **19×15 cases**. La taille est **réglable dans les paramètres de la partie**.
+- **Taille par défaut : 23×15 cases**. Au départ, la map faisait 2 fois la surface de l'originale (19×15). Elle a été **élargie** pour les téléphones tenus à l'horizontale (décision utilisateur) : ce sont des **cases en plus**, pas une image étirée. L'utilisateur voulait 1,5 fois plus large, mais une map aussi large ne pouvait pas prendre toute la hauteur d'un téléphone (format 19,5:9) une fois la colonne des joueurs ajoutée : il a choisi environ 1,2 fois (19 → 23 cases). Le temple garde sa taille : la largeur en plus est du sol, de chaque côté. Tailles : petite 17×13, normale 23×15, grande 31×19, immense 37×23. La taille est **réglable dans les paramètres de la partie**.
 - Comme la taille varie, la map est **générée à partir d'un plan** dont les éléments (fosse, étages, escaliers) gardent leurs proportions, et non dessinée case par case.
 - Une maquette de référence de la disposition existe : `.superpowers/brainstorm/*/content/map-taille.html`, option A, dessinée en 23×19. On en garde la disposition relative, pas la taille.
 
@@ -63,6 +63,7 @@ Choix de conception (Claude) :
 - **Points de départ** répartis sur le pourtour du sol, autant que de joueurs (2 à 10).
 - On ne **monte** d'un niveau **que par les escaliers**, qu'on peut emprunter dans toutes les directions. Depuis le bord d'un niveau, on peut **sauter vers un niveau plus bas**. On voit un **vrai saut** (décision utilisateur) : le perso monte un peu, puis retombe sous l'effet de la gravité jusqu'au niveau du dessous, sans s'arrêter d'avancer. Une marche d'escalier se descend sans saut. Le saut est seulement affiché : les règles ne changent pas. Un objet lancé peut atterrir sur un autre niveau.
 - **Caméra fixe en 3D**, inclinée comme sur la capture, qui cadre toute la map. Elle doit rester lisible jusqu'à la taille maximale autorisée.
+  - La map est **centrée à l'écran** et cadrée **aussi grande que possible sans passer sous la colonne des joueurs** (décisions utilisateur) : la largeur de la colonne est gardée libre des deux côtés. Elle a **la même marge en haut et en bas** (environ 21 px pour un écran de 720 px de haut, la marge du bas d'avant). Sur un téléphone à l'horizontale (19,5:9), la map normale prend toute la hauteur ; dès que c'est la largeur qui la limite, elle reste centrée en hauteur.
 
 ## Règles d'une manche
 
@@ -115,7 +116,7 @@ Niveau correct, sans viser un champion :
 ## Écrans
 
 - **Réglages** (avant de jouer) : nombre de bots (1 à 9), taille de la map, durée du chrono, nombre de vies (3 par défaut), puis bouton « Jouer ». Ces réglages serviront plus tard dans le salon en ligne.
-- **Jeu** : la map, le chrono et un bandeau des joueurs avec leurs vies restantes et leurs victoires, comme le haut de la capture.
+- **Jeu** : la map, le chrono en haut à gauche, et les joueurs avec leurs vies restantes et leurs victoires **en colonne à gauche de l'écran**, sous le chrono (décision utilisateur, pour laisser la hauteur à la map). Chaque joueur est un **carré** de sa couleur (décision utilisateur) avec, l'un sous l'autre, son nom, ses vies (ou 👻) et ses victoires. Choix Claude : au-delà de 6 joueurs, les carrés passent sur deux colonnes pour rester au-dessus du joystick tactile.
 - **Fin de manche** : tableau des scores, puis enchaînement.
 
 ## Préparer le multijoueur (contrainte d'architecture)
