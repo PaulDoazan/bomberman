@@ -28,7 +28,6 @@ Le multijoueur en ligne viendra dans une étape suivante, et le POC doit être c
 
 - Multijoueur en ligne : serveur, WebSocket, code de partie, salon, arrivées entre les manches. **On le prépare sans le construire.**
 - Sons et musique.
-- Bonus et power-ups.
 - Graphismes soignés : formes simples (cubes, capsules ou persos stylisés, couleurs unies).
 - Mobile et tactile.
 - Bots qui soulèvent ou lancent des objets.
@@ -70,11 +69,42 @@ Choix de conception (Claude) :
 Choix de conception (Claude, non contesté par l'utilisateur) :
 - **3 vies par joueur et par manche par défaut, réglable** (décision utilisateur). Les vies repartent au maximum à chaque manche.
 - Choix Claude : un joueur qui perd une vie (explosion ou noyade) réapparaît après 2 s sur une case libre et sûre (hors danger, hors de l'eau, de préférence sur le niveau sec le plus bas encore disponible). Il est invulnérable 2 s, en clignotant. À la perte de la dernière vie, il devient fantôme.
-- Sans bonus, chaque joueur a des valeurs fixes : **2 bombes posées à la fois au maximum**, **portée d'explosion de 3 cases**, mèche d'environ 2,5 s.
+- Sans bonus, chaque joueur commence avec : **2 bombes posées à la fois au maximum**, **portée d'explosion de 3 cases**, mèche d'environ 2,5 s.
 - **L'explosion est une sphère entière qui grossit** (décision utilisateur, qui remplace la demi-sphère du départ) : centrée sur la bombe, au niveau du sol où elle explose, elle touche **toutes les cases dans son rayon, dans toutes les directions, diagonales comprises**. Elle **monte et descend** : les niveaux plus hauts comme plus bas sont touchés s'ils sont dans la sphère.
 - Choix Claude : la grille est **une grille 2D avec une hauteur par case**. Une case est touchée si sa distance à la bombe, en comptant la différence de hauteur (un niveau = 1 case), est ≤ rayon (2 cases par défaut, réduit de 3 à 2 après les premiers essais). Un joueur plus bas est touché dès que la sphère atteint sa tête (corps d'une case de haut).
 - Choix Claude (non tranché par l'utilisateur) : les **piliers et les blocs protègent** ce qui est derrière eux (ligne de vue depuis la bombe). Un bloc touché est détruit, mais il protège quand même ce qu'il cache pendant cette explosion. La sphère est dessinée entière à l'écran, mais seules les cases en vue sont touchées.
 - L'explosion tue les joueurs touchés (ils perdent une vie) **seulement quand la sphère qui grandit touche vraiment leur corps** (décision utilisateur), et non dès qu'ils sont sur une case du rayon. Un joueur tué par une explosion devient **tout noir, comme brûlé**, et son corps reste visible environ 2,5 s avant de disparaître en fondu. L'explosion fait aussi exploser les autres bombes touchées (décision utilisateur) : celles qui sont dans la sphère quand elle apparaît, et aussi celles qui y entrent tant que les flammes durent (bombe qui roule, qui atterrit ou qu'on pose dedans).
+
+### Bonus et malus (décision utilisateur : tous ceux de Bomberman 64)
+
+Liste tirée du manuel officiel N64 (page « Items »). Chaque objet peut être **désactivé dans les réglages** (décision utilisateur) ; tous sont actifs par défaut.
+
+- **Cachés dans les blocs** : environ 35 % des blocs cachent un objet, tiré au hasard parmi les objets actifs (Feu et Bombe les plus fréquents). **Un seul Mal par manche** (manuel : « il n'apparaît qu'une fois par bataille »). L'objet apparaît quand le bloc explose ou quand on le soulève (choix Claude : il reste au sol), on le ramasse **en marchant dessus**, et une explosion suivante le détruit (pas celle qui l'a révélé).
+- **Feu** : +1 niveau de puissance, jusqu'au niveau 3. Choix Claude : le niveau 1 fait 2 cases de rayon, chaque niveau ajoute 0,75 case.
+- **Bombe gonflée** (manuel) : en tenant une bombe, rappuyer sur Espace la gonfle, 3 fois au plus ; chaque gonflage ajoute un niveau, jusqu'au niveau 6. Elle grossit à l'écran.
+- **Bombe** : une bombe de plus à poser en même temps, jusqu'à 8.
+- **Puissance** : le manuel dit qu'elle casse ce qu'une bombe plus faible ne casse pas ; comme il n'y a pas d'objets plus solides ici, choix Claude : **l'explosion traverse les blocs** au lieu de s'y arrêter.
+- **Télécommande** : ses bombes n'ont plus de mèche ; **E** (ou le bouton du milieu de la souris, ou un bouton « BOUM » sur écran tactile) fait sauter la plus ancienne posée. Elles sautent quand même si une explosion les touche. Perdue avec une vie (manuel), ses bombes repartent alors avec une mèche.
+- **Cœur** : encaisse une explosion à la place d'une vie (puis 2 s d'invulnérabilité), une seule fois, non cumulable.
+- Choix Claude : les autres objets restent quand on perd une vie ; tout repart à zéro à chaque manche.
+- **Tête de mort** : marcher dessus rend malade 15 s, d'un mal tiré au hasard. Comme dans le manuel, **on peut aussi la ramasser de face sans tomber malade et la lancer** : elle rend malade celui sur qui elle tombe. Les maux (manuel) :
+  - **Géant** : grand et lent. **Minuscule** : petit et rapide.
+  - **Désarmé** : ne peut plus poser ni gonfler de bombe.
+  - **Inversé** : le manuel inverse l'intensité du stick (plus on pousse, plus on va lentement), ce qui n'existe pas au clavier et à la souris ; choix Claude : **la direction est inversée**.
+  - **Déguisé** : ses bombes ont l'air normales mais explosent comme une bombe gonflée au maximum.
+  - **Instantané** : ses bombes explosent au bout d'1 s.
+  - **En feu** : s'il n'élimine personne avant la fin, il meurt.
+  - Un joueur malade porte une petite tête de mort au-dessus de la tête. Perdre une vie guérit.
+- **Mal** : celui qui le ramasse déclenche un effet sur tout le monde pendant 10 s (manuel) :
+  - **Gulliver** : tout le monde devient grand et lent.
+  - **Tornade** : une tornade parcourt l'arène ; qui la touche est projeté à 3 cases et assommé à l'atterrissage.
+  - **Lancers** : toute bombe posée est aussitôt lancée devant soi.
+  - **Mélange** : les joueurs échangent leurs places au hasard.
+  - **Maximum** : toutes les bombes explosent au niveau 6.
+  - **Disco** : l'écran clignote en couleurs arc-en-ciel.
+  - **Peste** : régulièrement (toutes les 1,5 s), un joueur au hasard est pris de vertige (assommé 1 s).
+- Un bandeau annonce le Mal en cours ; les objets et le mal du joueur s'affichent à côté du chrono.
+- Bots : ils voient la vraie portée de chaque bombe, vont chercher les objets, évitent les têtes de mort et font sauter leurs bombes télécommandées une fois hors de portée.
 
 ### Le chrono et la montée des eaux (décision utilisateur)
 
@@ -115,7 +145,8 @@ Niveau correct, sans viser un champion :
 
 ## Écrans
 
-- **Réglages** (avant de jouer) : nombre de bots (1 à 9), taille de la map, durée du chrono, nombre de vies (3 par défaut), puis bouton « Jouer ». Ces réglages serviront plus tard dans le salon en ligne.
+- **Réglages** (avant de jouer) : nombre de bots (1 à 9), taille de la map, durée du chrono, nombre de vies (3 par défaut), un interrupteur par bonus et malus (avec « Tout activer » et « Tout désactiver »), puis bouton « Jouer ». Ces réglages serviront plus tard dans le salon en ligne.
+  - **Adapté au mobile** (décision utilisateur) : grands boutons « − / + » plutôt que des champs numériques, tailles de map en boutons, interrupteurs. À l'horizontale, la partie et les bonus sont côte à côte, sans défilement ; à la verticale, ils sont l'un sous l'autre et toute la page est zoomée pour remplir la largeur (le zoom est retiré en lançant la partie).
 - **Jeu** : la map, le chrono en haut à gauche, et les joueurs avec leurs vies restantes et leurs victoires **en colonne à gauche de l'écran**, sous le chrono (décision utilisateur, pour laisser la hauteur à la map). Chaque joueur est un **carré** de sa couleur (décision utilisateur) avec, l'un sous l'autre, son nom, ses vies (ou 👻) et ses victoires. Choix Claude : au-delà de 6 joueurs, les carrés passent sur deux colonnes pour rester au-dessus du joystick tactile.
 - **Fin de manche** : tableau des scores, puis enchaînement.
 
