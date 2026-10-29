@@ -7,6 +7,7 @@ extends RefCounted
 const WANDER_RATE := 0.5 # wanders started per second, on average
 const WANDER_TIME := 1.0 # seconds a wander target is kept at most
 const SAFETY_MARGIN := 0.2
+const SEEK_SLACK := 2 # extra steps a bot accepts to keep its seek goal rather than switch
 
 var _rng: RandomNumberGenerator
 # Scratch results of the last _search: cell -> steps, cell -> first cell of the path.
@@ -16,6 +17,9 @@ var _first: Dictionary = {}
 var _wander_cell: Variant = null
 var _wander_ticks := 0
 var _last_world: World = null
+# Seek goal of the last tick: kept while still a goal and nearly as near as the nearest, so the
+# bot does not turn back and forth when two goals (or a moving opponent's sides) are about as near.
+var _seek_goal: Variant = null
 
 func _init(rng: RandomNumberGenerator) -> void:
 	_rng = rng
@@ -26,6 +30,7 @@ func decide(world: World, id: int) -> PlayerIntent:
 	if world != _last_world:
 		_last_world = world
 		_wander_cell = null
+		_seek_goal = null
 	var wander: Variant = _wander_cell
 	_wander_cell = null # kept only if the seek step below re-commits to it
 	# 1. Ghosts chase the nearest free living player.
@@ -103,9 +108,20 @@ func decide(world: World, id: int) -> PlayerIntent:
 			_wander_ticks = roundi(WANDER_TIME * SimConfig.TICK_RATE) - 1
 			_head_to(intent, bot, _wander_cell)
 			return intent
+	var kept: Variant = _seek_goal
+	_seek_goal = null
 	var found: Variant = _search(world, bot, bomb_cells, danger, strict, goal, true)
-	if found != null:
-		_head_to(intent, bot, _first[found])
+	if found == null:
+		return intent
+	var first: Vector2i = _first[found]
+	if kept != null and kept != found and goal.call(kept):
+		var limit: int = _dist[found] + SEEK_SLACK
+		var again: Variant = _search(world, bot, bomb_cells, danger, strict, func(c: Vector2i) -> bool: return c == kept or _dist[c] > limit, true)
+		if again == kept:
+			found = kept
+			first = _first[kept]
+	_seek_goal = found
+	_head_to(intent, bot, first)
 	return intent
 
 # Placed bombs by cell, so BFS does not scan all bombs per step (same rule as World.is_passable_for).
