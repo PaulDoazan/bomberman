@@ -2,7 +2,7 @@ class_name Hud
 extends CanvasLayer
 
 var _timer_label: Label
-var _bar: GridContainer # one square chip per player, in a column at the bottom left
+var _bar: Control # one square chip per player, in a staircase in the top left corner
 var _chips: Dictionary = {} # id -> Label
 var _warning: Label
 var _panel: PanelContainer
@@ -13,18 +13,24 @@ var joystick: TouchJoystick # touch screens only
 var action_button: ActionButton # touch screens only: pick up / throw
 
 const TOUCH_LEVEL := 1.0 / 3.0 # fraction of the screen height, from the top, of the buttons' centre
-const JOYSTICK_LEVEL := 0.26 # same for the joystick, a little higher
+const JOYSTICK_LEVEL := 0.5 # same for the joystick: mid-height
 const CHIP_SIZE := 64.0
 const CHIP_GAP := 4.0
-const ONE_COLUMN_MAX := 6 # more players than this: two columns, so the chips stay above the joystick
 
-static func column_count(players: int) -> int:
-	return 1 if players <= ONE_COLUMN_MAX else 2
-
-# Screen width the chip column takes, kept clear of the arena (on both sides, so it stays centred).
-static func column_inset(players: int) -> float:
-	var n := column_count(players)
-	return 8.0 + n * CHIP_SIZE + (n - 1) * CHIP_GAP + 8.0
+# Column and row of each of n chips, in a staircase hugging the corner: columns of k, k - 1, ...
+# chips, filled one after the other, with k the fewest that fit them all (6 players: 3, 2, 1).
+static func staircase(n: int) -> Array[Vector2i]:
+	var k := 0
+	while k * (k + 1) / 2 < n:
+		k += 1
+	var out: Array[Vector2i] = []
+	var col := 0
+	while out.size() < n:
+		for row in k - col:
+			if out.size() < n:
+				out.append(Vector2i(col, row))
+		col += 1
+	return out
 
 func _ready() -> void:
 	var root := Control.new()
@@ -32,7 +38,7 @@ func _ready() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 
-	# Touch controls, under the rest of the HUD, like Among Us: a fixed joystick high on the left,
+	# Touch controls, under the rest of the HUD, like Among Us: a fixed joystick mid-height on the left,
 	# and on the right the pick up / throw button above the bomb button, around a third of the way
 	# down. The layer stops mouse events so the click emulated from a touch never steers
 	# the player: on touch screens only the joystick does.
@@ -46,7 +52,7 @@ func _ready() -> void:
 	joystick.anchor_top = JOYSTICK_LEVEL
 	joystick.anchor_bottom = JOYSTICK_LEVEL
 	joystick.grow_vertical = Control.GROW_DIRECTION_BOTH
-	joystick.offset_left = 10
+	joystick.offset_left = -30 # the drawn base 20 px from the edge
 	touch.add_child(joystick)
 	var buttons := VBoxContainer.new()
 	buttons.anchor_left = 1.0
@@ -76,25 +82,23 @@ func _ready() -> void:
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(top)
 
-	_timer_label = Label.new()
-	_timer_label.add_theme_font_size_override("font_size", 28)
-	_timer_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	_timer_label.add_theme_constant_override("outline_size", 6)
-	_timer_label.custom_minimum_size = Vector2(220, 0)
-	top.add_child(_timer_label)
-
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_child(spacer)
 
-	_bar = GridContainer.new() # bottom left, growing up
-	_bar.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_bar.offset_left = 8
-	_bar.offset_bottom = -8
-	_bar.add_theme_constant_override("h_separation", int(CHIP_GAP))
-	_bar.add_theme_constant_override("v_separation", int(CHIP_GAP))
+	# The timer at the top centre: the top left corner holds the players.
+	_timer_label = Label.new()
+	_timer_label.add_theme_font_size_override("font_size", 28)
+	_timer_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	_timer_label.add_theme_constant_override("outline_size", 6)
+	_timer_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_timer_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_timer_label.offset_top = 6
+	root.add_child(_timer_label)
+
+	_bar = Control.new()
+	_bar.position = Vector2(8.0, 8.0)
 	_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_bar)
 
@@ -173,8 +177,9 @@ func sync(match_state: MatchState) -> void:
 
 # Square chips: name, lives (or a ghost), wins, one under the other.
 func _sync_chips(m: MatchState) -> void:
-	_bar.columns = column_count(m.players.size())
-	for mp in m.players:
+	var places := staircase(m.players.size())
+	for i in m.players.size():
+		var mp := m.players[i]
 		var chip: Label = _chips.get(mp.id)
 		if chip == null:
 			chip = Label.new()
@@ -189,6 +194,8 @@ func _sync_chips(m: MatchState) -> void:
 			sb.bg_color = mp.color
 			sb.set_corner_radius_all(6)
 			chip.add_theme_stylebox_override("normal", sb)
+			chip.position = Vector2(places[i]) * (CHIP_SIZE + CHIP_GAP)
+			chip.size = Vector2(CHIP_SIZE, CHIP_SIZE)
 			_bar.add_child(chip)
 			_chips[mp.id] = chip
 		var ps: PlayerState = m.world.players.get(mp.id)
