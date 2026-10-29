@@ -53,7 +53,7 @@ Le multijoueur en ligne viendra dans une étape suivante, et le POC doit être c
 ## La map (décision utilisateur : option A, « fidèle, en plus grand »)
 
 - Le temple de la capture : **fosse** pavée (niveau -1) devant, **sol** (niveau 0), **1er étage** (niveau 1), **sommet** (niveau 2) avec une **dalle rose** décorative au centre. Des **escaliers** relient les niveaux. De l'eau entoure la map. Le 1er étage et le sommet sont **adossés au fond de la map** (décision utilisateur) : impossible de passer derrière le sommet.
-- **Taille par défaut : 2 fois la surface de l'originale**, soit environ **19×15 cases**. La taille est **réglable dans les paramètres de la partie**.
+- **Taille par défaut : 23×15 cases**. Au départ, la map faisait 2 fois la surface de l'originale (19×15). Elle a été **élargie** pour les téléphones tenus à l'horizontale (décision utilisateur) : ce sont des **cases en plus**, pas une image étirée. L'utilisateur voulait 1,5 fois plus large, mais une map aussi large ne pouvait pas prendre toute la hauteur d'un téléphone (format 19,5:9) une fois la colonne des joueurs ajoutée : il a choisi environ 1,2 fois (19 → 23 cases). Le temple garde sa taille : la largeur en plus est du sol, de chaque côté. Tailles : petite 17×13, normale 23×15, grande 31×19, immense 37×23. La taille est **réglable dans les paramètres de la partie**.
 - Comme la taille varie, la map est **générée à partir d'un plan** dont les éléments (fosse, étages, escaliers) gardent leurs proportions, et non dessinée case par case.
 - Une maquette de référence de la disposition existe : `.superpowers/brainstorm/*/content/map-taille.html`, option A, dessinée en 23×19. On en garde la disposition relative, pas la taille.
 
