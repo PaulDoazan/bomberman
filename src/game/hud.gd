@@ -2,7 +2,7 @@ class_name Hud
 extends CanvasLayer
 
 var _timer_label: Label
-var _bar: GridContainer # one square chip per player, in a column on the left
+var _bar: GridContainer # one square chip per player, in a column at the bottom left
 var _chips: Dictionary = {} # id -> Label
 var _warning: Label
 var _status: Label # the local player's items and sickness
@@ -17,7 +17,8 @@ var joystick: TouchJoystick # touch screens only
 var action_button: ActionButton # touch screens only: pick up / throw
 var detonate_button: DetonateButton # touch screens only, while the local player has the Remote
 
-const COLUMN_TOP := 52.0 # below the timer
+const TOUCH_LEVEL := 1.0 / 3.0 # fraction of the screen height, from the top, of the buttons' centre
+const JOYSTICK_LEVEL := 0.26 # same for the joystick, a little higher
 const CHIP_SIZE := 64.0
 const CHIP_GAP := 4.0
 const ONE_COLUMN_MAX := 6 # more players than this: two columns, so the chips stay above the joystick
@@ -42,9 +43,10 @@ func _ready() -> void:
 	_disco.visible = false
 	root.add_child(_disco)
 
-	# Touch controls, under the rest of the HUD, like Among Us: a fixed joystick bottom left, the
-	# bomb button bottom right and the pick up / throw button to its left. The layer stops mouse events so the click emulated from a
-	# touch never steers the player: on touch screens only the joystick does.
+	# Touch controls, under the rest of the HUD, like Among Us: a fixed joystick high on the left,
+	# and on the right the pick up / throw button above the bomb button, around a third of the way
+	# down, with the detonate button left of the bomb button. The layer stops mouse events so the
+	# click emulated from a touch never steers the player: on touch screens only the joystick does.
 	var touch := Control.new()
 	touch.set_anchors_preset(Control.PRESET_FULL_RECT)
 	touch.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -52,34 +54,40 @@ func _ready() -> void:
 	root.add_child(touch)
 	joystick = TouchJoystick.new()
 	joystick.custom_minimum_size = Vector2(280, 280) # grab area, larger than the drawn base
-	joystick.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	joystick.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	joystick.anchor_top = JOYSTICK_LEVEL
+	joystick.anchor_bottom = JOYSTICK_LEVEL
+	joystick.grow_vertical = Control.GROW_DIRECTION_BOTH
 	joystick.offset_left = 10
-	joystick.offset_bottom = -10
 	touch.add_child(joystick)
-	bomb_button = BombButton.new()
-	bomb_button.custom_minimum_size = Vector2(190, 190)
-	bomb_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	bomb_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	bomb_button.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	bomb_button.offset_right = -24
-	bomb_button.offset_bottom = -24
-	touch.add_child(bomb_button)
+	var buttons := VBoxContainer.new()
+	buttons.anchor_left = 1.0
+	buttons.anchor_right = 1.0
+	buttons.anchor_top = TOUCH_LEVEL
+	buttons.anchor_bottom = TOUCH_LEVEL
+	buttons.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	buttons.grow_vertical = Control.GROW_DIRECTION_BOTH # centred on TOUCH_LEVEL
+	buttons.offset_right = -24
+	buttons.add_theme_constant_override("separation", 12)
+	buttons.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	touch.add_child(buttons)
 	action_button = ActionButton.new()
 	action_button.custom_minimum_size = Vector2(150, 150)
-	action_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	action_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	action_button.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	action_button.offset_right = -230 # left of the bomb button
-	action_button.offset_bottom = -30
-	touch.add_child(action_button)
+	action_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	buttons.add_child(action_button)
+	bomb_button = BombButton.new()
+	bomb_button.custom_minimum_size = Vector2(190, 190)
+	buttons.add_child(bomb_button)
+	# Left of the bomb button, level with it: the buttons' column is 150 + 12 + 190 tall, centred on
+	# TOUCH_LEVEL, so the bomb button's centre is 81 below it.
 	detonate_button = DetonateButton.new()
 	detonate_button.custom_minimum_size = Vector2(130, 130)
-	detonate_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	detonate_button.anchor_left = 1.0
+	detonate_button.anchor_right = 1.0
+	detonate_button.anchor_top = TOUCH_LEVEL
+	detonate_button.anchor_bottom = TOUCH_LEVEL
 	detonate_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	detonate_button.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	detonate_button.offset_right = -54 # above the bomb button
-	detonate_button.offset_bottom = -230
+	detonate_button.offset_right = -24 - 190 - 12
+	detonate_button.offset_top = 81 - 65
 	detonate_button.visible = false
 	touch.add_child(detonate_button)
 
@@ -109,8 +117,11 @@ func _ready() -> void:
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_child(spacer)
 
-	_bar = GridContainer.new()
-	_bar.position = Vector2(8.0, COLUMN_TOP)
+	_bar = GridContainer.new() # bottom left, growing up
+	_bar.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_bar.offset_left = 8
+	_bar.offset_bottom = -8
 	_bar.add_theme_constant_override("h_separation", int(CHIP_GAP))
 	_bar.add_theme_constant_override("v_separation", int(CHIP_GAP))
 	_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
