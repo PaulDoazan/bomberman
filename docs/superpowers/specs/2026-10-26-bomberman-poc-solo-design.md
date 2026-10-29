@@ -61,7 +61,7 @@ Choix de conception (Claude) :
 - **8 piliers indestructibles** seulement (décision utilisateur), fixes, sur le sol (niveau 0), placés en miroir de part et d'autre du temple.
 - **Blocs destructibles** tirés au hasard à chaque manche (environ 15 % des cases libres), en laissant toujours libres les cases à 2 pas ou moins d'un point de départ et les escaliers. Il n'y en a pas sur le sommet.
 - **Points de départ** répartis sur le pourtour du sol, autant que de joueurs (2 à 10).
-- On ne **monte** d'un niveau **que par les escaliers**, qu'on peut emprunter dans toutes les directions. Depuis le bord d'un niveau, on peut **sauter vers un niveau plus bas**. Un objet lancé peut atterrir sur un autre niveau.
+- On ne **monte** d'un niveau **que par les escaliers**, qu'on peut emprunter dans toutes les directions. Depuis le bord d'un niveau, on peut **sauter vers un niveau plus bas**. On voit un **vrai saut** (décision utilisateur) : le perso monte un peu, puis retombe sous l'effet de la gravité jusqu'au niveau du dessous, sans s'arrêter d'avancer. Une marche d'escalier se descend sans saut. Le saut est seulement affiché : les règles ne changent pas. Un objet lancé peut atterrir sur un autre niveau.
 - **Caméra fixe en 3D**, inclinée comme sur la capture, qui cadre toute la map. Elle doit rester lisible jusqu'à la taille maximale autorisée.
 
 ## Règles d'une manche

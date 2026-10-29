@@ -2,6 +2,10 @@ class_name ActorsView
 extends Node3D
 
 const GHOST_HOVER := 1.5
+# Walking off a ledge jumps down: a small hop up, then a fall under gravity to the level below.
+const LEDGE_DROP := 0.2 # a drop this big in one tick is a ledge (stairs go down smoothly)
+const JUMP_SPEED := 2.5
+const GRAVITY := 20.0
 const EJECT_HOP := 1.2 # height of the arc of a ghost thrown off its victim
 const EJECT_SPINS := 2.0 # turns it makes on the way
 const CARRY_HEIGHT := 1.5
@@ -33,6 +37,8 @@ class PlayerNode:
 	var last_pos := Vector2.INF
 	var last_held := PlayerState.Held.NONE
 	var y_smooth := 0.0
+	var fall_v := 0.0 # vertical speed while jumping down off a ledge
+	var falling := false
 	var placed := false
 	var seen_death := -1 # died_tick already handled, so each death leaves one body
 
@@ -237,10 +243,13 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		if not n.placed or thrown or p.carried_by >= 0 or ejected > 0.0:
 			n.y_smooth = y
 			n.placed = true
-		elif y >= n.y_smooth:
-			n.y_smooth = y # climbing: never lag below the step
+			n.falling = false
+		elif ghost:
+			n.y_smooth = y if y >= n.y_smooth else lerpf(n.y_smooth, y, 0.35) # floats down
 		else:
-			n.y_smooth = lerpf(n.y_smooth, y, 0.35) # falling off a ledge
+			_fall(n, y)
+		if p.life == PlayerState.Life.WAITING_RESPAWN:
+			n.placed = false # the respawn appears in place, without jumping there
 		_track(n, Vector3(pos.x, n.y_smooth, pos.y), p.life == PlayerState.Life.WAITING_RESPAWN)
 		n.body.material_override = _ghost_mat if ghost else n.mat
 		var stunned := p.stun_timer > 0.0
@@ -258,6 +267,21 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 			n.model.visible = true
 		n.held_bomb.visible = p.held == PlayerState.Held.BOMB
 		n.held_block.visible = p.held == PlayerState.Held.BLOCK
+
+# Moves a living body's height towards the ground y under it: straight up a step, along a
+# stair, or in a jump off a ledge.
+static func _fall(n: PlayerNode, y: float) -> void:
+	if not n.falling and n.y_smooth - y > LEDGE_DROP:
+		n.falling = true
+		n.fall_v = JUMP_SPEED
+	if not n.falling:
+		n.y_smooth = y
+		return
+	n.fall_v -= GRAVITY * SimConfig.DT
+	n.y_smooth += n.fall_v * SimConfig.DT
+	if n.y_smooth <= y:
+		n.y_smooth = y
+		n.falling = false
 
 # Yaw that turns the model (facing +Z) towards an aim direction on the grid (x -> X, y -> Z).
 static func _yaw(aim: Vector2i) -> float:
