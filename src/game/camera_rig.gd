@@ -13,7 +13,6 @@ const EDGE := 0.058
 @onready var camera: Camera3D = $Camera3D
 
 var arena_ref: Arena = null # last framed arena
-var side_inset := 0.0 # screen width, in canvas pixels, kept clear on each side (the HUD column)
 
 func _ready() -> void:
 	get_viewport().size_changed.connect(_on_size_changed)
@@ -23,20 +22,19 @@ func _on_size_changed() -> void:
 		frame(arena_ref)
 
 # Fixed tilted camera looking from the +z side towards -z, framing the whole arena centred on
-# screen, as large as fits between the side insets, with EDGE margins.
+# screen, as large as fits with EDGE margins.
 func frame(arena: Arena) -> void:
 	arena_ref = arena
 	var s := get_viewport().get_visible_rect().size
 	var aspect := s.x / s.y if s.y > 0.0 else 16.0 / 9.0
-	var side := 2.0 * side_inset / s.x if s.x > 0.0 else 0.0
 	camera.fov = FOV
 	camera.keep_aspect = Camera3D.KEEP_HEIGHT
-	camera.global_transform = fit(arena.width, arena.height, aspect, target_box(aspect, side))
+	camera.global_transform = fit(arena.width, arena.height, aspect, target_box(aspect))
 
 # Where the arena goes on screen, in normalised coordinates (x right, y up, both in [-1, 1]):
-# centred, side clear on both sides, inside EDGE margins as many pixels wide on every side.
-static func target_box(aspect: float, side: float) -> Rect2:
-	var x := 1.0 - side - EDGE / aspect
+# the whole screen inside EDGE margins, as many pixels wide on every side.
+static func target_box(aspect: float) -> Rect2:
+	var x := 1.0 - EDGE / aspect
 	return Rect2(-x, -1.0 + EDGE, 2.0 * x, 2.0 - 2.0 * EDGE)
 
 # The camera transform (fixed pitch) whose view of the arena, from its floor's lowest point to its

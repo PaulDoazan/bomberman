@@ -24,8 +24,6 @@ func _ready() -> void:
 		input_controller.action_area = hud.action_button
 		input_controller.detonate_area = hud.detonate_button
 	match_state = MatchState.new(Session.config, rng)
-	if hud:
-		camera_rig.side_inset = Hud.column_inset(match_state.players.size())
 	for mp in match_state.players:
 		if mp.is_bot:
 			_brains[mp.id] = BotBrain.new(rng)
