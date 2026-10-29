@@ -27,6 +27,7 @@ var possess_timer := 0.0
 var possess_cooldown := 0.0
 var died_tick := -1
 var kick_tick := -1 # tick of the last kick, for the view
+var kick_underfoot := false # the last kick sent off the bomb the player stood on
 var throw_tick := -1 # tick of the last throw, for the view
 
 func cell() -> Vector2i:

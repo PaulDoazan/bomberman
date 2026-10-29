@@ -24,11 +24,12 @@ static func update_push(world: World, p: PlayerState, moving: bool) -> void:
 		p.push_timer = 0.0
 		kick(world, p, b)
 
-# Sends b rolling in p's aim direction.
-static func kick(world: World, p: PlayerState, b: BombState) -> void:
+# Sends b rolling in p's aim direction; underfoot when p stands on it.
+static func kick(world: World, p: PlayerState, b: BombState, underfoot := false) -> void:
 	b.roll_heading = p.aim
 	b.roll_dir = p.aim
 	p.kick_tick = world.tick
+	p.kick_underfoot = underfoot
 	world.events.append({"type": "kick", "id": p.id, "bomb": b.id})
 
 # A bomb ahead (within 60 degrees of facing) whose round body the player's box is touching,

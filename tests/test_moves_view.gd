@@ -75,3 +75,22 @@ func test_pick_up_hold_then_throw() -> void:
 	view.sync(w, ms)
 	assert_eq(n.anim.current_animation, "Throw", "lance")
 	view.free()
+
+# Kicking the bomb underfoot (placing again on it) strikes at once, with no wind-up: the bomb
+# leaves straight away.
+func test_kicking_the_bomb_underfoot_strikes_at_once() -> void:
+	var ms := MatchState.new(SimConfig.new(), RandomNumberGenerator.new())
+	var w := ms.world
+	var view := ActorsView.new()
+	view._ready()
+	view.sync(w, ms)
+	var n: ActorsView.PlayerNode = view._players[0]
+	var place := PlayerIntent.new()
+	place.place_bomb = true
+	w.step({0: place})
+	w.bombs.values()[0].fuse = 100.0
+	w.step({0: place})
+	assert_true(w.players[0].kick_underfoot, "coup sous les pieds")
+	view.sync(w, ms)
+	assert_eq(n.anim.current_animation, "KickUnderfoot", "frappe directe")
+	view.free()

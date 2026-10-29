@@ -219,7 +219,7 @@ func _try_place_bomb(p: PlayerState) -> void:
 			under = b
 	if under != null:
 		if under.roll_dir == Vector2i.ZERO:
-			Kick.kick(self, p, under)
+			Kick.kick(self, p, under, true)
 		return
 	var owned := 0
 	for b: BombState in bombs.values():

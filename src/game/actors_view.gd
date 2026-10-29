@@ -19,7 +19,7 @@ const TINT_SHADER := preload("res://src/game/player_tint.gdshader")
 const MODEL_SCALE := 1.2 / 1.75 # the model is 1.75 units tall; players stand about 1.2 cells
 const TURN_SPEED := 0.35 # fraction of the remaining angle turned per tick
 const LOOPED_ANIMS := ["Idle", "Walk", "Run"]
-const ONE_SHOT_ANIMS := ["PickUp", "Kick", "Throw"] # played to the end before going back to the others
+const ONE_SHOT_ANIMS := ["PickUp", "Kick", "KickUnderfoot", "Throw"] # played to the end before going back to the others
 # Moves built from the Idle pose (the model has none of its own). Each key is [time, turns],
 # a turn being a bone's rotation in degrees about the body's axes, on top of its parent's:
 # about X (sideways) negative swings a leg or an arm forward (then up) or leans back, positive
@@ -33,6 +33,13 @@ const KICK := {"loop": false, "keys": [
 	[0.2, {"RightUpLeg": Vector3(-85, 0, 0), "RightLeg": Vector3(5, 0, 0), "Spine": Vector3(-12, 0, 0)}],
 	[0.3, {"RightUpLeg": Vector3(-70, 0, 0), "RightLeg": Vector3(15, 0, 0), "Spine": Vector3(-10, 0, 0)}],
 	[0.45, {}],
+]}
+# The kick of a bomb the player stands on: it leaves at once, so the leg strikes at once.
+const KICK_UNDERFOOT := {"loop": false, "keys": [
+	[0.0, {}],
+	[0.06, {"RightUpLeg": Vector3(-85, 0, 0), "RightLeg": Vector3(5, 0, 0), "Spine": Vector3(-12, 0, 0)}],
+	[0.16, {"RightUpLeg": Vector3(-70, 0, 0), "RightLeg": Vector3(15, 0, 0), "Spine": Vector3(-10, 0, 0)}],
+	[0.3, {}],
 ]}
 # Sitting on the ground, knocked out, the head lolling from side to side.
 const SIT := {"Hips_y": -0.3, "RightUpLeg": Vector3(-80, 0, 0), "LeftUpLeg": Vector3(-80, 0, 0),
@@ -189,6 +196,7 @@ func _make_model() -> Node3D:
 		var sk: Skeleton3D = model.find_child("Skeleton3D", true, false)
 		var lib := ap.get_animation_library("")
 		lib.add_animation("Kick", _make_move(ap, sk, KICK))
+		lib.add_animation("KickUnderfoot", _make_move(ap, sk, KICK_UNDERFOOT))
 		lib.add_animation("Stunned", _make_move(ap, sk, STUNNED, SIT))
 		lib.add_animation("PickUp", _make_move(ap, sk, PICK_UP))
 		lib.add_animation("Hold", _make_move(ap, sk, HOLD, ARMS_UP))
@@ -420,10 +428,11 @@ func _animate(n: PlayerNode, p: PlayerState, kicked: bool, threw: bool) -> void:
 	var lifting := n.last_held == PlayerState.Held.NONE and p.held != PlayerState.Held.NONE
 	n.last_held = p.held
 	if kicked:
-		if n.anim.current_animation == "Kick":
+		var kick := "KickUnderfoot" if p.kick_underfoot else "Kick"
+		if n.anim.current_animation == kick:
 			n.anim.seek(0.0, true) # kicking again mid-kick replays it from the start
 		else:
-			n.anim.play("Kick", 0.05)
+			n.anim.play(kick, 0.03 if p.kick_underfoot else 0.05)
 		return
 	if lifting:
 		n.anim.play("PickUp", 0.05)
