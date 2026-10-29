@@ -6,6 +6,7 @@ var centre: Vector2 # where the bomb was when it went off; the sphere grows from
 var cells: Array[Vector2i] = []
 var timer := SimConfig.EXPLOSION_DURATION
 var owner_id: int
+var full_radius := SimConfig.BOMB_RADIUS
 
 const GROW_START := 0.2 # sphere size when it appears, as a fraction of its full radius
 const BODY_HEIGHT := 1.0 # a player's body height, for a blast from above reaching their head
@@ -13,7 +14,7 @@ const BODY_HEIGHT := 1.0 # a player's body height, for a blast from above reachi
 # Current sphere radius: grows from GROW_START to full over the explosion's duration.
 func radius() -> float:
 	var t := clampf(1.0 - timer / SimConfig.EXPLOSION_DURATION, 0.0, 1.0)
-	return SimConfig.BOMB_RADIUS * lerpf(GROW_START, 1.0, t)
+	return full_radius * lerpf(GROW_START, 1.0, t)
 
 # True if the sphere, at its current size, reaches the body of a player standing at pos (feet
 # on the ground of their cell, box of PLAYER_HALF around pos, BODY_HEIGHT tall).
@@ -24,8 +25,8 @@ func touches(arena: Arena, pos: Vector2) -> bool:
 	return Vector2(flat, up).length() <= radius()
 
 # Full sphere around the bomb's ground: reaches up and down, the height difference counting
-# in the distance; pillars and blocks shield what is behind them.
-static func hit_cells(arena: Arena, origin: Vector2i, radius: float) -> Array[Vector2i]:
+# in the distance; pillars, and blocks unless it pierces, shield what is behind them.
+static func hit_cells(arena: Arena, origin: Vector2i, radius: float, pierce := false) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	var r := ceili(radius)
 	for dy in range(-r, r + 1):
@@ -36,19 +37,19 @@ static func hit_cells(arena: Arena, origin: Vector2i, radius: float) -> Array[Ve
 			var dz := (arena.h2_at(c) - arena.h2_at(origin)) * 0.5
 			if Vector3(dx, dy, dz).length() > radius:
 				continue
-			if _shielded(arena, origin, c):
+			if _shielded(arena, origin, c, pierce):
 				continue
 			out.append(c)
 	return out
 
-static func _is_shield(arena: Arena, c: Vector2i) -> bool:
+static func _is_shield(arena: Arena, c: Vector2i, pierce: bool) -> bool:
 	if not arena.in_bounds(c):
 		return true
 	var t := arena.tile_at(c)
-	return t == Arena.Tile.PILLAR or t == Arena.Tile.BLOCK
+	return t == Arena.Tile.PILLAR or (t == Arena.Tile.BLOCK and not pierce)
 
 # Supercover walk from centre to centre; true if a cell strictly between is a shield.
-static func _shielded(arena: Arena, from: Vector2i, to: Vector2i) -> bool:
+static func _shielded(arena: Arena, from: Vector2i, to: Vector2i, pierce: bool) -> bool:
 	var d := to - from
 	var nx := absi(d.x)
 	var ny := absi(d.y)
@@ -60,7 +61,7 @@ static func _shielded(arena: Arena, from: Vector2i, to: Vector2i) -> bool:
 		var decision := (1 + 2 * ix) * ny - (1 + 2 * iy) * nx
 		if decision == 0:
 			# Exact corner crossing: both side cells are touched.
-			if _is_shield(arena, Vector2i(p.x + s.x, p.y)) or _is_shield(arena, Vector2i(p.x, p.y + s.y)):
+			if _is_shield(arena, Vector2i(p.x + s.x, p.y), pierce) or _is_shield(arena, Vector2i(p.x, p.y + s.y), pierce):
 				return true
 			p += s
 			ix += 1
@@ -71,6 +72,6 @@ static func _shielded(arena: Arena, from: Vector2i, to: Vector2i) -> bool:
 		else:
 			p.y += s.y
 			iy += 1
-		if p != to and _is_shield(arena, p):
+		if p != to and _is_shield(arena, p, pierce):
 			return true
 	return false

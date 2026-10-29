@@ -50,6 +50,7 @@ func decide(world: World, id: int) -> PlayerIntent:
 	var cell := bot.cell()
 	var bomb_cells := _bomb_cells(world)
 	var danger := DangerMap.build(world)
+	intent.detonate = _wants_detonate(world, bot)
 	# 3. Flee: prefer cells above the next water step, then anything dry.
 	if danger.has(cell):
 		var safe: Variant = _search(world, bot, bomb_cells, danger, false, func(c: Vector2i) -> bool: return _is_safe(world, danger, c))
@@ -80,6 +81,8 @@ func decide(world: World, id: int) -> PlayerIntent:
 	var goal := func(c: Vector2i) -> bool:
 		if c == cell:
 			return false
+		if world.items.has(c) and world.items[c] != SimConfig.Item.SKULL:
+			return true # an item to pick up
 		for d in Arena.ORTHOGONAL:
 			var n: Vector2i = c + d
 			if arena.in_bounds(n) and (arena.tile_at(n) == Arena.Tile.BLOCK or opponents.has(n)):
@@ -138,6 +141,8 @@ func _can_enter(world: World, bot: PlayerState, bomb_cells: Dictionary, from: Ve
 	var b: BombState = bomb_cells.get(to, null)
 	if b != null and not bot.id in b.passable_for:
 		return false
+	if world.items.get(to, -1) == SimConfig.Item.SKULL:
+		return false # never walk into a sickness
 	return not (_water_unsafe(world, to) if strict else world.is_submerged(to))
 
 # Water level at which a cell is unsafe: the next step's during the warning and the whole water
@@ -215,14 +220,26 @@ func _head_to_least_dangerous(world: World, intent: PlayerIntent, bot: PlayerSta
 	if best != null:
 		_head_to(intent, bot, best)
 
+# Sets off a remote bomb once the bot is out of reach of all of its own.
+func _wants_detonate(world: World, bot: PlayerState) -> bool:
+	var any := false
+	for b: BombState in world.bombs.values():
+		if b.owner_id != bot.id or not b.remote or b.state != BombState.State.PLACED:
+			continue
+		any = true
+		if bot.cell() in Explosion.hit_cells(world.arena, b.cell, Items.radius_of(world, b), b.pierce):
+			return false
+	return any
+
 func _wants_bomb(world: World, bot: PlayerState) -> bool:
-	if bot.held != PlayerState.Held.NONE or world.bomb_at(bot.cell()) != null:
+	if bot.held != PlayerState.Held.NONE or world.bomb_at(bot.cell()) != null \
+			or bot.sick == SimConfig.Sick.DISARMED:
 		return false
 	var owned := 0
 	for b: BombState in world.bombs.values():
 		if b.owner_id == bot.id:
 			owned += 1
-	if owned >= SimConfig.MAX_BOMBS:
+	if owned >= bot.max_bombs:
 		return false
 	# Close to a water rise, a blast could chase everyone off the ground that stays dry.
 	if world.time_left <= 0.0 and not world.next_rise_is_final() \
@@ -233,12 +250,12 @@ func _wants_bomb(world: World, bot: PlayerState) -> bool:
 		var n: Vector2i = cell + d
 		if world.arena.in_bounds(n) and world.arena.tile_at(n) == Arena.Tile.BLOCK:
 			return true
-	var hit := Explosion.hit_cells(world.arena, cell, SimConfig.BOMB_RADIUS)
+	var hit := Explosion.hit_cells(world.arena, cell, SimConfig.blast_radius(bot.fire), bot.power)
 	for p: PlayerState in world.players.values():
 		if p.id != bot.id and p.life == PlayerState.Life.ALIVE and p.cell() in hit:
 			return true
 	return false
 
 func _can_escape_own_bomb(world: World, bot: PlayerState, bomb_cells: Dictionary) -> bool:
-	var danger := DangerMap.build(world, bot.cell())
+	var danger := DangerMap.build(world, bot.cell(), bot)
 	return _search(world, bot, bomb_cells, danger, false, func(c: Vector2i) -> bool: return _is_safe(world, danger, c)) != null

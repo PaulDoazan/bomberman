@@ -15,6 +15,13 @@ var water_h2 := SimConfig.WATER_START_H2
 var water_warning := false
 var finished := false
 var winners: Array[int] = []
+var hidden: Dictionary = {} # block cell -> SimConfig.Item it hides
+var items: Dictionary = {} # cell -> SimConfig.Item lying there
+var evil := SimConfig.Evil.NONE # what is happening to everyone, and for how long
+var evil_timer := 0.0
+var plague_timer := 0.0
+var twister_pos := Vector2.ZERO
+var twister_dir := Vector2.ZERO
 
 var _next_bomb_id := 0
 var _water_index := 0
@@ -31,6 +38,7 @@ func _init(p_arena: Arena, player_ids: Array[int], p_cfg: SimConfig, p_rng: Rand
 		p.pos = Arena.center_of(arena.spawns[i] if i < arena.spawns.size() else Vector2i.ZERO)
 		p.lives = cfg.lives
 		players[p.id] = p
+	Items.hide_in_blocks(self)
 
 func step(intents: Dictionary) -> void:
 	if finished:
@@ -57,6 +65,8 @@ func step(intents: Dictionary) -> void:
 			continue
 		if p.possessed_by != -1:
 			Ghosts.shake_off(self, p, intent.struggle)
+		if intent.detonate and p.can_act():
+			Items.detonate(self, p)
 		if intent.place_bomb:
 			_try_place_bomb(p)
 		if intent.action and p.can_act():
@@ -65,13 +75,18 @@ func step(intents: Dictionary) -> void:
 			else:
 				Carry.throw(self, p)
 		if p.can_act() and intent.moving:
-			Movement.move(self, p, intent.target, SimConfig.PLAYER_SPEED, SimConfig.DT)
+			var target := intent.target
+			if p.sick == SimConfig.Sick.REVERSE:
+				target = p.pos * 2.0 - target # the other way round
+			Movement.move(self, p, target, Items.speed_of(self, p), SimConfig.DT)
 		Kick.update_push(self, p, p.can_act() and intent.moving)
 	_update_knockbacks()
 	Carry.update_carried(self)
 	Carry.update_flying(self)
 	Ghosts.update(self)
 	Kick.update_rolling(self)
+	Items.update_pickups(self)
+	Items.update(self)
 	_update_explosions()
 	_update_bombs()
 	_apply_explosion_damage()
@@ -125,6 +140,7 @@ func _eliminate(p: PlayerState, cause: String) -> void:
 		events.append({"type": "death", "id": p.id, "cause": cause})
 	Carry.release_links(self, p)
 	Ghosts.end_possession(self, p)
+	Items.on_death(self, p)
 	p.lives = 0
 	p.life = PlayerState.Life.GHOST
 	Ghosts.on_became_ghost(self, p)
@@ -210,7 +226,14 @@ func _check_round_end() -> void:
 				winners.append(p.id)
 
 func _try_place_bomb(p: PlayerState) -> void:
-	if not p.can_act() or p.held != PlayerState.Held.NONE:
+	if not p.can_act() or p.sick == SimConfig.Sick.DISARMED:
+		return
+	if p.held == PlayerState.Held.BOMB:
+		var held: BombState = bombs.get(p.held_id, null)
+		if held != null and held.pump < SimConfig.PUMP_MAX:
+			held.pump += 1 # pressing again while holding a bomb pumps it
+		return
+	if p.held != PlayerState.Held.NONE:
 		return
 	var c := p.cell()
 	if not arena.in_bounds(c):
@@ -229,16 +252,23 @@ func _try_place_bomb(p: PlayerState) -> void:
 	for b: BombState in bombs.values():
 		if b.owner_id == p.id:
 			owned += 1
-	if owned >= SimConfig.MAX_BOMBS:
+	if owned >= p.max_bombs:
 		return
 	for other: BombState in bombs.values():
 		if other.state == BombState.State.PLACED and other.pos().distance_to(p.pos) < 2.0 * SimConfig.BOMB_BODY_RADIUS:
 			return # no room: the two bombs would overlap
-	var b := add_bomb(p.id, c, SimConfig.FUSE)
+	var b := add_bomb(p.id, c, SimConfig.INSTANT_FUSE if p.sick == SimConfig.Sick.INSTANT else SimConfig.FUSE)
 	b.offset = p.pos - Arena.center_of(c) # exactly under the player
+	b.level = p.fire
+	b.pierce = p.power
+	b.remote = p.remote
+	b.disguised = p.sick == SimConfig.Sick.DISGUISE
 	for other: PlayerState in players.values():
 		if other.is_alive() and Movement.bomb_gap(other.pos, b.pos()) < 0.0:
 			b.passable_for.append(other.id)
+	if evil == SimConfig.Evil.THROW: # everyone throws: the bomb flies off at once
+		Carry._hold_bomb(p, b)
+		Carry.throw(self, p)
 
 func add_bomb(owner_id: int, cell: Vector2i, fuse: float) -> BombState:
 	var b := BombState.new()
@@ -283,7 +313,8 @@ func _update_bombs() -> void:
 	var queue: Array[BombState] = []
 	for b: BombState in bombs.values():
 		# As in Bomberman 64, a held bomb's fuse stops until it is thrown; in flight it burns.
-		if b.state != BombState.State.HELD:
+		# A remote bomb's never burns: its owner sets it off.
+		if b.state != BombState.State.HELD and not b.remote:
 			b.fuse -= SimConfig.DT
 		if b.fuse <= 0.0 or (b.state != BombState.State.FLYING and _in_blast(bomb_cell(b))):
 			queue.append(b)
@@ -306,17 +337,20 @@ func _update_bombs() -> void:
 		e.origin = origin
 		e.centre = centre
 		e.owner_id = b.owner_id
-		e.cells = Explosion.hit_cells(arena, origin, SimConfig.BOMB_RADIUS)
+		e.full_radius = Items.radius_of(self, b)
+		e.cells = Explosion.hit_cells(arena, origin, e.full_radius, b.pierce)
 		explosions.append(e)
-		events.append({"type": "explosion", "cell": origin, "radius": SimConfig.BOMB_RADIUS, "cells": e.cells})
+		events.append({"type": "explosion", "cell": origin, "radius": e.full_radius, "cells": e.cells})
+		Items.burn(self, e.cells)
 		for c in e.cells:
 			if arena.tile_at(c) == Arena.Tile.BLOCK:
 				destroyed[c] = true
 		for other: BombState in bombs.values():
 			if other.state != BombState.State.FLYING and bomb_cell(other) in e.cells and not other in queue:
 				queue.append(other)
-	for c: Vector2i in destroyed:
+	for c: Vector2i in destroyed: # what they hid appears after the blasts, unharmed
 		arena.set_tile(c, Arena.Tile.FLOOR)
+		Items.reveal(self, c)
 		events.append({"type": "block_destroyed", "cell": c})
 
 # True if a still burning explosion covers the cell: a bomb rolling, landing or placed there
@@ -332,7 +366,12 @@ func _apply_explosion_damage() -> void:
 		for p: PlayerState in players.values():
 			if p.life == PlayerState.Life.ALIVE and p.carried_by != Carry.THROWN and p.invulnerable_timer <= 0.0 \
 					and p.cell() in e.cells and e.touches(arena, p.pos):
-				kill(p.id, "explosion")
+				if p.heart: # the heart takes the hit instead
+					p.heart = false
+					p.invulnerable_timer = SimConfig.INVULNERABLE_TIME
+					events.append({"type": "heart_lost", "id": p.id})
+				else:
+					kill(p.id, "explosion", e.owner_id)
 
 # A bomb coming along dir (zero: straight down) hits p: stunned and knocked back a little.
 func hit_by_bomb(p: PlayerState, dir: Vector2) -> void:
@@ -349,10 +388,14 @@ func _update_knockbacks() -> void:
 		if p.life == PlayerState.Life.ALIVE and p.carried_by == -1:
 			Movement.push(self, p, p.knock_dir * SimConfig.KNOCK_DISTANCE / SimConfig.KNOCK_TIME * SimConfig.DT)
 
-func kill(id: int, cause: String) -> void:
+# killer: the player whose bomb it was, if any. Killing someone cures being on fire.
+func kill(id: int, cause: String, killer := -1) -> void:
 	var p: PlayerState = players[id]
+	if killer != id and players.has(killer) and players[killer].sick == SimConfig.Sick.FIRE:
+		Items.cure(players[killer])
 	Carry.release_links(self, p)
 	Ghosts.end_possession(self, p)
+	Items.on_death(self, p)
 	p.lives -= 1
 	p.died_tick = tick
 	p.death_cause = cause

@@ -1,7 +1,7 @@
 class_name Carry
 extends RefCounted
 
-# Picking up, carrying and throwing bombs, players and blocks. Static helpers over a World.
+# Picking up, carrying and throwing bombs, players, blocks and skulls. Static helpers over a World.
 
 # carried_by of a player in flight: neither free (-1) nor carried by anyone. Such a player
 # cannot act, be hit, drown or be possessed until they land.
@@ -34,6 +34,9 @@ static func release_links(world: World, p: PlayerState) -> void:
 			var c: PlayerState = world.players[p.held_id]
 			c.carried_by = -1
 			c.pos = Arena.center_of(p.cell())
+		PlayerState.Held.ITEM:
+			if world.arena.in_bounds(p.cell()) and not world.items.has(p.cell()):
+				world.items[p.cell()] = p.held_id
 	p.held = PlayerState.Held.NONE
 	p.held_id = -1
 	if p.carried_by >= 0:
@@ -48,6 +51,8 @@ static func _is_free_landing(world: World, c: Vector2i, kind: int) -> bool:
 		return false
 	if kind == PlayerState.Held.BLOCK and world.arena.tile_at(c) == Arena.Tile.STAIRS:
 		return false
+	if kind == PlayerState.Held.ITEM:
+		return not world.items.has(c) # it may land on someone: that is the point
 	return kind == PlayerState.Held.BOMB or _free_players_at(world, c).is_empty()
 
 # First free cell from `start` going along `dir`; Vector2i out of bounds when none.
@@ -69,6 +74,11 @@ static func pick_up(world: World, p: PlayerState) -> void:
 	if b != null:
 		_hold_bomb(p, b)
 		return
+	if world.items.get(front, -1) == SimConfig.Item.SKULL:
+		world.items.erase(front)
+		p.held = PlayerState.Held.ITEM
+		p.held_id = SimConfig.Item.SKULL
+		return
 	var other := _player_in_reach(world, p)
 	if other != null:
 		other.carried_by = p.id
@@ -78,6 +88,7 @@ static func pick_up(world: World, p: PlayerState) -> void:
 		return
 	if world.arena.tile_at(front) == Arena.Tile.BLOCK:
 		world.arena.set_tile(front, Arena.Tile.FLOOR)
+		Items.reveal(world, front) # what it hid stays on the ground
 		p.held = PlayerState.Held.BLOCK
 		p.held_id = -1
 
@@ -135,6 +146,22 @@ static func throw(world: World, p: PlayerState) -> void:
 	p.held_id = -1
 	p.throw_tick = world.tick
 
+# Flings p, with nobody throwing them (a twister): like a thrown player, stunned on landing.
+static func fling(world: World, p: PlayerState, dir: Vector2i) -> void:
+	release_links(world, p)
+	var f := FlyingObject.new()
+	f.kind = PlayerState.Held.PLAYER
+	f.ref_id = p.id
+	f.from = p.pos
+	f.dir = dir
+	var dist := SimConfig.TWISTER_THROW if dir.x == 0 or dir.y == 0 else roundi(SimConfig.TWISTER_THROW / sqrt(2.0))
+	var land := _find_landing(world, p.cell() + dir * dist, dir, PlayerState.Held.PLAYER)
+	if world.arena.in_bounds(land):
+		f.landing = land
+	f.to = Arena.center_of(land)
+	p.carried_by = THROWN
+	world.flying.append(f)
+
 # Carried players follow their carrier and break free when their timer runs out.
 static func update_carried(world: World) -> void:
 	for p: PlayerState in world.players.values():
@@ -177,7 +204,7 @@ static func _land(world: World, f: FlyingObject) -> void:
 				var t: PlayerState = world.players[f.ref_id]
 				t.carried_by = -1
 				world.kill(t.id, "drown")
-		return
+		return # a skull sinks
 	f.landing = c
 	match f.kind:
 		PlayerState.Held.BOMB:
@@ -190,6 +217,12 @@ static func _land(world: World, f: FlyingObject) -> void:
 				world.hit_by_bomb(hit, Vector2(f.dir))
 		PlayerState.Held.BLOCK:
 			world.arena.set_tile(c, Arena.Tile.BLOCK)
+		PlayerState.Held.ITEM:
+			var hit := _free_players_at(world, c)
+			if hit.is_empty():
+				world.items[c] = f.ref_id
+			else:
+				Items.infect(world, hit[0])
 		PlayerState.Held.PLAYER:
 			var t: PlayerState = world.players[f.ref_id]
 			t.carried_by = -1

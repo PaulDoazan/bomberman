@@ -2,9 +2,10 @@ class_name DangerMap
 extends RefCounted
 
 # Maps each endangered cell to the seconds left before it is hit: 0.0 under an active
-# explosion, otherwise the (chain-adjusted) fuse of the earliest bomb reaching it.
-# extra_bomb (Vector2i) adds a hypothetical bomb with a full fuse.
-static func build(world: World, extra_bomb: Variant = null) -> Dictionary:
+# explosion, otherwise the (chain-adjusted) fuse of the earliest bomb reaching it (a remote bomb
+# counts as a full fuse). extra_bomb (Vector2i) adds a hypothetical bomb of the given player's
+# with a full fuse.
+static func build(world: World, extra_bomb: Variant = null, extra_owner: PlayerState = null) -> Dictionary:
 	var danger: Dictionary = {}
 	for e: Explosion in world.explosions:
 		for c in e.cells:
@@ -17,12 +18,14 @@ static func build(world: World, extra_bomb: Variant = null) -> Dictionary:
 			continue # airborne: it lands somewhere unknown
 		var origin := world.bomb_cell(b)
 		origins.append(origin)
-		fuses.append(b.fuse)
+		fuses.append(SimConfig.FUSE if b.remote else b.fuse)
+		blasts.append(Explosion.hit_cells(world.arena, origin, Items.radius_of(world, b), b.pierce))
 	if extra_bomb != null:
 		origins.append(extra_bomb)
 		fuses.append(SimConfig.FUSE)
-	for o in origins:
-		blasts.append(Explosion.hit_cells(world.arena, o, SimConfig.BOMB_RADIUS))
+		var level := extra_owner.fire if extra_owner != null else 1
+		blasts.append(Explosion.hit_cells(world.arena, extra_bomb, SimConfig.blast_radius(level),
+				extra_owner != null and extra_owner.power))
 	# Chain reactions: a bomb inside a blast with a shorter fuse inherits that fuse.
 	var changed := true
 	while changed:

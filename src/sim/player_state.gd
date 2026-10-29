@@ -2,7 +2,7 @@ class_name PlayerState
 extends RefCounted
 
 enum Life { ALIVE, WAITING_RESPAWN, GHOST }
-enum Held { NONE, BOMB, PLAYER, BLOCK }
+enum Held { NONE, BOMB, PLAYER, BLOCK, ITEM } # ITEM: a skull, held_id its SimConfig.Item
 
 var id: int
 var pos: Vector2
@@ -31,6 +31,14 @@ var died_tick := -1
 var kick_tick := -1 # tick of the last kick, for the view
 var kick_underfoot := false # the last kick sent off the bomb the player stood on
 var throw_tick := -1 # tick of the last throw, for the view
+# Items picked up: they last the round, except Remote and the sickness, lost with a life.
+var fire := 1 # power level of the bombs placed
+var max_bombs := SimConfig.MAX_BOMBS
+var power := false # blasts go through blocks
+var remote := false # bombs wait for the detonate button
+var heart := false # survives one blast
+var sick := SimConfig.Sick.NONE
+var sick_timer := 0.0
 
 func cell() -> Vector2i:
 	return Arena.cell_of(pos)
