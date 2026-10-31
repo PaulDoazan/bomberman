@@ -9,6 +9,7 @@ const GRAVITY := 20.0
 const EJECT_HOP := 1.2 # height of the arc of a ghost thrown off its victim
 const EJECT_SPINS := 2.0 # turns it makes on the way
 const CARRY_HEIGHT := 1.5
+const FUSE_LENGTH := 0.2 # the short fuse on top of a bomb
 const THROW_ARC := 1.5
 const STAR_COUNT := 3
 const STAR_ORBIT := 0.4
@@ -119,6 +120,12 @@ var _block_mesh := BoxMesh.new()
 var _dome_mesh := SphereMesh.new()
 var _ghost_mat := StandardMaterial3D.new()
 var _bomb_mat := StandardMaterial3D.new()
+var _fuse_cap_mesh := CylinderMesh.new()
+var _fuse_mesh := CylinderMesh.new()
+var _spark_mesh := SphereMesh.new()
+var _fuse_cap_mat := StandardMaterial3D.new()
+var _fuse_mat := StandardMaterial3D.new()
+var _spark_mat := StandardMaterial3D.new()
 var _remote_mat := StandardMaterial3D.new()
 var _items := ItemsView.new()
 var _block_mat := StandardMaterial3D.new()
@@ -127,6 +134,7 @@ var _star_mesh := _make_star_mesh(0.16, 0.07)
 var _star_mat := StandardMaterial3D.new()
 var _time := 0.0
 var _tracks: Dictionary = {} # Node3D -> [prev: Vector3, cur: Vector3]
+var _spins: Dictionary = {} # bomb Node3D -> [prev: Quaternion, cur: Quaternion], as it rolls
 const SNAP_DISTANCE := 1.2
 # Half-size of the footprint used to find the ground under a player: slightly inside the
 # collision box so merely brushing a step does not lift the player.
@@ -144,6 +152,7 @@ func _track(node: Node3D, pos: Vector3, snap: bool = false) -> void:
 
 func _untrack(node: Node3D) -> void:
 	_tracks.erase(node)
+	_spins.erase(node)
 	node.queue_free()
 
 # Called every rendered frame with alpha in [0, 1] = progress towards the next sim tick.
@@ -151,6 +160,9 @@ func render(alpha: float) -> void:
 	for node: Node3D in _tracks:
 		var t: Array = _tracks[node]
 		node.position = (t[0] as Vector3).lerp(t[1], alpha)
+	for node: Node3D in _spins:
+		var q: Array = _spins[node]
+		node.quaternion = (q[0] as Quaternion).slerp(q[1], alpha)
 
 # Drops all actors (new round) so nothing interpolates across worlds.
 func reset() -> void:
@@ -162,6 +174,7 @@ func reset() -> void:
 		c["node"].queue_free()
 	_corpses.clear()
 	_tracks.clear()
+	_spins.clear()
 	_items.reset()
 
 func _ready() -> void:
@@ -174,6 +187,18 @@ func _ready() -> void:
 	_ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_ghost_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_bomb_mat.albedo_color = Color("111111")
+	_fuse_cap_mesh.top_radius = 0.11
+	_fuse_cap_mesh.bottom_radius = 0.11
+	_fuse_cap_mesh.height = 0.09
+	_fuse_mesh.top_radius = 0.04
+	_fuse_mesh.bottom_radius = 0.04
+	_fuse_mesh.height = FUSE_LENGTH
+	_spark_mesh.radius = 0.08
+	_spark_mesh.height = 0.16
+	_fuse_cap_mat.albedo_color = Color("6b6b6b")
+	_fuse_mat.albedo_color = Color("e8c48a")
+	_spark_mat.albedo_color = Color("ffb02e")
+	_spark_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_remote_mat.albedo_color = Color("16306e") # remote bombs are dark blue
 	add_child(_items)
 	_block_mat.albedo_color = Color("9a6a35")
@@ -200,6 +225,32 @@ static func _make_star_mesh(outer: float, inner: float) -> ArrayMesh:
 		st.add_vertex(pts[i])
 		st.add_vertex(pts[(i + 1) % 10])
 	return st.commit()
+
+# A bomb: its round body, with a cap, a short fuse and a spark on top (+Y), all turning with it.
+func _make_bomb() -> MeshInstance3D:
+	var body := _mesh(_bomb_mesh, _bomb_mat)
+	var r := SimConfig.BOMB_BODY_RADIUS
+	var cap := _mesh(_fuse_cap_mesh, _fuse_cap_mat)
+	cap.position.y = r + 0.01
+	var fuse := _mesh(_fuse_mesh, _fuse_mat)
+	fuse.name = "Fuse"
+	fuse.position.y = r + 0.04 + FUSE_LENGTH * 0.5
+	var spark := _mesh(_spark_mesh, _spark_mat)
+	spark.position.y = r + 0.04 + FUSE_LENGTH
+	for c in [cap, fuse, spark]:
+		body.add_child(c)
+	return body
+
+# Turns a bomb drawn at from, now at to, as a ball rolling on the ground: about the horizontal
+# axis across its motion, by the distance over its radius.
+func _roll(m: Node3D, from: Vector3, to: Vector3) -> void:
+	var q: Array = _spins.get(m, [Quaternion.IDENTITY, Quaternion.IDENTITY])
+	q[0] = q[1]
+	var d := Vector3(to.x - from.x, 0.0, to.z - from.z)
+	if d.length() > 1e-5 and d.length() < SNAP_DISTANCE:
+		var axis := Vector3.UP.cross(d.normalized())
+		q[1] = (Quaternion(axis, d.length() / SimConfig.BOMB_BODY_RADIUS) * (q[1] as Quaternion)).normalized()
+	_spins[m] = q
 
 func _mesh(mesh: Mesh, mat: Material) -> MeshInstance3D:
 	var m := MeshInstance3D.new()
@@ -301,7 +352,7 @@ func _make_player(color: Color) -> PlayerNode:
 	n.body.material_override = n.mat
 	n.anim = n.model.find_child("AnimationPlayer", true, false)
 	n.anim.play("Idle")
-	n.held_bomb = _mesh(_bomb_mesh, _bomb_mat)
+	n.held_bomb = _make_bomb()
 	n.held_bomb.position.y = CARRY_HEIGHT
 	n.held_block = _mesh(_block_mesh, _block_mat)
 	n.held_block.position.y = CARRY_HEIGHT
@@ -590,12 +641,14 @@ func _sync_bombs(world: World) -> void:
 	for id: int in world.bombs:
 		var b: BombState = world.bombs[id]
 		var m: MeshInstance3D = _bombs.get(id, null)
-		if m == null:
-			m = _mesh(_bomb_mesh, _bomb_mat)
+		var fresh := m == null
+		if fresh:
+			m = _make_bomb()
 			add_child(m)
 			_bombs[id] = m
 			_track(m, Vector3.ZERO)
 		m.visible = b.state != BombState.State.HELD # drawn on the holder instead
+		var was: Vector3 = _tracks[m][1]
 		if b.state == BombState.State.FLYING:
 			var f := _flight_of(world, PlayerState.Held.BOMB, id)
 			if f != null:
@@ -603,6 +656,8 @@ func _sync_bombs(world: World) -> void:
 		elif b.state == BombState.State.PLACED:
 			var at := b.pos()
 			_track(m, Vector3(at.x, world.arena.h2_at(b.cell) * 0.5 + SimConfig.BOMB_BODY_RADIUS, at.y))
+		if not fresh: # a new bomb starts upright, its fuse on top
+			_roll(m, was, _tracks[m][1])
 		var s := 1.0 if b.disguised else 1.0 + PUMP_GROWTH * b.pump # a disguised bomb looks plain
 		if b.fuse < 0.5 and not b.remote:
 			s *= 1.0 + 0.25 * (1.0 - b.fuse / 0.5)
