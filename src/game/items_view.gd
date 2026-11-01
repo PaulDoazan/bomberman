@@ -2,7 +2,7 @@ class_name ItemsView
 extends Node3D
 
 # Items lying on the ground, bobbing a little above it, and Evil's twister. Each item is a
-# coloured tile with a short label; the Skull is a little skull.
+# coloured tile with a short label; the Skull is a little skull and the Heart a big pink heart.
 
 const COLORS := {
 	SimConfig.Item.FIRE: Color("ff5a1f"),
@@ -23,6 +23,8 @@ const TEXTS := {
 const HOVER := 0.3 # height of an item above the ground
 const BOB := 0.08
 const TWISTER_SPIN := 9.0 # radians per second
+const HEART_HEIGHT := 0.6 # half a player
+const HEART_DEPTH := 0.14 # how far each face bulges, like an emoji
 
 var _ground: Dictionary = {} # cell -> Node3D
 var _twister: Node3D
@@ -68,6 +70,9 @@ static func make_item(item: int) -> Node3D:
 	if item == SimConfig.Item.SKULL:
 		n.add_child(_make_skull())
 		return n
+	if item == SimConfig.Item.HEART:
+		n.add_child(_make_heart())
+		return n
 	var tile := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = Vector3(0.75, 0.18, 0.75)
@@ -112,6 +117,55 @@ static func _make_skull() -> Node3D:
 		eye.position = Vector3(0.11 * side, 0.04, 0.25) # facing +Z, the camera's side
 		skull.add_child(eye)
 	return skull
+
+# A puffy heart standing up and tilted back to face the camera: the heart curve, shrunk
+# ring by ring towards its middle while bulging out, on both faces.
+static func _make_heart() -> Node3D:
+	const SIDES := 48
+	const RINGS := 6
+	var outline: Array[Vector2] = []
+	for i in SIDES:
+		var t := TAU * i / SIDES
+		outline.append(Vector2(16.0 * pow(sin(t), 3.0),
+				13.0 * cos(t) - 5.0 * cos(2.0 * t) - 2.0 * cos(3.0 * t) - cos(4.0 * t)))
+	var lo := INF
+	var hi := -INF
+	for v in outline:
+		lo = minf(lo, v.y)
+		hi = maxf(hi, v.y)
+	var centre := Vector2(0.0, (lo + hi) * 0.5)
+	var k := HEART_HEIGHT / (hi - lo)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for face in [1.0, -1.0]:
+		var rings: Array = []
+		for r in RINGS + 1:
+			var a := PI * 0.5 * r / RINGS # 0 at the rim, a quarter turn at the middle
+			var ring: Array[Vector3] = []
+			for v in outline:
+				var p := (v - centre) * k * cos(a)
+				ring.append(Vector3(p.x, p.y, face * HEART_DEPTH * sin(a)))
+			rings.append(ring)
+		for r in RINGS:
+			for i in SIDES:
+				var j := (i + 1) % SIDES
+				var quad: Array[Vector3] = [rings[r][i], rings[r][j], rings[r + 1][j], rings[r + 1][i]]
+				if face < 0.0:
+					quad.reverse()
+				for q in [0, 1, 2, 0, 2, 3]:
+					st.add_vertex(quad[q])
+	st.generate_normals()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = COLORS[SimConfig.Item.HEART]
+	mat.emission_enabled = true
+	mat.emission = COLORS[SimConfig.Item.HEART] * 0.35
+	mat.roughness = 0.25
+	var heart := MeshInstance3D.new()
+	heart.name = "Heart"
+	heart.mesh = st.commit()
+	heart.material_override = mat
+	heart.rotation.x = -deg_to_rad(CameraRig.PITCH_DEG)
+	return heart
 
 # Stacked, widening grey rings: spun around, they read as a whirlwind.
 static func _make_twister() -> Node3D:

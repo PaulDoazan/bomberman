@@ -85,7 +85,7 @@ Liste tirée du manuel officiel N64 (page « Items »). Chaque objet peut être 
 - **Bombe** : une bombe de plus à poser en même temps, jusqu'à 8.
 - **Puissance** : le manuel dit qu'elle casse ce qu'une bombe plus faible ne casse pas ; comme il n'y a pas d'objets plus solides ici, choix Claude : **l'explosion traverse les blocs** au lieu de s'y arrêter.
 - **Télécommande** : ses bombes n'ont plus de mèche ; **E** (ou le bouton du milieu de la souris, ou un bouton « BOUM » sur écran tactile) fait sauter la plus ancienne posée. Elles sautent quand même si une explosion les touche. Perdue avec une vie (manuel), ses bombes repartent alors avec une mèche.
-- **Cœur** : encaisse une explosion à la place d'une vie (puis 2 s d'invulnérabilité), une seule fois, non cumulable.
+- **Cœur** : encaisse une explosion à la place d'une vie (puis 2 s d'invulnérabilité), une seule fois, non cumulable. Au sol, c'est un gros cœur rose bombé, comme un emoji, haut comme la moitié d'un perso (décision utilisateur).
 - Choix Claude : les autres objets restent quand on perd une vie ; tout repart à zéro à chaque manche.
 - **Tête de mort** : marcher dessus rend malade 15 s, d'un mal tiré au hasard. Comme dans le manuel, **on peut aussi la ramasser de face sans tomber malade et la lancer** : elle rend malade celui sur qui elle tombe. Les maux (manuel) :
   - **Géant** : grand et lent. **Minuscule** : petit et rapide.
