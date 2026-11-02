@@ -92,7 +92,7 @@ static func pick_up(world: World, p: PlayerState) -> void:
 		p.held = PlayerState.Held.BLOCK
 		p.held_id = -1
 
-# The nearest free player p can grab: within GRAB_REACH and ahead (within 60 degrees of aim), or
+# The nearest stunned free player p can grab (one standing up dodges): within GRAB_REACH and ahead (within 60 degrees of aim), or
 # so close their bodies overlap. Players walk through each other, so they are found by distance,
 # not by cell.
 static func _player_in_reach(world: World, p: PlayerState) -> PlayerState:
@@ -100,7 +100,7 @@ static func _player_in_reach(world: World, p: PlayerState) -> PlayerState:
 	var best_d := INF
 	var ahead := Vector2(p.aim).normalized()
 	for other: PlayerState in world.players.values():
-		if other == p or other.life != PlayerState.Life.ALIVE or other.carried_by != -1:
+		if other == p or other.life != PlayerState.Life.ALIVE or other.carried_by != -1 or other.stun_timer <= 0.0:
 			continue
 		var to := other.pos - p.pos
 		var d := to.length()

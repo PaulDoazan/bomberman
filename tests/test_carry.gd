@@ -95,6 +95,7 @@ func test_cannot_place_bomb_while_holding() -> void:
 
 func test_carry_player_then_escape() -> void:
 	var w := _world(Fixtures.flat(9, 5), [Vector2(1.5, 2.5), Vector2(2.5, 2.5)])
+	w.players[1].stun_timer = SimConfig.STUN_TIME
 	w.step(_act())
 	assert_eq(w.players[1].carried_by, 0)
 	var m := PlayerIntent.new()
@@ -110,6 +111,7 @@ func test_carry_player_then_escape() -> void:
 
 func test_thrown_player_is_stunned_and_thrown_into_water_loses_life() -> void:
 	var w := _world(Fixtures.flat(9, 5), [Vector2(1.5, 2.5), Vector2(2.5, 2.5)])
+	w.players[1].stun_timer = SimConfig.STUN_TIME
 	w.step(_act())
 	w.step(_act())
 	assert_false(w.players[1].can_act(), "en vol")
@@ -118,10 +120,15 @@ func test_thrown_player_is_stunned_and_thrown_into_water_loses_life() -> void:
 	assert_true(w.players[1].stun_timer > 0.0, "étourdi")
 	assert_eq(w.players[1].carried_by, -1)
 	var w2 := _world(Fixtures.flat(9, 5), [Vector2(7.5, 2.5), Vector2(8.5, 2.5)])
+	w2.players[1].stun_timer = SimConfig.STUN_TIME
 	w2.step(_act())
 	w2.step(_act())
 	_flight(w2)
-	assert_eq(w2.players[1].lives, 2)
+	assert_eq(w2.players[1].lives, 2, "jeté hors de la map : une vie de moins")
+	assert_eq(w2.players[1].life, PlayerState.Life.WAITING_RESPAWN)
+	_go(w2, SimConfig.RESPAWN_DELAY + 0.1)
+	assert_eq(w2.players[1].life, PlayerState.Life.ALIVE, "remis en jeu comme après une explosion")
+	assert_true(w2.arena.in_bounds(w2.players[1].cell()), "de retour sur la map")
 
 func test_thrown_bomb_stuns_player_on_landing() -> void:
 	var w := _world(Fixtures.flat(9, 5), [Vector2(1.5, 2.5), Vector2(4.5, 2.5)])
@@ -170,7 +177,9 @@ func test_flying_bomb_explodes_in_flight_when_fuse_ends() -> void:
 
 func test_carrier_death_releases_carried_player_and_bomb() -> void:
 	var w := _world(Fixtures.flat(9, 5), [Vector2(1.5, 2.5), Vector2(2.5, 2.5)])
+	w.players[1].stun_timer = SimConfig.STUN_TIME
 	w.step(_act())
+	assert_eq(w.players[1].carried_by, 0)
 	w.kill(0, "test")
 	assert_eq(w.players[1].carried_by, -1)
 	assert_eq(w.players[0].held, PlayerState.Held.NONE)
@@ -262,3 +271,10 @@ func test_no_pick_up_of_a_player_behind() -> void:
 	w.players[1].stun_timer = SimConfig.BOMB_HIT_STUN_TIME
 	w.step(_act())
 	assert_eq(w.players[1].carried_by, -1)
+
+# On ne saisit pas un perso debout : seulement un perso assommé.
+func test_no_pick_up_of_a_player_standing_up() -> void:
+	var w := _world(Fixtures.flat(9, 5), [Vector2(1.5, 2.5), Vector2(2.5, 2.5)])
+	w.step(_act())
+	assert_eq(w.players[1].carried_by, -1)
+	assert_eq(w.players[0].held, PlayerState.Held.NONE)
