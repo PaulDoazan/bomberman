@@ -80,7 +80,7 @@ Choix de conception (Claude, non contesté par l'utilisateur) :
 Liste tirée du manuel officiel N64 (page « Items »). Chaque objet peut être **désactivé dans les réglages** (décision utilisateur) ; tous sont actifs par défaut.
 
 - **Cachés dans les blocs** : environ 35 % des blocs cachent un objet, tiré au hasard parmi les objets actifs (Feu et Bombe les plus fréquents). **Un seul Mal par manche** (manuel : « il n'apparaît qu'une fois par bataille »). L'objet apparaît quand le bloc explose ou quand on le soulève (choix Claude : il reste au sol), on le ramasse **en marchant dessus**, et une explosion suivante le détruit (pas celle qui l'a révélé).
-- **Feu** : +1 niveau de puissance, jusqu'au niveau 3. Choix Claude : le niveau 1 fait 2 cases de rayon, chaque niveau ajoute 0,75 case.
+- **Feu** : +1 niveau de puissance, jusqu'au niveau 3. Choix Claude : le niveau 1 fait 2 cases de rayon, chaque niveau ajoute 0,75 case. Au sol, c'est un petit feu façon emoji, trois flammes rouge, orange et jaune qui vacillent (décision utilisateur).
 - **Bombe gonflée** (manuel) : en tenant une bombe, rappuyer sur Espace la gonfle, 3 fois au plus ; chaque gonflage ajoute un niveau, jusqu'au niveau 6. Elle grossit à l'écran.
 - **Bombe** : une bombe de plus à poser en même temps, jusqu'à 8.
 - **Puissance** : le manuel dit qu'elle casse ce qu'une bombe plus faible ne casse pas ; comme il n'y a pas d'objets plus solides ici, choix Claude : **l'explosion traverse les blocs** au lieu de s'y arrêter.

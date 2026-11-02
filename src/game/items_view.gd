@@ -2,7 +2,8 @@ class_name ItemsView
 extends Node3D
 
 # Items lying on the ground, bobbing a little above it, and Evil's twister. Each item is a
-# coloured tile with a short label; the Skull is a little skull and the Heart a big pink heart.
+# coloured tile with a short label; the Skull is a little skull, the Heart a big pink heart and
+# the Fire a little fire.
 
 const COLORS := {
 	SimConfig.Item.FIRE: Color("ff5a1f"),
@@ -25,6 +26,9 @@ const BOB := 0.08
 const TWISTER_SPIN := 9.0 # radians per second
 const HEART_HEIGHT := 0.6 # half a player
 const HEART_DEPTH := 0.14 # how far each face bulges, like an emoji
+const FIRE_HEIGHT := 0.6
+const PUFFY_SIDES := 48
+const FLICKER := 0.08 # how much a fire stretches and squashes as it flickers
 
 var _ground: Dictionary = {} # cell -> Node3D
 var _twister: Node3D
@@ -55,6 +59,9 @@ func sync(world: World) -> void:
 			_ground[c] = n
 		var bob := sin(_time * 3.0 + c.x + c.y) * BOB
 		n.position = Vector3(c.x + 0.5, world.arena.h2_at(c) * 0.5 + HOVER + bob, c.y + 0.5)
+		if world.items[c] == SimConfig.Item.FIRE: # flickers
+			var f := sin(_time * 17.0 + c.x * 3.0) * 0.6 + sin(_time * 29.0 + c.y) * 0.4
+			n.scale = Vector3(1.0 - f * FLICKER * 0.5, 1.0 + f * FLICKER, 1.0)
 	_twister.visible = world.evil == SimConfig.Evil.TWISTER
 	if _twister.visible:
 		var at := world.twister_pos
@@ -72,6 +79,9 @@ static func make_item(item: int) -> Node3D:
 		return n
 	if item == SimConfig.Item.HEART:
 		n.add_child(_make_heart())
+		return n
+	if item == SimConfig.Item.FIRE:
+		n.add_child(_make_fire())
 		return n
 	var tile := MeshInstance3D.new()
 	var box := BoxMesh.new()
@@ -118,23 +128,56 @@ static func _make_skull() -> Node3D:
 		skull.add_child(eye)
 	return skull
 
-# A puffy heart standing up and tilted back to face the camera: the heart curve, shrunk
-# ring by ring towards its middle while bulging out, on both faces.
+# A puffy heart standing up and tilted back to face the camera.
 static func _make_heart() -> Node3D:
-	const SIDES := 48
-	const RINGS := 6
 	var outline: Array[Vector2] = []
-	for i in SIDES:
-		var t := TAU * i / SIDES
+	for i in PUFFY_SIDES:
+		var t := TAU * i / PUFFY_SIDES
 		outline.append(Vector2(16.0 * pow(sin(t), 3.0),
 				13.0 * cos(t) - 5.0 * cos(2.0 * t) - 2.0 * cos(3.0 * t) - cos(4.0 * t)))
-	var lo := INF
-	var hi := -INF
+	var heart := _puffy(outline, HEART_HEIGHT, HEART_DEPTH, COLORS[SimConfig.Item.HEART])
+	heart.name = "Heart"
+	heart.rotation.x = -deg_to_rad(CameraRig.PITCH_DEG)
+	return heart
+
+# A little fire, like an emoji: three puffy flames, red, orange and yellow, each smaller, lower
+# and a little in front of the last, tilted back to face the camera.
+static func _make_fire() -> Node3D:
+	var fire := Node3D.new()
+	fire.name = "Fire"
+	fire.rotation.x = -deg_to_rad(CameraRig.PITCH_DEG)
+	var layers := [[1.0, Color("ff3d1a")], [0.74, Color("ff9a1f")], [0.48, Color("ffe14d")]]
+	for i in layers.size():
+		var size: float = layers[i][0]
+		var flame := _puffy(_flame_outline(), FIRE_HEIGHT * size, HEART_DEPTH * size, layers[i][1])
+		flame.name = "Flame%d" % i
+		# Bottoms nearly level, so the inner flames sit in the belly of the outer ones.
+		flame.position = Vector3(0.0, -0.5 * FIRE_HEIGHT * (1.0 - size) * 0.9, 1.1 * HEART_DEPTH * (1.0 - size))
+		fire.add_child(flame)
+	return fire
+
+# A teardrop, round at the bottom and drawn to a tip leaning a little to the right at the top.
+static func _flame_outline() -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for i in PUFFY_SIDES:
+		var t := TAU * i / PUFFY_SIDES
+		var y := cos(t) # 1 at the tip, -1 at the bottom
+		var x := sin(t) * pow(absf(sin(t * 0.5)), 1.3) * 1.05
+		out.append(Vector2(x + 0.18 * pow((y + 1.0) * 0.5, 3.0), y))
+	return out
+
+# A shape standing in the XY plane made puffy: its outline shrunk ring by ring towards the middle
+# while bulging out to depth, on both faces, scaled to height and centred.
+static func _puffy(outline: Array[Vector2], height: float, depth: float, color: Color) -> MeshInstance3D:
+	const RINGS := 6
+	var lo := Vector2.INF
+	var hi := -Vector2.INF
 	for v in outline:
-		lo = minf(lo, v.y)
-		hi = maxf(hi, v.y)
-	var centre := Vector2(0.0, (lo + hi) * 0.5)
-	var k := HEART_HEIGHT / (hi - lo)
+		lo = lo.min(v)
+		hi = hi.max(v)
+	var centre := (lo + hi) * 0.5
+	var k := height / (hi.y - lo.y)
+	var n := outline.size()
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for face in [1.0, -1.0]:
@@ -143,12 +186,12 @@ static func _make_heart() -> Node3D:
 			var a := PI * 0.5 * r / RINGS # 0 at the rim, a quarter turn at the middle
 			var ring: Array[Vector3] = []
 			for v in outline:
-				var p := (v - centre) * k * cos(a)
-				ring.append(Vector3(p.x, p.y, face * HEART_DEPTH * sin(a)))
+				var q := (v - centre) * k * cos(a)
+				ring.append(Vector3(q.x, q.y, face * depth * sin(a)))
 			rings.append(ring)
 		for r in RINGS:
-			for i in SIDES:
-				var j := (i + 1) % SIDES
+			for i in n:
+				var j := (i + 1) % n
 				var quad: Array[Vector3] = [rings[r][i], rings[r][j], rings[r + 1][j], rings[r + 1][i]]
 				if face < 0.0:
 					quad.reverse()
@@ -156,16 +199,14 @@ static func _make_heart() -> Node3D:
 					st.add_vertex(quad[q])
 	st.generate_normals()
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = COLORS[SimConfig.Item.HEART]
+	mat.albedo_color = color
 	mat.emission_enabled = true
-	mat.emission = COLORS[SimConfig.Item.HEART] * 0.35
+	mat.emission = color * 0.35
 	mat.roughness = 0.25
-	var heart := MeshInstance3D.new()
-	heart.name = "Heart"
-	heart.mesh = st.commit()
-	heart.material_override = mat
-	heart.rotation.x = -deg_to_rad(CameraRig.PITCH_DEG)
-	return heart
+	var m := MeshInstance3D.new()
+	m.mesh = st.commit()
+	m.material_override = mat
+	return m
 
 # Stacked, widening grey rings: spun around, they read as a whirlwind.
 static func _make_twister() -> Node3D:
