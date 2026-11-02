@@ -64,7 +64,9 @@ func step(intents: Dictionary) -> void:
 		if p.life != PlayerState.Life.ALIVE:
 			continue
 		if p.possessed_by != -1:
-			Ghosts.shake_off(self, p, intent.struggle)
+			Ghosts.shake_off(self, p, intent)
+		else:
+			p.shake_dir = Vector2.ZERO
 		if intent.detonate and p.can_act():
 			Items.detonate(self, p)
 		if intent.place_bomb:

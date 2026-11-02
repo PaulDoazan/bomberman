@@ -30,7 +30,7 @@ func test_ghost_passes_through_pillars_and_levels() -> void:
 	a.set_cell(Vector2i(2, 2), Arena.Tile.PILLAR, 0)
 	a.set_cell(Vector2i(3, 2), Arena.Tile.FLOOR, 2)
 	var w := _world(a, [Vector2(0.5, 2.5), Vector2(0.5, 0.5), Vector2(6.5, 0.5)])
-	_go(w, 1.5, {0: _intent_to(Vector2(4.5, 2.5))})
+	_go(w, 2.0, {0: _intent_to(Vector2(4.5, 2.5))})
 	assert_almost(w.players[0].pos.x, 4.5, 0.15, "fantôme arrivé")
 	assert_eq(w.players[0].life, PlayerState.Life.GHOST)
 
@@ -74,8 +74,9 @@ func test_possession_victim_cannot_place_bomb() -> void:
 	var vi := PlayerIntent.new()
 	vi.place_bomb = true
 	_go(w, 0.1) # possession starts
-	_go(w, 0.5, {1: vi})
+	w.step({1: vi})
 	assert_true(w.bombs.is_empty(), "la victime ne pose pas de bombe")
+	assert_eq(w.players[1].possessed_by, 0, "un seul appui ne suffit pas à se libérer")
 
 func test_possession_ends_after_duration_then_cooldown() -> void:
 	var w := _world(Fixtures.flat(9, 5), [Vector2(2.5, 2.5), Vector2(2.5, 2.5), Vector2(8.5, 0.5)])
@@ -138,6 +139,33 @@ func test_shaking_throws_the_ghost_off() -> void:
 	_go(w, 1.0, {1: shake})
 	assert_eq(w.players[1].possessed_by, -1, "fantôme lâché")
 	assert_true(w.players[0].possess_cooldown > 0.0, "recharge lancée")
+
+# Un fantôme avance moins vite qu'un vivant.
+func test_ghost_is_slower_than_the_living() -> void:
+	assert_true(SimConfig.GHOST_SPEED < SimConfig.PLAYER_SPEED)
+	var w := _world(Fixtures.flat(9, 5), [Vector2(0.5, 0.5), Vector2(0.5, 4.5), Vector2(8.5, 2.5)])
+	w.players[0].possess_cooldown = 100.0
+	_go(w, 1.0, {0: _intent_to(Vector2(8.5, 0.5)), 1: _intent_to(Vector2(8.5, 4.5))})
+	assert_true(w.players[0].pos.x < w.players[1].pos.x - 0.5, "le vivant va plus loin")
+
+# Appuyer sur n'importe quel bouton, ou partir dans tous les sens, fait lâcher le fantôme : une
+# dizaine de secousses suffit.
+func test_buttons_and_turning_back_shake_the_ghost_off() -> void:
+	var presses: Array[PlayerIntent] = []
+	for field in ["place_bomb", "action", "detonate"]:
+		var i := PlayerIntent.new()
+		i.set(field, true)
+		presses.append(i)
+	var w := _world(Fixtures.flat(9, 5), [Vector2(4.5, 2.5), Vector2(4.5, 2.5), Vector2(8.5, 0.5)])
+	_go(w, 0.1)
+	for t in 10:
+		w.step({1: presses[t % 3]})
+	assert_eq(w.players[1].possessed_by, -1, "lâché à coups de boutons")
+	var w2 := _world(Fixtures.flat(9, 5), [Vector2(4.5, 2.5), Vector2(4.5, 2.5), Vector2(8.5, 0.5)])
+	_go(w2, 0.1)
+	for t in 11:
+		w2.step({1: _intent_to(Vector2(0.5 if t % 2 == 0 else 8.5, 2.5))})
+	assert_eq(w2.players[1].possessed_by, -1, "lâché en changeant de sens")
 
 # Le fantôme qui lâche sa victime est éjecté : il recule d'EJECT_DISTANCE sans pouvoir se diriger.
 func test_released_ghost_is_ejected() -> void:

@@ -20,7 +20,7 @@ const MAP_SIZE_LABELS := {
 }
 
 const PLAYER_SPEED := 3.2
-const GHOST_SPEED := 3.2 # as fast as the living: the original manual gives ghosts the same moves
+const GHOST_SPEED := 2.4 # three quarters of the living's speed (user's choice)
 const PLAYER_HALF := 0.35
 const CORNER_ASSIST := 0.35
 const STOP_DISTANCE := 0.1
@@ -45,6 +45,7 @@ const POSSESS_COOLDOWN := 10.0
 const POSSESS_REACH := 0.6
 const EJECT_DISTANCE := 2.0 # cells a ghost is thrown back when it lets go of its victim
 const EJECT_TIME := 0.5
+const POSSESS_SHAKE_TIME := 0.5 # seconds of possession removed per shake: ten shake a ghost off
 
 const THROW_DISTANCE := 3
 const THROW_FLIGHT := 0.5

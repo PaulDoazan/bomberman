@@ -21,10 +21,20 @@ static func end_possession(world: World, p: PlayerState) -> void:
 	p.possessed_by = -1
 
 # The victim shakes (spinning the stick, like in the original): each shake cuts the possession.
-static func shake_off(world: World, victim: PlayerState, shakes: float) -> void:
+# Besides the shakes the input counts, any button pressed and any sharp turn shakes too.
+static func shake_off(world: World, victim: PlayerState, intent: PlayerIntent) -> void:
+	var shakes := intent.struggle
+	for pressed in [intent.place_bomb, intent.action, intent.detonate]:
+		if pressed:
+			shakes += 1.0
+	if intent.moving and intent.target != victim.pos:
+		var d := (intent.target - victim.pos).normalized()
+		if victim.shake_dir != Vector2.ZERO and d.dot(victim.shake_dir) < 0.0:
+			shakes += 1.0
+		victim.shake_dir = d
 	var ghost: PlayerState = world.players.get(victim.possessed_by, null)
 	if ghost != null:
-		ghost.possess_timer = maxf(0.0, ghost.possess_timer - shakes * SimConfig.STRUGGLE_TIME)
+		ghost.possess_timer = maxf(0.0, ghost.possess_timer - shakes * SimConfig.POSSESS_SHAKE_TIME)
 
 # One tick of a ghost's ejection: it flies EJECT_DISTANCE over EJECT_TIME, out of control.
 static func update_eject(world: World, ghost: PlayerState) -> void:
