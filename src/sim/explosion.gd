@@ -25,8 +25,8 @@ func touches(arena: Arena, pos: Vector2) -> bool:
 	return Vector2(flat, up).length() <= radius()
 
 # Full sphere around the bomb's ground: reaches up and down, the height difference counting
-# in the distance; pillars, and blocks unless it pierces, shield what is behind them.
-static func hit_cells(arena: Arena, origin: Vector2i, radius: float, pierce := false) -> Array[Vector2i]:
+# in the distance; pillars and blocks shield what is behind them.
+static func hit_cells(arena: Arena, origin: Vector2i, radius: float) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	var r := ceili(radius)
 	for dy in range(-r, r + 1):
@@ -37,19 +37,19 @@ static func hit_cells(arena: Arena, origin: Vector2i, radius: float, pierce := f
 			var dz := (arena.h2_at(c) - arena.h2_at(origin)) * 0.5
 			if Vector3(dx, dy, dz).length() > radius:
 				continue
-			if _shielded(arena, origin, c, pierce):
+			if _shielded(arena, origin, c):
 				continue
 			out.append(c)
 	return out
 
-static func _is_shield(arena: Arena, c: Vector2i, pierce: bool) -> bool:
+static func _is_shield(arena: Arena, c: Vector2i) -> bool:
 	if not arena.in_bounds(c):
 		return true
 	var t := arena.tile_at(c)
-	return t == Arena.Tile.PILLAR or (t == Arena.Tile.BLOCK and not pierce)
+	return t == Arena.Tile.PILLAR or t == Arena.Tile.BLOCK
 
 # Supercover walk from centre to centre; true if a cell strictly between is a shield.
-static func _shielded(arena: Arena, from: Vector2i, to: Vector2i, pierce: bool) -> bool:
+static func _shielded(arena: Arena, from: Vector2i, to: Vector2i) -> bool:
 	var d := to - from
 	var nx := absi(d.x)
 	var ny := absi(d.y)
@@ -61,7 +61,7 @@ static func _shielded(arena: Arena, from: Vector2i, to: Vector2i, pierce: bool) 
 		var decision := (1 + 2 * ix) * ny - (1 + 2 * iy) * nx
 		if decision == 0:
 			# Exact corner crossing: both side cells are touched.
-			if _is_shield(arena, Vector2i(p.x + s.x, p.y), pierce) or _is_shield(arena, Vector2i(p.x, p.y + s.y), pierce):
+			if _is_shield(arena, Vector2i(p.x + s.x, p.y)) or _is_shield(arena, Vector2i(p.x, p.y + s.y)):
 				return true
 			p += s
 			ix += 1
@@ -72,6 +72,6 @@ static func _shielded(arena: Arena, from: Vector2i, to: Vector2i, pierce: bool) 
 		else:
 			p.y += s.y
 			iy += 1
-		if p != to and _is_shield(arena, p, pierce):
+		if p != to and _is_shield(arena, p):
 			return true
 	return false

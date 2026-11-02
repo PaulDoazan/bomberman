@@ -48,7 +48,7 @@ func test_blocks_hide_items_only_when_turned_on() -> void:
 		cfg.items[item] = false
 	var w2 := World.new(Fixtures.flat(9, 9), [0] as Array[int], cfg, RandomNumberGenerator.new())
 	assert_true(w2.hidden.is_empty(), "aucun objet quand tout est désactivé")
-	cfg.items = {SimConfig.Item.FIRE: false, SimConfig.Item.BOMB: false, SimConfig.Item.POWER: false,
+	cfg.items = {SimConfig.Item.FIRE: false, SimConfig.Item.BOMB: false,
 			SimConfig.Item.REMOTE: false, SimConfig.Item.SKULL: false, SimConfig.Item.EVIL: false}
 	var w3 := World.new(a, [0] as Array[int], cfg, RandomNumberGenerator.new())
 	for item: int in w3.hidden.values():
@@ -81,7 +81,6 @@ func test_walking_over_items_picks_them_up() -> void:
 	var w := _world([Vector2(1.5, 1.5)])
 	w.items[Vector2i(2, 1)] = SimConfig.Item.FIRE
 	w.items[Vector2i(3, 1)] = SimConfig.Item.BOMB
-	w.items[Vector2i(4, 1)] = SimConfig.Item.POWER
 	w.items[Vector2i(5, 1)] = SimConfig.Item.HEART
 	w.items[Vector2i(6, 1)] = SimConfig.Item.REMOTE
 	_wait(w, 2.0, {0: _go(Vector2(6.5, 1.5))})
@@ -89,7 +88,7 @@ func test_walking_over_items_picks_them_up() -> void:
 	assert_true(w.items.is_empty(), "tout ramassé")
 	assert_eq(p.fire, 2, "portée +1")
 	assert_eq(p.max_bombs, SimConfig.MAX_BOMBS + 1, "une bombe de plus")
-	assert_true(p.power and p.heart and p.remote, "puissance, cœur, télécommande")
+	assert_true(p.heart and p.remote, "cœur, télécommande")
 
 func test_fire_and_bomb_items_are_capped() -> void:
 	var w := _world([Vector2(1.5, 1.5)])
@@ -123,14 +122,6 @@ func test_bomb_item_allows_more_bombs() -> void:
 		p.pos = Vector2(x, 1.5)
 		w.step({0: _intent(true)})
 	assert_eq(w.bombs.size(), 3)
-
-# Avec Puissance, l'explosion traverse les blocs.
-func test_power_blasts_go_through_blocks() -> void:
-	var a := Fixtures.flat(9, 3)
-	a.set_tile(Vector2i(3, 1), Arena.Tile.BLOCK)
-	a.set_tile(Vector2i(4, 1), Arena.Tile.BLOCK)
-	assert_false(Vector2i(4, 1) in Explosion.hit_cells(a, Vector2i(2, 1), 2.0), "le premier bloc protège")
-	assert_true(Vector2i(4, 1) in Explosion.hit_cells(a, Vector2i(2, 1), 2.0, true), "traversé")
 
 func test_remote_bombs_wait_for_the_button() -> void:
 	var w := _world([Vector2(1.5, 1.5)])

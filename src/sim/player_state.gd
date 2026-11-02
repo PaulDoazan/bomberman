@@ -37,7 +37,6 @@ var shake_dir := Vector2.ZERO # last direction a possessed player pushed towards
 # Items picked up: they last the round, except Remote and the sickness, lost with a life.
 var fire := 1 # power level of the bombs placed
 var max_bombs := SimConfig.MAX_BOMBS
-var power := false # blasts go through blocks
 var remote := false # bombs wait for the detonate button
 var heart := false # survives one blast
 var sick := SimConfig.Sick.NONE

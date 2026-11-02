@@ -67,8 +67,6 @@ static func apply(world: World, p: PlayerState, item: int) -> void:
 			p.fire = mini(p.fire + 1, SimConfig.FIRE_MAX)
 		SimConfig.Item.BOMB:
 			p.max_bombs = mini(p.max_bombs + 1, SimConfig.MAX_BOMBS_CAP)
-		SimConfig.Item.POWER:
-			p.power = true
 		SimConfig.Item.REMOTE:
 			p.remote = true
 		SimConfig.Item.HEART:

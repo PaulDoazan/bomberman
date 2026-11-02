@@ -227,7 +227,7 @@ func _wants_detonate(world: World, bot: PlayerState) -> bool:
 		if b.owner_id != bot.id or not b.remote or b.state != BombState.State.PLACED:
 			continue
 		any = true
-		if bot.cell() in Explosion.hit_cells(world.arena, b.cell, Items.radius_of(world, b), b.pierce):
+		if bot.cell() in Explosion.hit_cells(world.arena, b.cell, Items.radius_of(world, b)):
 			return false
 	return any
 
@@ -250,7 +250,7 @@ func _wants_bomb(world: World, bot: PlayerState) -> bool:
 		var n: Vector2i = cell + d
 		if world.arena.in_bounds(n) and world.arena.tile_at(n) == Arena.Tile.BLOCK:
 			return true
-	var hit := Explosion.hit_cells(world.arena, cell, SimConfig.blast_radius(bot.fire), bot.power)
+	var hit := Explosion.hit_cells(world.arena, cell, SimConfig.blast_radius(bot.fire))
 	for p: PlayerState in world.players.values():
 		if p.id != bot.id and p.life == PlayerState.Life.ALIVE and p.cell() in hit:
 			return true

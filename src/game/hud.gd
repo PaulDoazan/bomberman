@@ -198,8 +198,6 @@ static func status_text(p: PlayerState) -> String:
 		parts.append("Feu %d" % p.fire)
 	if p.max_bombs > SimConfig.MAX_BOMBS:
 		parts.append("Bombes %d" % p.max_bombs)
-	if p.power:
-		parts.append("Puissance")
 	if p.remote:
 		parts.append("Télécommande (E)")
 	if p.heart:

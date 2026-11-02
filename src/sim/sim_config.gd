@@ -63,18 +63,17 @@ const KICK_PUSH_TIME := 0.2 # seconds pushing against a bomb before kicking it
 const KICK_SPEED := 6.0 # cells per second
 
 # Items hidden in destructible blocks, as in Bomberman 64. Each can be turned off in the settings.
-enum Item { FIRE, BOMB, POWER, REMOTE, HEART, SKULL, EVIL }
+enum Item { FIRE, BOMB, REMOTE, HEART, SKULL, EVIL }
 const ITEM_LABELS := {
 	Item.FIRE: "Feu",
 	Item.BOMB: "Bombe",
-	Item.POWER: "Puissance",
 	Item.REMOTE: "Télécommande",
 	Item.HEART: "Cœur",
 	Item.SKULL: "Tête de mort",
 	Item.EVIL: "Mal",
 }
 const ITEM_CHANCE := 0.35 # share of blocks hiding an item (Evil aside)
-const ITEM_WEIGHTS := {Item.FIRE: 25, Item.BOMB: 25, Item.POWER: 8, Item.REMOTE: 8, Item.HEART: 8, Item.SKULL: 12}
+const ITEM_WEIGHTS := {Item.FIRE: 25, Item.BOMB: 25, Item.REMOTE: 8, Item.HEART: 8, Item.SKULL: 12}
 const MAX_BOMBS_CAP := 8 # Bomb items stop there
 const FIRE_MAX := 3 # Fire level of a regular bomb; pumping goes up to LEVEL_MAX
 const PUMP_MAX := 3 # pumps a held bomb takes

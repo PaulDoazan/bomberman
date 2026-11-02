@@ -19,13 +19,12 @@ static func build(world: World, extra_bomb: Variant = null, extra_owner: PlayerS
 		var origin := world.bomb_cell(b)
 		origins.append(origin)
 		fuses.append(SimConfig.FUSE if b.remote else b.fuse)
-		blasts.append(Explosion.hit_cells(world.arena, origin, Items.radius_of(world, b), b.pierce))
+		blasts.append(Explosion.hit_cells(world.arena, origin, Items.radius_of(world, b)))
 	if extra_bomb != null:
 		origins.append(extra_bomb)
 		fuses.append(SimConfig.FUSE)
 		var level := extra_owner.fire if extra_owner != null else 1
-		blasts.append(Explosion.hit_cells(world.arena, extra_bomb, SimConfig.blast_radius(level),
-				extra_owner != null and extra_owner.power))
+		blasts.append(Explosion.hit_cells(world.arena, extra_bomb, SimConfig.blast_radius(level)))
 	# Chain reactions: a bomb inside a blast with a shorter fuse inherits that fuse.
 	var changed := true
 	while changed:

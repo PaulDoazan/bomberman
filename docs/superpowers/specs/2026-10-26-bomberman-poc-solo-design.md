@@ -83,7 +83,7 @@ Liste tirée du manuel officiel N64 (page « Items »). Chaque objet peut être 
 - **Feu** : +1 niveau de puissance, jusqu'au niveau 3. Choix Claude : le niveau 1 fait 2 cases de rayon, chaque niveau ajoute 0,75 case. Au sol, c'est un petit feu façon emoji, trois flammes rouge, orange et jaune qui vacillent (décision utilisateur).
 - **Bombe gonflée** (manuel) : en tenant une bombe, rappuyer sur Espace la gonfle, 3 fois au plus ; chaque gonflage ajoute un niveau, jusqu'au niveau 6. Elle grossit à l'écran.
 - **Bombe** : une bombe de plus à poser en même temps, jusqu'à 8.
-- **Puissance** : le manuel dit qu'elle casse ce qu'une bombe plus faible ne casse pas ; comme il n'y a pas d'objets plus solides ici, choix Claude : **l'explosion traverse les blocs** au lieu de s'y arrêter.
+- **Puissance** : retirée du jeu (décision utilisateur). Le manuel dit qu'elle casse ce qu'une bombe plus faible ne casse pas, mais il n'y a pas d'objets plus solides ici ; la version où l'explosion traversait les blocs a été enlevée.
 - **Télécommande** : ses bombes n'ont plus de mèche ; **E** (ou le bouton du milieu de la souris, ou un bouton « BOUM » sur écran tactile) fait sauter la plus ancienne posée. Elles sautent quand même si une explosion les touche. Perdue avec une vie (manuel), ses bombes repartent alors avec une mèche.
 - **Cœur** : encaisse une explosion à la place d'une vie (puis 2 s d'invulnérabilité), une seule fois, non cumulable. Au sol, c'est un gros cœur rose bombé, comme un emoji, haut comme la moitié d'un perso (décision utilisateur).
 - Choix Claude : les autres objets restent quand on perd une vie ; tout repart à zéro à chaque manche.

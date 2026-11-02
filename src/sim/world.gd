@@ -266,7 +266,6 @@ func _try_place_bomb(p: PlayerState) -> void:
 	var b := add_bomb(p.id, c, SimConfig.INSTANT_FUSE if p.sick == SimConfig.Sick.INSTANT else SimConfig.FUSE)
 	b.offset = p.pos - Arena.center_of(c) # exactly under the player
 	b.level = p.fire
-	b.pierce = p.power
 	b.remote = p.remote
 	b.disguised = p.sick == SimConfig.Sick.DISGUISE
 	for other: PlayerState in players.values():
@@ -344,7 +343,7 @@ func _update_bombs() -> void:
 		e.centre = centre
 		e.owner_id = b.owner_id
 		e.full_radius = Items.radius_of(self, b)
-		e.cells = Explosion.hit_cells(arena, origin, e.full_radius, b.pierce)
+		e.cells = Explosion.hit_cells(arena, origin, e.full_radius)
 		explosions.append(e)
 		events.append({"type": "explosion", "cell": origin, "radius": e.full_radius, "cells": e.cells})
 		Items.burn(self, e.cells)

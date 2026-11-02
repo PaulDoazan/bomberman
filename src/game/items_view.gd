@@ -8,7 +8,6 @@ extends Node3D
 const COLORS := {
 	SimConfig.Item.FIRE: Color("ff5a1f"),
 	SimConfig.Item.BOMB: Color("2a3550"),
-	SimConfig.Item.POWER: Color("9b30d9"),
 	SimConfig.Item.REMOTE: Color("1e7be0"),
 	SimConfig.Item.HEART: Color("ff4f9a"),
 	SimConfig.Item.EVIL: Color("3a0d4f"),
@@ -16,7 +15,6 @@ const COLORS := {
 const TEXTS := {
 	SimConfig.Item.FIRE: "FEU",
 	SimConfig.Item.BOMB: "+1",
-	SimConfig.Item.POWER: "PUIS",
 	SimConfig.Item.REMOTE: "TÉLÉ",
 	SimConfig.Item.HEART: "CŒUR",
 	SimConfig.Item.EVIL: "MAL",
