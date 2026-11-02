@@ -2,7 +2,7 @@ class_name ItemsView
 extends Node3D
 
 # Items lying on the ground, bobbing a little above it, and Evil's twister. Each item is a
-# coloured tile with a short label; the Skull is a little skull, the Heart a big pink heart and
+# coloured tile with a short label; the Skull is a little skull, Evil a fly agaric, the Heart a big pink heart and
 # the Fire a little fire.
 
 const COLORS := {
@@ -10,14 +10,13 @@ const COLORS := {
 	SimConfig.Item.BOMB: Color("2a3550"),
 	SimConfig.Item.REMOTE: Color("1e7be0"),
 	SimConfig.Item.HEART: Color("ff4f9a"),
-	SimConfig.Item.EVIL: Color("3a0d4f"),
+	SimConfig.Item.EVIL: Color("e0201b"), # the fly agaric's cap
 }
 const TEXTS := {
 	SimConfig.Item.FIRE: "FEU",
 	SimConfig.Item.BOMB: "+1",
 	SimConfig.Item.REMOTE: "TÉLÉ",
 	SimConfig.Item.HEART: "CŒUR",
-	SimConfig.Item.EVIL: "MAL",
 }
 const HOVER := 0.3 # height of an item above the ground
 const BOB := 0.08
@@ -25,6 +24,8 @@ const TWISTER_SPIN := 9.0 # radians per second
 const HEART_HEIGHT := 0.6 # half a player
 const HEART_DEPTH := 0.14 # how far each face bulges, like an emoji
 const FIRE_HEIGHT := 0.6
+const MUSHROOM_CAP := 0.3 # radius of the fly agaric's cap
+const MUSHROOM_STEM := 0.3 # height of its stem
 const PUFFY_SIDES := 48
 const FLICKER := 0.08 # how much a fire stretches and squashes as it flickers
 
@@ -81,6 +82,9 @@ static func make_item(item: int) -> Node3D:
 	if item == SimConfig.Item.FIRE:
 		n.add_child(_make_fire())
 		return n
+	if item == SimConfig.Item.EVIL:
+		n.add_child(_make_mushroom())
+		return n
 	var tile := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = Vector3(0.75, 0.18, 0.75)
@@ -125,6 +129,56 @@ static func _make_skull() -> Node3D:
 		eye.position = Vector3(0.11 * side, 0.04, 0.25) # facing +Z, the camera's side
 		skull.add_child(eye)
 	return skull
+
+# A fly agaric, the poisonous toadstool: a white stem under a red dome dotted with white spots.
+static func _make_mushroom() -> Node3D:
+	var m := Node3D.new()
+	m.name = "Mushroom"
+	var white := StandardMaterial3D.new()
+	white.albedo_color = Color("f4f1e6")
+	var red := StandardMaterial3D.new()
+	red.albedo_color = COLORS[SimConfig.Item.EVIL]
+	red.emission_enabled = true
+	red.emission = COLORS[SimConfig.Item.EVIL] * 0.3
+	red.roughness = 0.35
+	var bottom := -0.5 * (MUSHROOM_STEM + MUSHROOM_CAP * 0.7) # centred on its middle
+	var stem := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.08
+	cyl.bottom_radius = 0.11
+	cyl.height = MUSHROOM_STEM
+	stem.mesh = cyl
+	stem.material_override = white
+	stem.position.y = bottom + 0.5 * MUSHROOM_STEM
+	m.add_child(stem)
+	var cap := MeshInstance3D.new()
+	cap.name = "Cap"
+	var dome := SphereMesh.new()
+	dome.radius = MUSHROOM_CAP
+	dome.height = MUSHROOM_CAP
+	dome.is_hemisphere = true
+	cap.mesh = dome
+	cap.material_override = red
+	cap.scale.y = 0.7
+	cap.position.y = bottom + MUSHROOM_STEM - 0.03
+	m.add_child(cap)
+	# White spots on the dome: a ring around it, one on top.
+	var spots: Array[Vector2] = [Vector2(0.0, 1.0)] # (angle round, angle up from the rim)
+	for i in 7:
+		spots.append(Vector2(TAU * i / 7.0 + 0.3, 0.45 + 0.15 * (i % 2)))
+	for s in spots:
+		var spot := MeshInstance3D.new()
+		var ball := SphereMesh.new()
+		ball.radius = 0.05
+		ball.height = 0.04
+		spot.mesh = ball
+		spot.material_override = white
+		var up := s.y * PI * 0.5
+		var normal := Vector3(cos(s.x) * cos(up), sin(up), sin(s.x) * cos(up))
+		spot.position = Vector3(normal.x * MUSHROOM_CAP, normal.y * MUSHROOM_CAP * 0.7, normal.z * MUSHROOM_CAP)
+		spot.basis = Basis(Quaternion(Vector3.UP, normal.normalized()))
+		cap.add_child(spot)
+	return m
 
 # A puffy heart standing up and tilted back to face the camera.
 static func _make_heart() -> Node3D:

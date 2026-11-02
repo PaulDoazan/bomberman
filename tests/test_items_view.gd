@@ -29,3 +29,13 @@ func test_the_fire_is_a_little_fire_of_three_flames() -> void:
 	assert_eq(outer.material_override.albedo_color, Color("ff3d1a"), "rouge dehors")
 	assert_eq((flames[2] as MeshInstance3D).material_override.albedo_color, Color("ffe14d"), "jaune dedans")
 	n.free()
+
+# Le Mal est une amanite tue-mouche : un chapeau rouge à pois blancs sur un pied blanc.
+func test_evil_is_a_fly_agaric() -> void:
+	var n := ItemsView.make_item(SimConfig.Item.EVIL)
+	var cap: MeshInstance3D = n.find_child("Cap", true, false)
+	assert_true(cap != null, "un champignon")
+	assert_true(n.find_children("*", "Label3D", true, false).is_empty(), "pas d'étiquette")
+	assert_eq(cap.material_override.albedo_color, ItemsView.COLORS[SimConfig.Item.EVIL], "chapeau rouge")
+	assert_true(cap.get_child_count() > 3, "des pois blancs")
+	n.free()

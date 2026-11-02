@@ -95,7 +95,7 @@ Liste tirée du manuel officiel N64 (page « Items »). Chaque objet peut être 
   - **Instantané** : ses bombes explosent au bout d'1 s.
   - **En feu** : s'il n'élimine personne avant la fin, il meurt.
   - Un joueur malade porte une petite tête de mort au-dessus de la tête. Perdre une vie guérit.
-- **Mal** : celui qui le ramasse déclenche un effet sur tout le monde pendant 10 s (manuel). Effets gardés (l'utilisateur a retiré Lancers, Disco et Peste) :
+- **Mal** : celui qui le ramasse déclenche un effet sur tout le monde pendant 10 s (manuel). Au sol, c'est une amanite tue-mouche, un champignon vénéneux rouge à pois blancs (décision utilisateur). Effets gardés (l'utilisateur a retiré Lancers, Disco et Peste) :
   - **Gulliver** : tout le monde devient grand et lent.
   - **Tornade** : une tornade parcourt l'arène ; qui la touche est projeté à 3 cases et assommé à l'atterrissage.
   - **Mélange** : les joueurs échangent leurs places au hasard.
