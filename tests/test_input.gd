@@ -117,6 +117,19 @@ func test_touch_action_button() -> void:
 	ic.free()
 	button.free()
 
+# Au clavier, Maj prend ou lance, comme le clic droit.
+func test_shift_key_picks_up_and_throws() -> void:
+	var ic := InputController.new()
+	var e := InputEventKey.new()
+	e.physical_keycode = KEY_SHIFT
+	e.pressed = true
+	ic._unhandled_input(e)
+	Input.action_press("move_right") # pas de caméra dans ce test
+	var intent: PlayerIntent = ic.consume_intent(PlayerState.new(), null)
+	Input.action_release("move_right")
+	assert_true(intent.action, "prendre ou lancer")
+	ic.free()
+
 # Faire tourner le joystick secoue (sortir d'un étourdissement, faire lâcher un fantôme) : chaque
 # nouveau quart de tour compte pour une secousse, comme un appui sur une flèche.
 func test_spinning_the_joystick_shakes() -> void:
