@@ -130,6 +130,26 @@ func test_shift_key_picks_up_and_throws() -> void:
 	assert_true(intent.action, "prendre ou lancer")
 	ic.free()
 
+# Le doigt resté sur le bouton charge le lancer ; le lever le lâche.
+func test_touch_action_button_held_charges() -> void:
+	var ic := InputController.new()
+	var button := Control.new()
+	button.position = Vector2(880, 560)
+	button.size = Vector2(150, 150)
+	ic.action_area = button
+	ic._input(_touch(3, Vector2(950, 630), true))
+	Input.action_press("move_right") # pas de caméra dans ce test
+	ic.consume_intent(PlayerState.new(), null)
+	var held: PlayerIntent = ic.consume_intent(PlayerState.new(), null)
+	ic._input(_touch(3, Vector2(950, 630), false))
+	var let_go: PlayerIntent = ic.consume_intent(PlayerState.new(), null)
+	Input.action_release("move_right")
+	assert_true(held.action_held, "doigt posé")
+	assert_false(held.action, "un seul appui")
+	assert_false(let_go.action_held, "doigt levé")
+	ic.free()
+	button.free()
+
 # Faire tourner le joystick secoue (sortir d'un étourdissement, faire lâcher un fantôme) : chaque
 # nouveau quart de tour compte pour une secousse, comme un appui sur une flèche.
 func test_spinning_the_joystick_shakes() -> void:

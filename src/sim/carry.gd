@@ -117,7 +117,34 @@ static func _hold_bomb(p: PlayerState, b: BombState) -> void:
 	p.held = PlayerState.Held.BOMB
 	p.held_id = b.id
 
-static func throw(world: World, p: PlayerState) -> void:
+# One tick of charging a throw: the gauge fills while the button is held, and the throw goes
+# off, as far as the gauge says, once it is let go. Losing hold of the object or of oneself
+# (stunned, carried, possessed) drops the charge.
+static func charge(world: World, p: PlayerState, held: bool) -> void:
+	if not p.can_act() or p.held == PlayerState.Held.NONE:
+		p.charging = false
+		p.charge = 0.0
+		return
+	if held:
+		p.charge = minf(1.0, p.charge + SimConfig.DT / SimConfig.THROW_CHARGE_TIME)
+		return
+	var c := p.charge
+	p.charging = false
+	p.charge = 0.0
+	throw(world, p, c)
+
+# Cells covered by a throw charged to `charge` (0..1) along dir, on each axis: diagonal throws
+# cover about the same distance as straight ones. Halves round down, so a full gauge never goes
+# past THROW_MAX_FACTOR (4 cells straight, 3 by 3 diagonally).
+static func throw_offset(dir: Vector2i, charge: float) -> Vector2i:
+	var dist := SimConfig.THROW_DISTANCE * lerpf(1.0, SimConfig.THROW_MAX_FACTOR, charge)
+	var v := Vector2(dir).normalized() * dist
+	return Vector2i(_round_half_down(v.x), _round_half_down(v.y))
+
+static func _round_half_down(x: float) -> int:
+	return int(signf(x) * ceilf(absf(x) - 0.5))
+
+static func throw(world: World, p: PlayerState, charge := 0.0) -> void:
 	if p.aim == Vector2i.ZERO:
 		return
 	if (p.held == PlayerState.Held.BOMB and not world.bombs.has(p.held_id)) \
@@ -130,9 +157,7 @@ static func throw(world: World, p: PlayerState) -> void:
 	f.ref_id = p.held_id
 	f.from = p.pos
 	f.dir = p.aim
-	# Diagonal throws cover about the same distance as straight ones.
-	var dist := SimConfig.THROW_DISTANCE if p.aim.x == 0 or p.aim.y == 0 else roundi(SimConfig.THROW_DISTANCE / sqrt(2.0))
-	var land := _find_landing(world, p.cell() + p.aim * dist, p.aim, p.held)
+	var land := _find_landing(world, p.cell() + throw_offset(p.aim, charge), p.aim, p.held)
 	if world.arena.in_bounds(land):
 		f.landing = land
 	f.to = Arena.center_of(land)

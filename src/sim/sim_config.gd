@@ -47,7 +47,9 @@ const EJECT_DISTANCE := 2.0 # cells a ghost is thrown back when it lets go of it
 const EJECT_TIME := 0.5
 const POSSESS_SHAKE_TIME := 0.5 # seconds of possession removed per shake: ten shake a ghost off
 
-const THROW_DISTANCE := 3
+const THROW_DISTANCE := 3 # cells, for a quick tap
+const THROW_MAX_FACTOR := 1.5 # a fully charged throw goes this much further
+const THROW_CHARGE_TIME := 1.0 # seconds holding the button to fill the gauge
 const THROW_FLIGHT := 0.5
 const STUN_TIME := 1.5 # after landing from a throw
 const BOMB_HIT_STUN_TIME := 3.0 # hit by a thrown or rolling bomb

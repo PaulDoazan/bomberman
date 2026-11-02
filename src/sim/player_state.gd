@@ -31,6 +31,8 @@ var died_tick := -1
 var kick_tick := -1 # tick of the last kick, for the view
 var kick_underfoot := false # the last kick sent off the bomb the player stood on
 var throw_tick := -1 # tick of the last throw, for the view
+var charging := false # holding the throw button: the throw goes off when it is let go
+var charge := 0.0 # 0..1, how full the throw gauge is
 var shake_dir := Vector2.ZERO # last direction a possessed player pushed towards
 # Items picked up: they last the round, except Remote and the sickness, lost with a life.
 var fire := 1 # power level of the bombs placed

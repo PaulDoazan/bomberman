@@ -71,11 +71,15 @@ func step(intents: Dictionary) -> void:
 			Items.detonate(self, p)
 		if intent.place_bomb:
 			_try_place_bomb(p)
-		if intent.action and p.can_act():
+		if p.charging:
+			Carry.charge(self, p, intent.action_held)
+		elif intent.action and p.can_act():
 			if p.held == PlayerState.Held.NONE:
 				Carry.pick_up(self, p)
 			else:
-				Carry.throw(self, p)
+				p.charging = true # the throw goes off once the button is let go
+				p.charge = 0.0
+				Carry.charge(self, p, intent.action_held)
 		if p.can_act() and intent.moving:
 			var target := intent.target
 			if p.sick == SimConfig.Sick.REVERSE:

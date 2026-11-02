@@ -4,6 +4,7 @@ extends Node
 var _bomb_pressed := false
 var _action_pressed := false
 var _detonate_pressed := false
+var _action_touch := -1 # the finger holding the action button down, charging a throw
 # Latched from _unhandled_input so a click taken by a GUI control (Quitter, end-of-round panel)
 # never steers the player.
 var _move_held := false
@@ -26,6 +27,9 @@ func _input(event: InputEvent) -> void:
 			_bomb_pressed = true
 		elif t.pressed and _touches(action_area, t.position):
 			_action_pressed = true
+			_action_touch = t.index
+		elif not t.pressed and t.index == _action_touch:
+			_action_touch = -1
 		elif t.pressed and _touches(detonate_area, t.position):
 			_detonate_pressed = true
 	if event is InputEventMouseMotion:
@@ -94,6 +98,7 @@ func _consume_buttons(intent: PlayerIntent) -> void:
 	_mouse_travel -= mouse_shakes * MOUSE_SHAKE_PX
 	intent.place_bomb = _bomb_pressed
 	intent.action = _action_pressed
+	intent.action_held = _action_touch != -1 or Input.is_action_pressed("action")
 	intent.detonate = _detonate_pressed
 	_bomb_pressed = false
 	_action_pressed = false

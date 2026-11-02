@@ -19,6 +19,10 @@ const HOP_HEIGHT := 0.35 # top of the hop of a player knocked back by a bomb
 const BIG_SCALE := 1.5 # a big player (Big sickness, Gulliver), drawn larger
 const TINY_SCALE := 0.6
 const SICK_BADGE_HEIGHT := 1.75 # a little skull above the head of a sick player
+# The throw gauge above what is held: a triangle rising to the right, like a volume control,
+# filling from its tip while the button is held.
+const GAUGE_HEIGHT := 2.5
+const GAUGE_SIZE := Vector2(0.8, 0.36)
 const FIRE_TINT := Color(1.0, 0.45, 0.05) # a player on fire flickers towards it
 const PUMP_GROWTH := 0.2 # a pumped bomb looks this much bigger per pump
 const STAR_SPIN := 6.0 # radians per second
@@ -97,6 +101,8 @@ class PlayerNode:
 	var color: Color
 	var size := 1.0 # drawn size, eased towards the target
 	var stars: Node3D # spins above the head while stunned
+	var gauge: Node3D # the throw gauge, shown while charging a throw
+	var gauge_fill: MeshInstance3D
 	var mat: ShaderMaterial
 	var last_pos := Vector2.INF
 	var last_held := PlayerState.Held.NONE
@@ -367,10 +373,57 @@ func _make_player(color: Color) -> PlayerNode:
 	n.sick_badge = ItemsView.make_item(SimConfig.Item.SKULL)
 	n.sick_badge.scale = Vector3.ONE * 0.6
 	n.sick_badge.position.y = SICK_BADGE_HEIGHT
-	for c in [n.model, n.held_bomb, n.held_block, n.held_item, n.sick_badge, n.stars]:
+	n.gauge = _make_gauge()
+	n.gauge_fill = n.gauge.get_node("Fill")
+	for c in [n.model, n.held_bomb, n.held_block, n.held_item, n.sick_badge, n.stars, n.gauge]:
 		n.add_child(c)
 	add_child(n)
 	return n
+
+# A dark triangle with a "Fill" triangle inside, both rising to the right from the same tip,
+# tilted back to face the camera. The part of the triangle left of a point is the same triangle
+# shrunk from the tip, so the fill is scaled by the charge on both axes from there.
+static func _make_gauge() -> Node3D:
+	var g := Node3D.new()
+	g.name = "Gauge"
+	g.position.y = GAUGE_HEIGHT
+	g.rotation.x = -deg_to_rad(CameraRig.PITCH_DEG)
+	g.visible = false
+	var tip := Vector3(-0.5 * GAUGE_SIZE.x, -0.5 * GAUGE_SIZE.y, 0.0)
+	var corners: Array[Vector2] = [Vector2.ZERO, Vector2(GAUGE_SIZE.x, 0.0), GAUGE_SIZE]
+	for part in [["Rim", Color.WHITE, 0.05, 0], ["Back", Color(0.1, 0.1, 0.12), 0.02, 1],
+			["Fill", Color("ffb02e"), 0.0, 2]]:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for v in _grown(corners, part[2]):
+			st.add_vertex(Vector3(v.x, v.y, 0.0))
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = part[1]
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA # drawn last, in render_priority order
+		mat.no_depth_test = true
+		mat.render_priority = part[3]
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var m := MeshInstance3D.new()
+		m.name = part[0]
+		m.mesh = st.commit()
+		m.material_override = mat
+		m.position = tip
+		g.add_child(m)
+	return g
+
+# Triangle t with every edge pushed out by margin: scaled about its incentre.
+static func _grown(t: Array[Vector2], margin: float) -> Array[Vector2]:
+	var a := t[1].distance_to(t[2])
+	var b := t[2].distance_to(t[0])
+	var c := t[0].distance_to(t[1])
+	var centre := (t[0] * a + t[1] * b + t[2] * c) / (a + b + c)
+	var area := absf((t[1] - t[0]).cross(t[2] - t[0])) * 0.5
+	var k := 1.0 + margin / (area / ((a + b + c) * 0.5))
+	var out: Array[Vector2] = []
+	for v in t:
+		out.append(centre + (v - centre) * k)
+	return out
 
 func _cell_y(world: World, pos: Vector2) -> float:
 	var c := Arena.cell_of(pos)
@@ -488,6 +541,8 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		var held: BombState = world.bombs.get(p.held_id, null) if p.held == PlayerState.Held.BOMB else null
 		n.held_bomb.scale = Vector3.ONE * (1.0 + PUMP_GROWTH * held.pump if held != null and not held.disguised else 1.0)
 		_show_sickness(world, n, p, ghost)
+		n.gauge.visible = p.charging
+		n.gauge_fill.scale = Vector3(maxf(p.charge, 0.001), maxf(p.charge, 0.001), 1.0)
 
 # Size, flames and the skull badge of a sick player (or of everyone under Gulliver).
 func _show_sickness(world: World, n: PlayerNode, p: PlayerState, ghost: bool) -> void:

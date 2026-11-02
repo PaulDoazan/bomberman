@@ -278,3 +278,35 @@ func test_no_pick_up_of_a_player_standing_up() -> void:
 	w.step(_act())
 	assert_eq(w.players[1].carried_by, -1)
 	assert_eq(w.players[0].held, PlayerState.Held.NONE)
+
+func _hold(charging: bool, pressed := false) -> Dictionary:
+	var i := PlayerIntent.new()
+	i.action = pressed
+	i.action_held = charging
+	return {0: i}
+
+# Garder le bouton enfoncé remplit la jauge ; on lance en le relâchant, d'autant plus loin que la
+# jauge est pleine, jusqu'à 1,5 fois le lancer normal.
+func test_holding_the_button_throws_further() -> void:
+	for case in [[0.0, Vector2i(4, 2)], [0.5, Vector2i(5, 2)], [SimConfig.THROW_CHARGE_TIME + 0.5, Vector2i(5, 2)]]:
+		var a := Fixtures.flat(12, 5)
+		var w := _world(a, [Vector2(1.5, 2.5)])
+		w.players[0].held = PlayerState.Held.BLOCK
+		w.step(_hold(true, true))
+		assert_true(w.players[0].charging, "jauge en cours")
+		_go_with(w, case[0], _hold(true))
+		assert_true(w.flying.is_empty(), "rien ne part tant qu'on tient")
+		w.step(_hold(false))
+		assert_false(w.players[0].charging)
+		_flight(w)
+		assert_eq(a.tile_at(case[1]), Arena.Tile.BLOCK, "après %s s" % case[0])
+
+func _go_with(w: World, seconds: float, intents: Dictionary) -> void:
+	for _t in roundi(seconds * 30):
+		w.step(intents)
+
+func test_throw_distance_grows_to_one_and_a_half_times() -> void:
+	assert_eq(Carry.throw_offset(Vector2i(1, 0), 0.0), Vector2i(SimConfig.THROW_DISTANCE, 0))
+	assert_eq(Carry.throw_offset(Vector2i(1, 0), 1.0), Vector2i(4, 0), "4,5 arrondi en dessous")
+	assert_eq(Carry.throw_offset(Vector2i(-1, 1), 0.0), Vector2i(-2, 2))
+	assert_eq(Carry.throw_offset(Vector2i(-1, 1), 1.0), Vector2i(-3, 3), "1,5 fois en diagonale")
