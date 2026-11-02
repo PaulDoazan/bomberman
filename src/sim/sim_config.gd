@@ -92,17 +92,14 @@ const BIG_SPEED := 0.6 # speed factor of a big player (Big sickness, Gulliver)
 const TINY_SPEED := 1.5
 
 # Evil: one per round, something happens to everyone for a while.
-enum Evil { NONE, GULLIVER, TWISTER, THROW, SHUFFLE, MAXIMUM, DISCO, PLAGUE }
+enum Evil { NONE, GULLIVER, TWISTER, SHUFFLE, MAXIMUM }
 const EVIL_LABELS := {
-	Evil.GULLIVER: "Gulliver", Evil.TWISTER: "Tornade", Evil.THROW: "Lancers", Evil.SHUFFLE: "Mélange",
-	Evil.MAXIMUM: "Maximum", Evil.DISCO: "Disco", Evil.PLAGUE: "Peste",
+	Evil.GULLIVER: "Gulliver", Evil.TWISTER: "Tornade", Evil.SHUFFLE: "Mélange", Evil.MAXIMUM: "Maximum",
 }
 const EVIL_TIME := 10.0
 const TWISTER_SPEED := 2.5
 const TWISTER_REACH := 0.6 # how close a player must come to be caught
 const TWISTER_THROW := 3 # cells a caught player is flung
-const PLAGUE_INTERVAL := 1.5 # seconds between two dizzy spells
-const DIZZY_TIME := 1.0
 
 const BLOCK_DENSITY := 0.15
 const SPAWN_CLEARANCE := 2

@@ -241,11 +241,6 @@ func test_evil_effects() -> void:
 	w.evil = SimConfig.Evil.MAXIMUM
 	w.step({0: _intent(true)})
 	assert_eq(Items.level_of(w, w.bombs.values()[0]), SimConfig.LEVEL_MAX, "Maximum")
-	w.bombs.clear()
-	w.evil = SimConfig.Evil.THROW
-	p.aim = Vector2i(1, 0)
-	w.step({0: _intent(true)})
-	assert_eq(w.flying.size(), 1, "Lancers : la bombe part en l'air")
 	var swapped := false
 	for _i in 10:
 		Items._shuffle(w)
@@ -265,10 +260,3 @@ func test_twister_flings_whoever_it_touches() -> void:
 	assert_eq(p.carried_by, Carry.THROWN, "projeté")
 	_wait(w, SimConfig.THROW_FLIGHT + 0.1)
 	assert_true(p.stun_timer > 0.0, "assommé à l'atterrissage")
-
-func test_plague_makes_someone_dizzy() -> void:
-	var w := _world([Vector2(1.5, 1.5)])
-	w.evil = SimConfig.Evil.PLAGUE
-	w.evil_timer = 5.0
-	w.step({})
-	assert_true((w.players[0] as PlayerState).stun_timer > 0.0, "pris de vertige")

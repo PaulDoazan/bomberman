@@ -83,7 +83,7 @@ static func infect(world: World, p: PlayerState) -> void:
 	world.events.append({"type": "sick", "id": p.id, "sick": p.sick})
 
 static func start_evil(world: World) -> void:
-	world.evil = world.rng.randi_range(SimConfig.Evil.GULLIVER, SimConfig.Evil.PLAGUE)
+	world.evil = world.rng.randi_range(SimConfig.Evil.GULLIVER, SimConfig.Evil.MAXIMUM)
 	world.evil_timer = SimConfig.EVIL_TIME
 	world.events.append({"type": "evil", "evil": world.evil})
 	match world.evil:
@@ -93,8 +93,6 @@ static func start_evil(world: World) -> void:
 			var free := _free_cells(world)
 			world.twister_pos = Arena.center_of(free[world.rng.randi_range(0, free.size() - 1)]) if not free.is_empty() else Vector2.ZERO
 			world.twister_dir = Vector2.RIGHT.rotated(world.rng.randf() * TAU)
-		SimConfig.Evil.PLAGUE:
-			world.plague_timer = 0.0
 
 # Sicknesses and Evil wear off; a player still on fire when it does burns.
 static func update(world: World) -> void:
@@ -109,17 +107,8 @@ static func update(world: World) -> void:
 				world.kill(p.id, "burn")
 	if world.evil == SimConfig.Evil.NONE:
 		return
-	match world.evil:
-		SimConfig.Evil.TWISTER:
-			_move_twister(world)
-		SimConfig.Evil.PLAGUE:
-			world.plague_timer -= SimConfig.DT
-			if world.plague_timer <= 1e-6:
-				world.plague_timer = SimConfig.PLAGUE_INTERVAL
-				var free := _free_players(world)
-				if not free.is_empty():
-					var p := free[world.rng.randi_range(0, free.size() - 1)]
-					p.stun_timer = maxf(p.stun_timer, SimConfig.DIZZY_TIME)
+	if world.evil == SimConfig.Evil.TWISTER:
+		_move_twister(world)
 	world.evil_timer -= SimConfig.DT
 	if world.evil_timer <= 1e-6:
 		world.evil = SimConfig.Evil.NONE

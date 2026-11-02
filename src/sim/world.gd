@@ -19,7 +19,6 @@ var hidden: Dictionary = {} # block cell -> SimConfig.Item it hides
 var items: Dictionary = {} # cell -> SimConfig.Item lying there
 var evil := SimConfig.Evil.NONE # what is happening to everyone, and for how long
 var evil_timer := 0.0
-var plague_timer := 0.0
 var twister_pos := Vector2.ZERO
 var twister_dir := Vector2.ZERO
 
@@ -271,9 +270,6 @@ func _try_place_bomb(p: PlayerState) -> void:
 	for other: PlayerState in players.values():
 		if other.is_alive() and Movement.bomb_gap(other.pos, b.pos()) < 0.0:
 			b.passable_for.append(other.id)
-	if evil == SimConfig.Evil.THROW: # everyone throws: the bomb flies off at once
-		Carry._hold_bomb(p, b)
-		Carry.throw(self, p)
 
 func add_bomb(owner_id: int, cell: Vector2i, fuse: float) -> BombState:
 	var b := BombState.new()

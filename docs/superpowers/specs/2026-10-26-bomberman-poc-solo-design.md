@@ -95,14 +95,11 @@ Liste tirée du manuel officiel N64 (page « Items »). Chaque objet peut être 
   - **Instantané** : ses bombes explosent au bout d'1 s.
   - **En feu** : s'il n'élimine personne avant la fin, il meurt.
   - Un joueur malade porte une petite tête de mort au-dessus de la tête. Perdre une vie guérit.
-- **Mal** : celui qui le ramasse déclenche un effet sur tout le monde pendant 10 s (manuel) :
+- **Mal** : celui qui le ramasse déclenche un effet sur tout le monde pendant 10 s (manuel). Effets gardés (l'utilisateur a retiré Lancers, Disco et Peste) :
   - **Gulliver** : tout le monde devient grand et lent.
   - **Tornade** : une tornade parcourt l'arène ; qui la touche est projeté à 3 cases et assommé à l'atterrissage.
-  - **Lancers** : toute bombe posée est aussitôt lancée devant soi.
   - **Mélange** : les joueurs échangent leurs places au hasard.
   - **Maximum** : toutes les bombes explosent au niveau 6.
-  - **Disco** : l'écran clignote en couleurs arc-en-ciel.
-  - **Peste** : régulièrement (toutes les 1,5 s), un joueur au hasard est pris de vertige (assommé 1 s).
 - Un bandeau annonce le Mal en cours ; les objets et le mal du joueur s'affichent à côté du chrono.
 - Bots : ils voient la vraie portée de chaque bombe, vont chercher les objets, évitent les têtes de mort et font sauter leurs bombes télécommandées une fois hors de portée.
 

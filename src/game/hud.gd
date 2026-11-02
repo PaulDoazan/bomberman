@@ -7,8 +7,6 @@ var _chips: Dictionary = {} # id -> Label
 var _warning: Label
 var _status: Label # the local player's items and sickness
 var _evil: Label # what Evil is doing to everyone
-var _disco: ColorRect # Disco: the screen flashes in rainbow colours
-var _time := 0.0
 var _panel: PanelContainer
 var _panel_text: Label
 var _fullscreen: Button
@@ -42,12 +40,6 @@ func _ready() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
-
-	_disco = ColorRect.new()
-	_disco.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_disco.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_disco.visible = false
-	root.add_child(_disco)
 
 	# Touch controls, under the rest of the HUD, like Among Us: a fixed joystick mid-height on the left,
 	# and on the right the pick up / throw button above the bomb button, around a third of the way
@@ -237,10 +229,6 @@ func sync(match_state: MatchState) -> void:
 	_evil.visible = world.evil != SimConfig.Evil.NONE
 	if _evil.visible:
 		_evil.text = "Le Mal : %s ! %d s" % [SimConfig.EVIL_LABELS[world.evil], ceili(world.evil_timer)]
-	_time += SimConfig.DT
-	_disco.visible = world.evil == SimConfig.Evil.DISCO
-	if _disco.visible:
-		_disco.color = Color.from_hsv(fmod(_time * 1.5, 1.0), 0.9, 1.0, 0.25)
 	_warning.visible = world.water_warning and match_state.phase == MatchState.Phase.PLAYING
 	_panel.visible = match_state.phase == MatchState.Phase.ROUND_OVER
 	if _panel.visible:
