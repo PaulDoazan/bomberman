@@ -39,6 +39,7 @@ var match_state: MatchState
 var _rng: RandomNumberGenerator
 var _next_player_id := 1
 var _next_team_id := 0
+var _empty_since := -1.0 # when the last connected player left; -1 while somebody is connected
 
 func _init(p_code: String, p_rng: RandomNumberGenerator) -> void:
 	code = p_code
@@ -51,6 +52,7 @@ func join(p_name: String, token: String, now: float) -> Dictionary:
 			if p.token == token:
 				p.connected = true
 				p.disconnected_at = 0.0
+				_empty_since = -1.0
 				_ensure_host()
 				return {"id": p.id, "token": p.token}
 	var clean := p_name.strip_edges()
@@ -68,6 +70,7 @@ func join(p_name: String, token: String, now: float) -> Dictionary:
 	rp.name = clean
 	rp.token = _new_token()
 	players[rp.id] = rp
+	_empty_since = -1.0
 	if host_id == -1:
 		host_id = rp.id
 	_ensure_host()
@@ -81,6 +84,8 @@ func disconnect_player(id: int, now: float) -> void:
 	p.disconnected_at = now
 	if id == host_id:
 		_elect_host()
+	if _connected_count() == 0:
+		_empty_since = now
 
 func create_team(id: int, team_name: String) -> String:
 	var p: RoomPlayer = players.get(id)
@@ -142,27 +147,7 @@ func start(id: int) -> String:
 		return Protocol.ERR_NOT_NOW
 	if not can_start():
 		return Protocol.ERR_CANNOT_START
-	var by_team: Dictionary = {} # team id -> player ids, ascending
-	var ids: Array = players.keys()
-	ids.sort()
-	for pid: int in ids:
-		var p: RoomPlayer = players[pid]
-		if not by_team.has(p.team):
-			by_team[p.team] = []
-		by_team[p.team].append(pid)
-	var roster: Array[MatchState.MatchPlayer] = []
-	for pid: int in ids:
-		var p: RoomPlayer = players[pid]
-		var members: Array = by_team[p.team]
-		var mp := MatchState.MatchPlayer.new()
-		mp.id = p.id
-		mp.name = p.name
-		mp.is_bot = false
-		mp.team = p.team
-		mp.color = TeamColors.tint(teams[p.team].color_index, members.find(pid), members.size())
-		mp.tag = MatchState.tag_of(p.name)
-		roster.append(mp)
-	match_state = MatchState.new(SimCodec.decode_config(SimCodec.encode_config(config)), _rng, roster)
+	match_state = MatchState.new(SimCodec.decode_config(SimCodec.encode_config(config)), _rng, _build_roster())
 	phase = Phase.PLAYING
 	return ""
 
@@ -175,6 +160,39 @@ func back_to_lobby(id: int) -> String:
 	phase = Phase.LOBBY
 	match_state = null
 	return ""
+
+# Advances the match by one simulation step; also forgets players gone for too long.
+func tick(now: float, intents: Dictionary) -> void:
+	_forget_gone(now)
+	if phase != Phase.PLAYING or match_state == null:
+		return
+	if match_state.phase == MatchState.Phase.PLAYING:
+		for p: RoomPlayer in players.values():
+			if p.connected or p.forfeited or now - p.disconnected_at < GRACE_IN_ROUND:
+				continue
+			var ps: PlayerState = match_state.world.players.get(p.id)
+			if ps != null and ps.life != PlayerState.Life.GHOST:
+				match_state.world.forfeit(p.id)
+				p.forfeited = true
+	else:
+		# Between two rounds: newcomers come in, those who dropped out play again.
+		match_state.sync_roster(_build_roster())
+		for p: RoomPlayer in players.values():
+			p.forfeited = false
+	var teams_online := {}
+	for p: RoomPlayer in players.values():
+		if p.connected and p.team != -1:
+			teams_online[p.team] = true
+	match_state.hold_next_round = teams_online.size() < 2
+	match_state.step(intents)
+
+# True once nobody has been connected for EMPTY_ROOM_TTL.
+func is_dead(now: float) -> bool:
+	return _empty_since >= 0.0 and now - _empty_since >= EMPTY_ROOM_TTL
+
+# True when the player has a character in the current round.
+func in_match(id: int) -> bool:
+	return phase == Phase.PLAYING and match_state != null and match_state.world.players.has(id)
 
 # At least two teams and everybody in one.
 func can_start() -> bool:
@@ -270,3 +288,49 @@ func _ensure_host() -> void:
 	var h: RoomPlayer = players.get(host_id)
 	if h == null or not h.connected:
 		_elect_host()
+
+func _connected_count() -> int:
+	var n := 0
+	for p: RoomPlayer in players.values():
+		if p.connected:
+			n += 1
+	return n
+
+func _forget_gone(now: float) -> void:
+	var gone: Array[int] = []
+	for p: RoomPlayer in players.values():
+		if not p.connected and now - p.disconnected_at >= FORGET_AFTER:
+			gone.append(p.id)
+	for id in gone:
+		_leave(players[id])
+		players.erase(id)
+	if not gone.is_empty():
+		_ensure_host()
+
+# One MatchPlayer per player that has a team, colours spread over each team's members.
+func _build_roster() -> Array[MatchState.MatchPlayer]:
+	var by_team: Dictionary = {} # team id -> player ids, ascending
+	var ids: Array = players.keys()
+	ids.sort()
+	for pid: int in ids:
+		var p: RoomPlayer = players[pid]
+		if p.team == -1:
+			continue
+		if not by_team.has(p.team):
+			by_team[p.team] = []
+		by_team[p.team].append(pid)
+	var roster: Array[MatchState.MatchPlayer] = []
+	for pid: int in ids:
+		var p: RoomPlayer = players[pid]
+		if p.team == -1:
+			continue
+		var members: Array = by_team[p.team]
+		var mp := MatchState.MatchPlayer.new()
+		mp.id = p.id
+		mp.name = p.name
+		mp.is_bot = false
+		mp.team = p.team
+		mp.color = TeamColors.tint(teams[p.team].color_index, members.find(pid), members.size())
+		mp.tag = MatchState.tag_of(p.name)
+		roster.append(mp)
+	return roster
