@@ -245,7 +245,13 @@ func _local_id() -> int:
 func _on_to_lobby() -> void:
 	_net().send_action(Protocol.Msg.TO_LOBBY)
 
+# Online: leaves the room (a clean departure, not a lost connection) and goes home.
 func _on_quit() -> void:
+	if _is_online():
+		var net := _net()
+		net.leave()
+		get_tree().change_scene_to_file(net.HOME_SCENE)
+		return
 	get_tree().change_scene_to_file("res://src/ui/settings_screen.tscn")
 
 static func format_time(t: float) -> String:

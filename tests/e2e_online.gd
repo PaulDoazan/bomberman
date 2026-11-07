@@ -1,0 +1,194 @@
+extends SceneTree
+# End-to-end check of an online match, outside the suite (not a test_*.gd file):
+#   godot --headless --path . -s res://tests/e2e_online.gd
+# A real ServerCore on localhost and two raw WebSocket clients: create, join, two teams, start.
+# For DURATION seconds client A sends a moving intent once per sim tick, and each client plays
+# the snapshots back as the game does (SnapshotQueue, then SimCodec.apply_match on a mirror).
+# Prints PASS or FAIL and quits with 0 or 1.
+
+const Msg := Protocol.Msg
+const PORT := 19140
+const TIMEOUT := 3.0
+const DURATION := 3.0
+const MIN_TRAVEL := 0.5 # cells A must have moved, as seen by both mirrors
+
+class Client:
+	var name := ""
+	var ws := WebSocketPeer.new()
+	var inbox: Array = [] # [type, body] not consumed yet
+	var id := -1
+	var config: SimConfig = null
+	var queue := SnapshotQueue.new()
+	var mirror: MatchState = null
+	var world_of_round: Dictionary = {} # round -> the World instance seen for it
+	var world_swaps := 0 # times the World changed within a round
+	var applied := 0
+	var a_start := Vector2.INF # A's position in the first snapshot applied
+
+var core := ServerCore.new()
+var clients: Array[Client] = []
+var errors: Array[String] = []
+
+func _init() -> void:
+	_run()
+	_close_all()
+	if errors.is_empty():
+		print("PASS")
+		quit(0)
+	else:
+		for e in errors:
+			print("  ", e)
+		print("FAIL")
+		quit(1)
+
+func _run() -> void:
+	if core.listen(PORT) != OK:
+		errors.append("le serveur n'écoute pas sur %d" % PORT)
+		return
+	var a := _connect("A")
+	var b := _connect("B")
+	if a == null or b == null:
+		return
+	_send(a, Msg.CREATE, {"name": "Alice", "schema": SimCodec.schema_hash()})
+	var welcome_a: Variant = _expect(a, Msg.WELCOME, "WELCOME de A")
+	if welcome_a == null:
+		return
+	a.id = welcome_a["id"]
+	_send(b, Msg.JOIN, {"code": welcome_a["code"], "name": "Bob", "token": "", "schema": SimCodec.schema_hash()})
+	var welcome_b: Variant = _expect(b, Msg.WELCOME, "WELCOME de B")
+	if welcome_b == null:
+		return
+	b.id = welcome_b["id"]
+	_send(a, Msg.CREATE_TEAM, {"name": "Rouge"})
+	_send(b, Msg.CREATE_TEAM, {"name": "Bleu"})
+	if _expect(a, Msg.LOBBY, "deux équipes", func(body: Variant) -> bool: return body["can_start"]) == null:
+		return
+	_send(a, Msg.START, null)
+	for c in [a, b]:
+		var lobby: Variant = _expect(c, Msg.LOBBY, "LOBBY playing pour " + c.name,
+				func(body: Variant) -> bool: return body["phase"] == "playing")
+		if lobby == null:
+			return
+		c.config = SimCodec.decode_config(lobby["config"])
+	_play(a, b)
+	_check(a, b)
+
+# The match itself: real time, pumped every few milliseconds like frames.
+func _play(a: Client, b: Client) -> void:
+	var start := _now()
+	var last := start
+	var acc := 0.0
+	var intents := 0
+	while _now() - start < DURATION:
+		var now := _now()
+		var delta := now - last
+		last = now
+		_pump(now)
+		for c in [a, b]:
+			_play_back(c, delta, a.id)
+		acc += delta
+		while acc >= SimConfig.DT:
+			acc -= SimConfig.DT
+			if a.mirror != null and a.mirror.world.players.has(a.id):
+				_send(a, Msg.INTENT, Protocol.intent_to_array(_towards_centre(a.mirror, a.id)))
+				intents += 1
+		OS.delay_msec(5)
+	print("intents envoyés par A : %d, instantanés appliqués : A %d, B %d" % [intents, a.applied, b.applied])
+
+# What the game does each frame with the snapshots received.
+func _play_back(c: Client, delta: float, a_id: int) -> void:
+	for msg: Array in c.inbox:
+		if msg[0] == Msg.SNAPSHOT:
+			c.queue.push(msg[1])
+	c.inbox.clear()
+	var data: Variant = c.queue.advance(delta)
+	if data == null:
+		return
+	c.mirror = SimCodec.apply_match(data, c.mirror, c.config)
+	c.applied += 1
+	var w := c.mirror.world
+	var seen: World = c.world_of_round.get(c.mirror.round_number)
+	if seen == null:
+		c.world_of_round[c.mirror.round_number] = w
+	elif seen != w:
+		c.world_swaps += 1
+	if c.a_start == Vector2.INF and w.players.has(a_id):
+		c.a_start = w.players[a_id].pos
+
+static func _towards_centre(m: MatchState, _id: int) -> PlayerIntent:
+	var arena := m.world.arena
+	var intent := PlayerIntent.new()
+	intent.moving = true
+	intent.target = Vector2(arena.width, arena.height) * 0.5
+	return intent
+
+func _check(a: Client, b: Client) -> void:
+	for c in [a, b]:
+		if c.mirror == null:
+			errors.append("%s n'a appliqué aucun instantané" % c.name)
+			continue
+		if c.world_swaps > 0:
+			errors.append("%s : le World a changé %d fois dans une même manche" % [c.name, c.world_swaps])
+		var p: PlayerState = c.mirror.world.players.get(a.id)
+		if p == null:
+			errors.append("%s ne voit pas A" % c.name)
+			continue
+		var travel := p.pos.distance_to(c.a_start)
+		print("%s voit A passer de %s à %s (%.2f cases), manche %d" % [c.name, c.a_start, p.pos, travel, c.mirror.round_number])
+		if travel < MIN_TRAVEL:
+			errors.append("%s : A n'a pas assez bougé (%.2f cases)" % [c.name, travel])
+	if a.mirror != null and b.mirror != null and a.mirror.round_number != b.mirror.round_number:
+		errors.append("manches différentes : A %d, B %d" % [a.mirror.round_number, b.mirror.round_number])
+
+func _now() -> float:
+	return Time.get_ticks_msec() / 1000.0
+
+func _connect(name: String) -> Client:
+	var c := Client.new()
+	c.name = name
+	c.ws.connect_to_url("ws://127.0.0.1:%d" % PORT)
+	clients.append(c)
+	var end := _now() + TIMEOUT
+	while _now() < end:
+		_pump(_now())
+		if c.ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
+			return c
+		OS.delay_msec(5)
+	errors.append("délai dépassé : connexion de " + name)
+	return null
+
+# Polls the server and every client once, filling the inboxes.
+func _pump(now: float) -> void:
+	core.poll(now)
+	for c in clients:
+		c.ws.poll()
+		while c.ws.get_available_packet_count() > 0:
+			var msg := Protocol.decode(c.ws.get_packet())
+			if not msg.is_empty():
+				c.inbox.append(msg)
+
+# Waits for a message of the given type that satisfies pred; earlier messages are dropped.
+func _expect(c: Client, type: int, what: String, pred := Callable()) -> Variant:
+	var end := _now() + TIMEOUT
+	while _now() < end:
+		_pump(_now())
+		while not c.inbox.is_empty():
+			var msg: Array = c.inbox.pop_front()
+			if msg[0] == type and (not pred.is_valid() or pred.call(msg[1])):
+				return msg[1]
+		OS.delay_msec(5)
+	errors.append("délai dépassé : " + what)
+	return null
+
+func _send(c: Client, type: int, body: Variant) -> void:
+	c.ws.send(Protocol.encode(type, body))
+
+func _close_all() -> void:
+	for c in clients:
+		c.ws.close()
+	var end := _now() + TIMEOUT
+	while _now() < end and clients.any(func(c: Client) -> bool:
+			return c.ws.get_ready_state() != WebSocketPeer.STATE_CLOSED):
+		_pump(_now())
+		OS.delay_msec(5)
+	core.stop()

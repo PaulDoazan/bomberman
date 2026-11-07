@@ -476,16 +476,17 @@ func _foot_y(world: World, pos: Vector2) -> float:
 func _ground(world: World, pos: Vector2) -> Vector3:
 	return Vector3(pos.x, _cell_y(world, pos), pos.y)
 
-func sync(world: World, match_state: MatchState) -> void:
-	_time += SimConfig.DT
-	_sync_players(world, match_state)
+# dt: the sim time since the previous sync, one tick in solo, a snapshot interval online.
+func sync(world: World, match_state: MatchState, dt: float = SimConfig.DT) -> void:
+	_time += dt
+	_sync_players(world, match_state, dt)
 	_sync_bombs(world)
 	_sync_flying(world)
 	_sync_explosions(world)
 	_sync_corpses()
-	_items.sync(world)
+	_items.sync(world, dt)
 
-func _sync_players(world: World, match_state: MatchState) -> void:
+func _sync_players(world: World, match_state: MatchState, dt: float = SimConfig.DT) -> void:
 	for id: int in _players.keys():
 		if not world.players.has(id):
 			_untrack(_players[id])
@@ -530,9 +531,9 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 			n.placed = true
 			n.falling = false
 		elif ghost:
-			n.y_smooth = y if y >= n.y_smooth else lerpf(n.y_smooth, y, 0.35) # floats down
+			n.y_smooth = y if y >= n.y_smooth else lerpf(n.y_smooth, y, _per_tick(0.35, dt)) # floats down
 		else:
-			_fall(n, y)
+			_fall(n, y, dt)
 		if p.life == PlayerState.Life.WAITING_RESPAWN:
 			n.placed = false # the respawn appears in place, without jumping there
 		var hop := 0.0
@@ -549,7 +550,7 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		if ejected > 0.0:
 			n.model.rotation.y = _yaw(p.aim) + ejected * EJECT_SPINS * TAU
 		else:
-			n.model.rotation.y = lerp_angle(n.model.rotation.y, _yaw(p.aim), TURN_SPEED)
+			n.model.rotation.y = lerp_angle(n.model.rotation.y, _yaw(p.aim), _per_tick(TURN_SPEED, dt))
 		if n.last_held == PlayerState.Held.NONE and p.held != PlayerState.Held.NONE:
 			n.lift_from = _lying_at(world, p) - Vector3(pos.x, n.y_smooth, pos.y)
 		var kicked := p.kick_tick != n.seen_kick
@@ -569,18 +570,18 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		n.held_item.position = _held_at(n)
 		var held: BombState = world.bombs.get(p.held_id, null) if p.held == PlayerState.Held.BOMB else null
 		n.held_bomb.scale = Vector3.ONE * (1.0 + PUMP_GROWTH * held.pump if held != null and not held.disguised else 1.0)
-		_show_sickness(world, n, p, ghost)
+		_show_sickness(world, n, p, ghost, dt)
 		n.gauge.visible = p.charging
 		n.gauge_fill.scale = Vector3(maxf(p.charge, 0.001), maxf(p.charge, 0.001), 1.0)
 
 # Size, flames and the skull badge of a sick player (or of everyone under Gulliver).
-func _show_sickness(world: World, n: PlayerNode, p: PlayerState, ghost: bool) -> void:
+func _show_sickness(world: World, n: PlayerNode, p: PlayerState, ghost: bool, dt: float = SimConfig.DT) -> void:
 	var want := 1.0
 	if not ghost and (p.sick == SimConfig.Sick.BIG or world.evil == SimConfig.Evil.GULLIVER):
 		want = BIG_SCALE
 	elif not ghost and p.sick == SimConfig.Sick.TINY:
 		want = TINY_SCALE
-	n.size = lerpf(n.size, want, 0.2)
+	n.size = lerpf(n.size, want, _per_tick(0.2, dt))
 	n.model.scale = Vector3.ONE * MODEL_SCALE * n.size
 	n.sick_badge.visible = p.sick != SimConfig.Sick.NONE and not ghost
 	n.sick_badge.position.y = SICK_BADGE_HEIGHT * n.size
@@ -610,18 +611,24 @@ static func _held_at(n: PlayerNode) -> Vector3:
 
 # Moves a living body's height towards the ground y under it: straight up a step, along a
 # stair, or in a jump off a ledge.
-static func _fall(n: PlayerNode, y: float) -> void:
+static func _fall(n: PlayerNode, y: float, dt: float = SimConfig.DT) -> void:
 	if not n.falling and n.y_smooth - y > LEDGE_DROP:
 		n.falling = true
 		n.fall_v = JUMP_SPEED
 	if not n.falling:
 		n.y_smooth = y
 		return
-	n.fall_v -= GRAVITY * SimConfig.DT
-	n.y_smooth += n.fall_v * SimConfig.DT
-	if n.y_smooth <= y:
-		n.y_smooth = y
-		n.falling = false
+	for _i in maxi(roundi(dt / SimConfig.DT), 1): # tick by tick, so online falls as solo does
+		n.fall_v -= GRAVITY * SimConfig.DT
+		n.y_smooth += n.fall_v * SimConfig.DT
+		if n.y_smooth <= y:
+			n.y_smooth = y
+			n.falling = false
+			return
+
+# The weight that lerps by k per tick, applied once for dt (several ticks online).
+static func _per_tick(k: float, dt: float) -> float:
+	return 1.0 - pow(1.0 - k, dt / SimConfig.DT)
 
 # Yaw that turns the model (facing +Z) towards an aim direction on the grid (x -> X, y -> Z).
 static func _yaw(aim: Vector2i) -> float:

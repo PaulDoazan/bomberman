@@ -91,6 +91,11 @@ func consume_intent(p: PlayerState, rig: CameraRig) -> PlayerIntent:
 	_consume_buttons(intent)
 	return intent
 
+# Drops the presses and shakes made since the last intent, when there is no intent to put them in
+# (online, before the first snapshot or while watching).
+func clear_presses() -> void:
+	_consume_buttons(PlayerIntent.new())
+
 func _consume_buttons(intent: PlayerIntent) -> void:
 	var mouse_shakes := floorf(_mouse_travel / MOUSE_SHAKE_PX)
 	intent.struggle = _shakes + mouse_shakes + (joystick.take_shakes() if joystick != null else 0.0)

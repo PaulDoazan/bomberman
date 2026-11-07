@@ -44,8 +44,9 @@ func reset() -> void:
 	_ground.clear()
 	_twister.visible = false
 
-func sync(world: World) -> void:
-	_time += SimConfig.DT
+# dt: the sim time since the previous sync, one tick in solo, a snapshot interval online.
+func sync(world: World, dt: float = SimConfig.DT) -> void:
+	_time += dt
 	for c: Vector2i in _ground.keys():
 		if not world.items.has(c) or _ground[c].get_meta("item") != world.items[c]:
 			_ground[c].queue_free()

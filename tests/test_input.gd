@@ -165,3 +165,27 @@ func test_spinning_the_joystick_shakes() -> void:
 	assert_eq(ic.consume_intent(PlayerState.new(), null).struggle, 0.0, "déjà comptées")
 	ic.free()
 	stick.free()
+
+# Online, nothing is sent before the first snapshot or while watching: the presses made then are
+# dropped, not kept for the next intent (a bomb at the start of the next round).
+func test_clear_presses_drops_latched_presses() -> void:
+	var ic := InputController.new()
+	for a in ["place_bomb", "action", "detonate"]:
+		var e := InputEventAction.new()
+		e.action = a
+		e.pressed = true
+		ic._unhandled_input(e)
+	ic._input(_arrow_press())
+	ic.clear_presses()
+	var intent: PlayerIntent = ic.consume_intent(PlayerState.new(), null)
+	ic.free()
+	assert_false(intent.place_bomb, "bombe oubliée")
+	assert_false(intent.action, "action oubliée")
+	assert_false(intent.detonate, "télécommande oubliée")
+	assert_eq(intent.struggle, 0.0, "secousses oubliées")
+
+func _arrow_press() -> InputEventAction:
+	var e := InputEventAction.new()
+	e.action = "move_left"
+	e.pressed = true
+	return e
