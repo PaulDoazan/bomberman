@@ -28,6 +28,7 @@ var ping_ms := -1
 var config: SimConfig
 var message := "" # shown once by the home screen, e.g. LOST_MESSAGE
 var _hello: Array = [] # [type, body] sent as soon as the socket is open
+var _requesting := false # a CREATE or JOIN was asked for and has not been answered yet
 var _next_ping := 0.0
 var _now := 0.0
 
@@ -66,9 +67,11 @@ func tick(now: float) -> void:
 		client.send(Msg.PING, {"t": now})
 
 func create_game(p_name: String) -> void:
+	_requesting = true
 	_hello_or_send(Msg.CREATE, {"name": p_name, "schema": SimCodec.schema_hash()})
 
 func join_game(p_code: String, p_name: String) -> void:
+	_requesting = true
 	_hello_or_send(Msg.JOIN, {"code": p_code, "name": p_name, "token": OnlineStore.token_for(p_code), "schema": SimCodec.schema_hash()})
 
 # Quitter: the server removes this player from the room, and this browser forgets the game
@@ -79,8 +82,13 @@ func leave() -> void:
 		OnlineStore.forget_token(code)
 		if OS.has_feature("web"):
 			JavaScriptBridge.eval("history.replaceState(null, '', location.pathname + location.search)", true)
-	client.close()
+	cancel()
+
+# Drops the connection and whatever was asked, without a word (Solo, a refused request).
+func cancel() -> void:
 	_hello = []
+	_requesting = false
+	client.close()
 	_reset()
 
 func send_action(type: int, body: Variant = {}) -> void:
@@ -129,16 +137,21 @@ func _on_status(status: int) -> void:
 			client.send(_hello[0], _hello[1])
 			_hello = []
 	elif status == Status.LOST:
+		# Only a room or a request this player is waiting on is worth going home for.
+		var mattered := code != "" or _requesting
 		_hello = []
+		_requesting = false
 		_reset()
-		message = LOST_MESSAGE
-		_go(HOME_SCENE)
+		if mattered:
+			message = LOST_MESSAGE
+			_go(HOME_SCENE)
 	status_changed.emit(status)
 
 func _on_message(type: int, body: Variant) -> void:
 	match type:
 		Msg.WELCOME:
-			if body is Dictionary:
+			if body is Dictionary and _requesting:
+				_requesting = false
 				code = str(body.get("code", ""))
 				my_id = int(body.get("id", -1))
 				_set_session("local_id", my_id)
@@ -146,7 +159,7 @@ func _on_message(type: int, body: Variant) -> void:
 				if OS.has_feature("web"):
 					JavaScriptBridge.eval("history.replaceState(null, '', %s)" % JSON.stringify("#" + code), true)
 		Msg.LOBBY:
-			if body is Dictionary:
+			if body is Dictionary and code != "": # only for the room this player is in
 				lobby = body
 				config = SimCodec.decode_config(body.get("config", {}))
 				_set_session("config", config)
@@ -154,6 +167,10 @@ func _on_message(type: int, body: Variant) -> void:
 				_go(scene_for(body, my_id))
 		Msg.ERROR:
 			if body is Dictionary:
+				if code == "":
+					# A refused CREATE or JOIN: the socket has no use any more (the server would
+					# drop it after a while, which would read as a lost connection).
+					cancel()
 				error_received.emit(str(body.get("error", "")))
 		Msg.SNAPSHOT:
 			if body is Dictionary:

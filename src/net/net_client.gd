@@ -33,7 +33,7 @@ func poll(now: float) -> void:
 	var state := _ws.get_ready_state()
 	if status == Status.ONLINE:
 		_receive()
-		if state == WebSocketPeer.STATE_CLOSED:
+		if _ws != null and state == WebSocketPeer.STATE_CLOSED: # null: closed by a message handler
 			_ws = null
 			_set_status(Status.LOST)
 		return

@@ -64,3 +64,9 @@ func test_pasted_code_is_cleaned() -> void:
 			home.code_edit.text_changed.emit(pasted)
 			assert_eq(home.code_edit.text, "K7P2QX", "code de " + pasted)
 			assert_false(home.join_button.disabled, "rejoindre actif pour " + pasted))
+
+func test_error_survives_the_quiet_close() -> void:
+	_with_home("Paul", func(home: HomeScreen) -> void:
+		home.show_error("unknown_code")
+		home._on_status(NetClient.Status.OFFLINE) # Net closes the socket after a refusal
+		assert_eq(home.status_label.text, Protocol.ERROR_LABELS["unknown_code"], "le message reste"))

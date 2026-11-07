@@ -106,7 +106,7 @@ func build() -> void:
 	page.add_child(join_row)
 
 	solo_button = _button("Solo")
-	solo_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(SOLO_SCENE))
+	solo_button.pressed.connect(_on_solo)
 	page.add_child(solo_button)
 
 	status_label = Label.new()
@@ -141,11 +141,19 @@ func _on_status(status: int) -> void:
 	if status == NetClient.Status.LOST:
 		_pending = false
 		_net.set("message", "") # this screen already says it
-	if status != NetClient.Status.ONLINE:
+	if status == NetClient.Status.OFFLINE:
+		pass # closed on purpose, e.g. after a refusal whose message stays on screen
+	elif status != NetClient.Status.ONLINE:
 		status_label.text = status_text(status)
 	elif status_label.text == status_text(NetClient.Status.CONNECTING) or status_label.text == status_text(NetClient.Status.WAKING):
 		status_label.text = ""
 	_refresh()
+
+# A connection still being made must not pull the player out of solo later on.
+func _on_solo() -> void:
+	if _net != null:
+		_net.call("cancel")
+	get_tree().change_scene_to_file(SOLO_SCENE)
 
 func _on_create() -> void:
 	if _net == null or not _can_send():

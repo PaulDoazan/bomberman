@@ -129,3 +129,76 @@ func test_scene_for() -> void:
 	assert_eq(NetScript.scene_for(playing, 1), NetScript.GAME_SCENE, "en équipe : la partie")
 	assert_eq(NetScript.scene_for(playing, 2), NetScript.LOBBY_SCENE, "sans équipe : choisir une équipe")
 	assert_eq(NetScript.scene_for(playing, 9), NetScript.LOBBY_SCENE, "absent de la liste : salon")
+
+# A Net pointed at the local server, with a scratch OnlineStore; body(net) runs, then cleanup.
+func _with_net(port: int, body: Callable) -> void:
+	var saved_path := OnlineStore.path
+	OnlineStore.path = "user://test_net_client.cfg"
+	DirAccess.remove_absolute(OnlineStore.path)
+	var net: Node = NetScript.new()
+	net.url = "ws://127.0.0.1:%d" % port
+	body.call(net)
+	net.cancel()
+	net.free()
+	DirAccess.remove_absolute(OnlineStore.path)
+	OnlineStore.path = saved_path
+
+# Ticks the server and net on the real clock for `seconds`.
+func _pump_for(net: Node, seconds: float) -> void:
+	var end := _now() + seconds
+	while _now() < end:
+		if core != null:
+			core.poll(_now())
+		net.tick(_now())
+		OS.delay_msec(5)
+
+func test_refused_join_closes_quietly() -> void:
+	if not _start(19094):
+		return
+	core.join_timeout = 0.3 # an open socket left behind would be dropped, and seen as LOST
+	_with_net(19094, func(net: Node) -> void:
+		var errors: Array[String] = []
+		var seen: Array[int] = []
+		net.error_received.connect(func(e: String) -> void: errors.append(e))
+		net.status_changed.connect(func(st: int) -> void: seen.append(st))
+		net.join_game("ZZZZZZ", "Paul")
+		var tick := func(now: float) -> void: net.tick(now)
+		if _pump_until(tick, func() -> bool: return not errors.is_empty(), "ERROR"):
+			assert_eq(errors, ["unknown_code"] as Array[String], "code inconnu")
+			assert_eq(net.client.status, Status.OFFLINE, "socket fermé sans bruit")
+			_pump_for(net, 0.6)
+			assert_false(seen.has(Status.LOST), "jamais perdu")
+			assert_eq(net.message, "", "pas de « Connexion perdue »"))
+	_finish()
+
+func test_cancel_drops_a_pending_request() -> void:
+	if not _start(19095):
+		return
+	_with_net(19095, func(net: Node) -> void:
+		var lobbies := [0]
+		net.lobby_changed.connect(func() -> void: lobbies[0] += 1)
+		net.create_game("Paul")
+		var tick := func(now: float) -> void: net.tick(now)
+		_pump_until(tick, func() -> bool: return net.client.status == Status.ONLINE, "ONLINE")
+		net.cancel() # Solo pressed right after the CREATE went out
+		_pump_for(net, 0.4)
+		assert_eq(lobbies[0], 0, "aucun salon reçu")
+		assert_eq(net.code, "", "pas de partie")
+		assert_eq(net.client.status, Status.OFFLINE, "hors ligne")
+		assert_eq(net.message, "", "rien à dire"))
+	_finish()
+
+func test_net_ignores_what_it_did_not_ask_for() -> void:
+	var net: Node = NetScript.new()
+	var lobbies := [0]
+	net.lobby_changed.connect(func() -> void: lobbies[0] += 1)
+	net._on_message(Msg.WELCOME, {"code": "K7P2QX", "id": 3, "token": "t"})
+	assert_eq(net.code, "", "WELCOME sans demande ignoré")
+	net._on_message(Msg.LOBBY, {"phase": "lobby", "players": [], "config": {}})
+	assert_eq(lobbies[0], 0, "LOBBY hors partie ignoré")
+	net._on_status(Status.LOST)
+	assert_eq(net.message, "", "perdu sans partie ni demande : rien")
+	net._requesting = true
+	net._on_status(Status.LOST)
+	assert_eq(net.message, NetScript.LOST_MESSAGE, "perdu pendant une demande")
+	net.free()
