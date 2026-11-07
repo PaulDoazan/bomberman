@@ -32,14 +32,14 @@ static func _world_keys() -> Array[String]:
 			out.append(key)
 	return out
 
-# Changes as soon as a field of the simulation is added, removed or renamed.
+# Changes as soon as a field of the simulation is added, removed or renamed, or Protocol.VERSION.
 static func schema_hash() -> int:
 	var all: Array[String] = []
 	for script: Script in [PlayerState, BombState, Explosion, FlyingObject, MatchState.MatchPlayer]:
 		all.append_array(keys_of(script))
 	all.append_array(_world_keys())
 	all.append_array(ARENA_KEYS)
-	return hash(all)
+	return hash([Protocol.VERSION, all])
 
 # Containers are copied so a snapshot never shares state with what it was taken from.
 static func _copy(v: Variant) -> Variant:

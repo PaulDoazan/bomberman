@@ -2,6 +2,8 @@ class_name Protocol
 extends RefCounted
 # Wire format: 1 byte of message type, then the body as var_to_bytes, DEFLATE-compressed.
 
+const VERSION := 1 # bump when the messages change: it is part of SimCodec.schema_hash()
+
 enum Msg {
 	CREATE = 1, JOIN = 2, CREATE_TEAM = 3, JOIN_TEAM = 4, LEAVE_TEAM = 5,
 	SETTINGS = 6, START = 7, TO_LOBBY = 8, INTENT = 9, PING = 10, LEAVE = 11,
