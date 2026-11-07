@@ -1,0 +1,7 @@
+build/
+.godot/
+docs/
+.superpowers/
+.git/
+.github/
+tests/

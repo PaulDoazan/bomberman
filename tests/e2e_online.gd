@@ -1,6 +1,7 @@
 extends SceneTree
 # End-to-end check of an online match, outside the suite (not a test_*.gd file):
 #   godot --headless --path . -s res://tests/e2e_online.gd
+# With `-- --url=ws://localhost:9080` it targets an already running server instead of its own.
 # A real ServerCore on localhost and two raw WebSocket clients: create, join, two teams, start.
 # For DURATION seconds client A sends a moving intent once per sim tick, and each client plays
 # the snapshots back as the game does (SnapshotQueue, then SimCodec.apply_match on a mirror).
@@ -26,6 +27,8 @@ class Client:
 	var a_start := Vector2.INF # A's position in the first snapshot applied
 
 var core := ServerCore.new()
+var url := "ws://127.0.0.1:%d" % PORT
+var external := false # true when a server is already running at url
 var clients: Array[Client] = []
 var errors: Array[String] = []
 
@@ -42,7 +45,11 @@ func _init() -> void:
 		quit(1)
 
 func _run() -> void:
-	if core.listen(PORT) != OK:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--url="):
+			url = arg.trim_prefix("--url=")
+			external = true
+	if not external and core.listen(PORT) != OK:
 		errors.append("le serveur n'écoute pas sur %d" % PORT)
 		return
 	var a := _connect("A")
@@ -146,7 +153,7 @@ func _now() -> float:
 func _connect(name: String) -> Client:
 	var c := Client.new()
 	c.name = name
-	c.ws.connect_to_url("ws://127.0.0.1:%d" % PORT)
+	c.ws.connect_to_url(url)
 	clients.append(c)
 	var end := _now() + TIMEOUT
 	while _now() < end:
@@ -159,7 +166,8 @@ func _connect(name: String) -> Client:
 
 # Polls the server and every client once, filling the inboxes.
 func _pump(now: float) -> void:
-	core.poll(now)
+	if not external:
+		core.poll(now)
 	for c in clients:
 		c.ws.poll()
 		while c.ws.get_available_packet_count() > 0:
@@ -191,4 +199,5 @@ func _close_all() -> void:
 			return c.ws.get_ready_state() != WebSocketPeer.STATE_CLOSED):
 		_pump(_now())
 		OS.delay_msec(5)
-	core.stop()
+	if not external:
+		core.stop()
