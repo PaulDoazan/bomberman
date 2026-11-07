@@ -141,7 +141,7 @@ La façon de choisir le rôle au démarrage (argument de ligne de commande, tag 
 - Le client envoie seulement ses **intentions** (`PlayerIntent`) à chaque tick où il en a, ainsi que les actions du salon.
 - Le serveur applique les intentions, fait avancer la simulation et renvoie l'**état** aux clients.
 - Le client **ne simule pas la partie**. Il reconstruit à partir des messages reçus de quoi alimenter les vues existantes (`ArenaView`, `ActorsView`, `Hud`), en modifiant le moins possible ces vues (choix Claude).
-- Les **événements ponctuels** de la simulation (`world.events` : coups de pied, objets ramassés, malus, Evil…) doivent arriver chez chaque client exactement une fois, même si un message de mise à jour se perd ou en remplace un autre.
+- Les **événements ponctuels** de la simulation (`world.events`) ne sont **pas transmis** (décision utilisateur : l'interface n'affiche pas de message pour le dernier bonus pris ni pour aucune autre action). Les animations ponctuelles (coup de pied, lancer, mort) se déduisent déjà de l'état des joueurs (`kick_tick`, `throw_tick`, `died_tick`), qui survit aux ticks non envoyés.
 - Le hasard (`RandomNumberGenerator`) n'existe que sur le serveur.
 - Choix Claude : on écarte la synchronisation où chaque client fait tourner la simulation (lockstep). Elle exige une simulation parfaitement déterministe entre le serveur et des navigateurs différents, et un téléphone lent ferait ralentir tout le monde.
 
