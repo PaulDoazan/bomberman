@@ -387,3 +387,25 @@ func test_intents_forgotten_on_disconnect() -> void:
 		_pump_until(func() -> bool: return not room.players[m[3]].connected, "B déconnecté")
 		assert_false(buf._pending.has(m[3]), "B ne continue pas de marcher")
 	_finish()
+
+func test_silent_peer_in_room_is_dropped() -> void:
+	if not _start(19085):
+		return
+	core.silence_timeout = 0.4
+	var created := _create(19085)
+	if not created.is_empty():
+		var a: Client = created[0]
+		var b := _join(19085, created[1]["code"], "Bob")
+		var welcome: Variant = _expect(b, Msg.WELCOME, "WELCOME de B")
+		var room: Room = core.rooms[created[1]["code"]]
+		# A pings on and stays; B says nothing more.
+		var end := _now() + 1.0
+		while _now() < end:
+			_send(a, Msg.PING, {"t": 0})
+			_pump_once()
+			OS.delay_msec(50)
+		assert_true(room.players[created[1]["id"]].connected, "A, qui parle, reste")
+		assert_eq(a.ws.get_ready_state(), WebSocketPeer.STATE_OPEN, "socket de A ouvert")
+		assert_false(room.players[welcome["id"] if welcome != null else -1].connected, "B, muet, déconnecté")
+		_pump_until(func() -> bool: return b.ws.get_ready_state() == WebSocketPeer.STATE_CLOSED, "socket de B fermé")
+	_finish()

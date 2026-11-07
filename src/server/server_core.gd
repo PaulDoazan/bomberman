@@ -22,6 +22,7 @@ class Peer:
 	var room_code := "" # "" until CREATE or JOIN succeeds
 	var player_id := -1
 	var unbound_since := 0.0 # when it connected or left its room
+	var heard_at := 0.0 # when its last message arrived
 	var budget := FLOOD_BURST
 	var budget_at := 0.0
 	var dropped := false # closing: whatever it still sends is ignored
@@ -30,6 +31,9 @@ class Peer:
 var rooms: Dictionary = {} # code -> Room
 var max_peers := 300 # connections beyond that are refused
 var join_timeout := 10.0 # seconds a peer may stay without a room before it is dropped
+# Seconds a peer in a room may stay silent (clients ping every 2 s): a phone put to sleep or a
+# half-open socket is dropped, so the grace delay starts, instead of being kept connected.
+var silence_timeout := 6.0
 
 var _tcp := TCPServer.new()
 var _peers: Array[Peer] = []
@@ -77,6 +81,7 @@ func _accept(now: float) -> void:
 			continue
 		var peer := Peer.new()
 		peer.unbound_since = now
+		peer.heard_at = now
 		peer.budget_at = now
 		if peer.ws.accept_stream(conn) == OK:
 			_peers.append(peer)
@@ -89,6 +94,12 @@ func _poll_peer(peer: Peer, now: float) -> void:
 		_peers.erase(peer)
 		return
 	if not peer.dropped and peer.room_code == "" and now - peer.unbound_since >= join_timeout:
+		_drop(peer, now)
+		return
+	if peer.ws.get_available_packet_count() > 0:
+		peer.heard_at = now
+	elif not peer.dropped and peer.room_code != "" and now - peer.heard_at >= silence_timeout:
+		logged.emit("Connexion coupée : silencieux")
 		_drop(peer, now)
 		return
 	while not peer.dropped and peer.ws.get_available_packet_count() > 0:
