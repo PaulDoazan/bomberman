@@ -409,3 +409,15 @@ func test_silent_peer_in_room_is_dropped() -> void:
 		assert_false(room.players[welcome["id"] if welcome != null else -1].connected, "B, muet, déconnecté")
 		_pump_until(func() -> bool: return b.ws.get_ready_state() == WebSocketPeer.STATE_CLOSED, "socket de B fermé")
 	_finish()
+
+func test_server_full_past_max_rooms() -> void:
+	if not _start(19086):
+		return
+	for i in ServerCore.MAX_ROOMS:
+		_create(19086, "P%d" % i)
+	assert_eq(core.rooms.size(), ServerCore.MAX_ROOMS, "%d parties" % ServerCore.MAX_ROOMS)
+	var c := _client(19086)
+	_send(c, Msg.CREATE, {"name": "Zoé", "schema": SimCodec.schema_hash()})
+	var err: Variant = _expect(c, Msg.ERROR, "ERROR server_full")
+	assert_eq(err["error"] if err != null else null, Protocol.ERR_SERVER_FULL, "serveur plein")
+	_finish()

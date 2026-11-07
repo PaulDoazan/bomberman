@@ -38,6 +38,16 @@ Sur l'offre gratuite, le serveur s'endort après environ 15 minutes sans connexi
 
 Dans le tableau de bord Render, onglet Logs : on y voit les parties créées, les joueurs qui arrivent et partent. Pour confirmer que le serveur est vivant, chercher la ligne `Serveur à l'écoute sur …` dans les Logs, juste après le démarrage. Onglet Metrics : CPU et mémoire. Si le CPU reste au-dessus de 80 % pendant une partie, passer à l'offre Starter.
 
+## 7. Test de charge (optionnel, avant la première partie)
+
+Le serveur accepte au plus 4 parties à la fois (l'offre gratuite n'a que 0,1 CPU). Pour vérifier qu'une partie à 12 tient, réveiller le serveur (ouvrir la page du jeu), puis lancer depuis le dépôt, en gardant l'onglet Metrics de Render ouvert :
+
+```bash
+godot --headless --path . -s res://tests/e2e_online.gd -- --url=wss://bomberman-pauldoazan.onrender.com --clients=12
+```
+
+Le script joue une partie à 12 clients (2 joueurs et 10 bots qui bougent au hasard) pendant 15 secondes, puis affiche le plus grand écart entre deux instantanés reçus (normalement autour de 70 ms) et `PASS`. Si le CPU reste au-dessus de 80 % pendant le test, ou si l'écart dépasse 300 ms, envisager l'offre Starter.
+
 ## Tester en local
 
 ```bash

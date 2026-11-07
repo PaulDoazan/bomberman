@@ -5,7 +5,7 @@ extends RefCounted
 
 signal logged(text: String)
 
-const MAX_ROOMS := 20
+const MAX_ROOMS := 4 # Render's free plan has 0.1 CPU: a few matches at once at most
 const SNAPSHOT_EVERY := 2
 const MAX_CATCH_UP := 4 # ticks run in one poll at most; the rest of the backlog is dropped
 # Flood guard, a token bucket per peer: a burst of FLOOD_BURST messages, refilled at
