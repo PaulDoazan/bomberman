@@ -141,3 +141,9 @@ func test_config_roundtrip_and_clamp() -> void:
 func test_schema_hash_is_stable() -> void:
 	assert_eq(SimCodec.schema_hash(), SimCodec.schema_hash(), "même empreinte")
 	assert_true(SimCodec.keys_of(PlayerState).has("pos"), "pos fait partie du schéma")
+
+func test_snapshot_size_budget() -> void:
+	var m := _played(90)
+	var size := Protocol.encode(Protocol.Msg.SNAPSHOT, SimCodec.encode_match(m)).size()
+	print("snapshot size: %d bytes" % size)
+	assert_true(size < 2500, "instantané < 2500 octets, obtenu %d" % size)
