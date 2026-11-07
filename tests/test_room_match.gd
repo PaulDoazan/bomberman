@@ -135,3 +135,13 @@ func test_tick_in_lobby_does_nothing_to_match() -> void:
 	r.tick(1.0, {})
 	assert_eq(r.match_state, null)
 	assert_false(r.in_match(1))
+
+func test_remove_player_forfeits_in_round() -> void:
+	var r := _started()
+	r.remove_player(2, 1.0)
+	assert_eq(_life(r, 2), PlayerState.Life.GHOST, "éliminé tout de suite")
+	assert_false(r.players.has(2), "plus dans la partie")
+	_finish_round(r)
+	_run(r, 1.0, SimConfig.SCOREBOARD_DURATION + 0.5)
+	assert_eq(r.match_state.round_number, 2, "manche suivante")
+	assert_false(r.match_state.world.players.has(2), "absent de la manche suivante")

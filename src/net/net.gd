@@ -61,8 +61,14 @@ func create_game(p_name: String) -> void:
 func join_game(p_code: String, p_name: String) -> void:
 	_hello_or_send(Msg.JOIN, {"code": p_code, "name": p_name, "token": OnlineStore.token_for(p_code), "schema": SimCodec.schema_hash()})
 
+# Quitter: the server removes this player from the room, and this browser forgets the game
+# (token and #CODE) so that nothing rejoins it on its own.
 func leave() -> void:
-	client.send(Msg.LEAVE, null)
+	if code != "":
+		client.send(Msg.LEAVE, null)
+		OnlineStore.forget_token(code)
+		if OS.has_feature("web"):
+			JavaScriptBridge.eval("history.replaceState(null, '', location.pathname + location.search)", true)
 	client.close()
 	_hello = []
 	_reset()

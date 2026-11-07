@@ -87,6 +87,21 @@ func disconnect_player(id: int, now: float) -> void:
 	if _connected_count() == 0:
 		_empty_since = now
 
+# An explicit departure (Quitter): the player is gone at once, out of their team and of the
+# running round, and no longer counts towards the 12.
+func remove_player(id: int, now: float) -> void:
+	var p: RoomPlayer = players.get(id)
+	if p == null:
+		return
+	if in_match(id):
+		match_state.world.forfeit(id)
+	_leave(p)
+	players.erase(id)
+	if id == host_id:
+		_elect_host()
+	if _connected_count() == 0 and _empty_since < 0.0:
+		_empty_since = now
+
 func create_team(id: int, team_name: String) -> String:
 	var p: RoomPlayer = players.get(id)
 	if p == null or _is_locked(p):

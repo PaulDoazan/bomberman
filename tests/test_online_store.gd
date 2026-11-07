@@ -25,3 +25,12 @@ func test_token_round_trip() -> void:
 		assert_eq(OnlineStore.token_for("K7P2QX"), "abc", "premier jeton")
 		assert_eq(OnlineStore.token_for("ZZZZZZ"), "def", "second jeton")
 		assert_eq(OnlineStore.load_nickname(), "Paul", "le pseudo reste"))
+
+func test_forget_token() -> void:
+	_with_tmp_store(func() -> void:
+		OnlineStore.save_token("K7P2QX", "abc")
+		OnlineStore.save_token("ZZZZZZ", "def")
+		OnlineStore.forget_token("K7P2QX")
+		assert_eq(OnlineStore.token_for("K7P2QX"), "", "jeton oublié")
+		assert_eq(OnlineStore.token_for("ZZZZZZ"), "def", "l'autre reste")
+		OnlineStore.forget_token("AAAAAA"))

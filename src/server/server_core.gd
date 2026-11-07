@@ -165,7 +165,7 @@ func _handle(peer: Peer, type: int, body: Variant, now: float) -> void:
 				_intents[peer.room_code].push(id, intent)
 			return
 		Msg.LEAVE:
-			_leave_room(peer, now)
+			_quit_room(peer, room, now)
 			return
 		_:
 			return # a server-to-client type: ignored
@@ -239,6 +239,16 @@ func _leave_room(peer: Peer, now: float) -> void:
 	_intents[room.code].forget(peer.player_id)
 	var p: Room.RoomPlayer = room.players.get(peer.player_id)
 	logged.emit("%s quitte %s" % [p.name if p != null else "?", room.code])
+	_broadcast_lobby(room)
+
+# An explicit LEAVE: the player is removed from the room, not kept as disconnected.
+func _quit_room(peer: Peer, room: Room, now: float) -> void:
+	var p: Room.RoomPlayer = room.players.get(peer.player_id)
+	logged.emit("%s quitte %s" % [p.name if p != null else "?", room.code])
+	room.remove_player(peer.player_id, now)
+	_intents[room.code].forget(peer.player_id)
+	peer.room_code = ""
+	peer.unbound_since = now
 	_broadcast_lobby(room)
 
 func _tick_rooms(now: float) -> void:

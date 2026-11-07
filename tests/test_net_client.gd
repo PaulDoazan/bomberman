@@ -108,7 +108,9 @@ func test_net_creates_a_game() -> void:
 		assert_true(net.config is SimConfig, "réglages décodés")
 		assert_eq(net.lobby["phase"], "lobby", "dans le salon")
 		_pump_until(tick, func() -> bool: return net.ping_ms >= 0, "PONG")
+	var left: String = net.code
 	net.leave()
+	assert_eq(OnlineStore.token_for(left), "", "jeton oublié après Quitter")
 	assert_false(net.is_online(), "parti")
 	assert_eq(net.code, "", "code oublié")
 	net.free()

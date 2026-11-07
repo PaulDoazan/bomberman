@@ -268,7 +268,7 @@ func test_bound_peer_cannot_create_or_join() -> void:
 		assert_eq(core.rooms[created[1]["code"]].players.size(), 1, "pas de nouveau joueur")
 	_finish()
 
-func test_leave_disconnects() -> void:
+func test_leave_removes_player() -> void:
 	if not _start(19089):
 		return
 	var created := _create(19089)
@@ -276,11 +276,14 @@ func test_leave_disconnects() -> void:
 		var a: Client = created[0]
 		var b := _join(19089, created[1]["code"], "Bob")
 		var welcome: Variant = _expect(b, Msg.WELCOME, "WELCOME de B")
+		_send(b, Msg.CREATE_TEAM, {"name": "Bleu"})
+		_expect(a, Msg.LOBBY, "équipe de B", func(body: Variant) -> bool: return body["teams"].size() == 1)
 		_send(b, Msg.LEAVE, null)
-		var b_gone := func(body: Variant) -> bool:
-			return _players(body).any(func(p: Dictionary) -> bool:
-				return welcome != null and p["id"] == welcome["id"] and not p["connected"])
-		assert_true(_expect(a, Msg.LOBBY, "LOBBY après LEAVE", b_gone) != null, "B parti")
+		var b_gone := func(body: Variant) -> bool: return _players(body).size() == 1
+		var lobby: Variant = _expect(a, Msg.LOBBY, "LOBBY après LEAVE", b_gone)
+		assert_true(lobby != null, "B retiré du salon")
+		assert_true(lobby != null and lobby["teams"].is_empty(), "son équipe vide supprimée")
+		assert_false(core.rooms[created[1]["code"]].players.has(welcome["id"] if welcome != null else -1), "plus dans la partie")
 		assert_eq(b.ws.get_ready_state(), WebSocketPeer.STATE_OPEN, "le socket reste ouvert")
 	_finish()
 

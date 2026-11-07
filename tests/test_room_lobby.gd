@@ -236,3 +236,19 @@ func test_control_characters_refused() -> void:
 	var a: int = r.join("Paul", "", 0.0)["id"]
 	assert_eq(r.create_team(a, "Ro\tuge"), Protocol.ERR_BAD_NAME)
 	assert_eq(r.create_team(a, "Rouge"), "")
+
+func test_remove_player_frees_place_team_and_host() -> void:
+	var r := _ready_room()
+	var c: int = r.join("Cid", "", 0.0)["id"]
+	r.join_team(c, 1)
+	r.remove_player(1, 5.0)
+	assert_false(r.players.has(1), "plus dans la partie")
+	assert_false(r.teams.has(0), "équipe vide supprimée")
+	assert_eq(r.host_id, 2, "nouvel host")
+	r.remove_player(2, 6.0)
+	assert_eq(r.teams.size(), 1, "l'équipe de Cid reste")
+	assert_eq(r.host_id, c, "Cid est host")
+	assert_false(r.is_dead(100.0), "Cid est encore là")
+	r.remove_player(c, 7.0)
+	assert_true(r.players.is_empty(), "personne")
+	assert_true(r.is_dead(7.0 + Room.EMPTY_ROOM_TTL), "partie vide oubliée")

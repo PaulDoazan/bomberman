@@ -26,3 +26,10 @@ static func token_for(code: String) -> String:
 
 static func save_token(code: String, token: String) -> void:
 	_save("tokens", code, token)
+
+# After Quitter: the game is not rejoined automatically any more.
+static func forget_token(code: String) -> void:
+	var cf := _load()
+	if cf.has_section_key("tokens", code):
+		cf.erase_section_key("tokens", code)
+		cf.save(path)
