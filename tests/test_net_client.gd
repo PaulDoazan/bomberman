@@ -120,3 +120,12 @@ func test_net_creates_a_game() -> void:
 
 func test_server_url_off_web() -> void:
 	assert_eq(NetScript.server_url(), "ws://localhost:9080", "serveur local hors web")
+
+func test_scene_for() -> void:
+	var players := [{"id": 1, "team": 0}, {"id": 2, "team": -1}]
+	var lobby := {"phase": "lobby", "players": players}
+	var playing := {"phase": "playing", "players": players}
+	assert_eq(NetScript.scene_for(lobby, 1), NetScript.LOBBY_SCENE, "salon")
+	assert_eq(NetScript.scene_for(playing, 1), NetScript.GAME_SCENE, "en équipe : la partie")
+	assert_eq(NetScript.scene_for(playing, 2), NetScript.LOBBY_SCENE, "sans équipe : choisir une équipe")
+	assert_eq(NetScript.scene_for(playing, 9), NetScript.LOBBY_SCENE, "absent de la liste : salon")

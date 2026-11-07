@@ -2,9 +2,10 @@ class_name LobbyScreen
 extends Control
 
 # The online lobby (mockup A): the room code and how to share it, one card per team, the
-# settings (editable by the host only) and the host's Lancer button. Laid out like the home
-# screen: one column, zoomed to fill a phone held in portrait. `show_state` is fed by
-# Net.lobby_changed and needs no Net, so tests drive it directly.
+# settings (editable by the host only) and the host's Lancer button. While a match runs, it is
+# where a newcomer picks a team ("Partie en cours"), without Lancer and with settings read-only.
+# Laid out like the home screen: one column, zoomed to fill a phone held in portrait.
+# `show_state` is fed by Net.lobby_changed and needs no Net, so tests drive it directly.
 
 const HOME_SCENE := "res://src/ui/home_screen.tscn"
 const MAX_PLAYERS := 12
@@ -13,8 +14,10 @@ const TEAM_NAME_MAX := 16
 const MSG := Protocol.Msg
 const BG := Color(0.12, 0.16, 0.24)
 const CARD_BG := Color(0.17, 0.22, 0.32)
+const PLAYING_TEXT := "Partie en cours : choisis ou crée une équipe pour jouer à la manche suivante"
 
 var host_label: Label
+var playing_label: Label # "Partie en cours…": shown to a newcomer while a match runs
 var code_label: Label
 var copy_button: Button
 var share_button: Button
@@ -93,6 +96,14 @@ func build() -> void:
 	share_button.pressed.connect(_on_share)
 	share_row.add_child(share_button)
 	page.add_child(share_row)
+
+	playing_label = Label.new()
+	playing_label.text = PLAYING_TEXT
+	playing_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	playing_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	playing_label.add_theme_color_override("font_color", Color(1.0, 0.82, 0.3))
+	playing_label.visible = false
+	page.add_child(playing_label)
 
 	team_cards = VBoxContainer.new()
 	team_cards.add_theme_constant_override("separation", 10)
@@ -189,9 +200,12 @@ func show_state(state: Dictionary, my_id: int) -> void:
 		_pending_sent.clear() # someone else's change, or the server clamped ours
 	if _pending_sent.is_empty() and received != SimCodec.encode_config(form.build_config()):
 		form.load_config(SimCodec.decode_config(received))
-	form.editable = is_host
+	# While a match runs (a newcomer is here to pick a team), nobody changes settings or starts.
+	var playing: bool = state.get("phase") == "playing"
+	playing_label.visible = playing
+	form.editable = is_host and not playing
 
-	start_button.visible = is_host
+	start_button.visible = is_host and not playing
 	start_button.text = "Lancer · %d/%d" % [players.size(), MAX_PLAYERS]
 	start_button.disabled = not bool(state.get("can_start", false))
 

@@ -171,3 +171,21 @@ func test_sent_messages() -> void:
 		assert_eq((sent_log[2][1]["config"] as Dictionary)["lives"], 6, "config envoyée")
 		assert_eq(sent_log[3], [Protocol.Msg.START, {}], "START")
 		assert_false(lobby.create_row.visible, "ligne masquée après envoi"))
+
+func test_match_running_view() -> void:
+	_with_lobby(func(lobby: LobbyScreen) -> void:
+		var s := _state()
+		s["phase"] = "playing"
+		lobby.show_state(s, 0) # the host
+		assert_false(lobby.start_button.visible, "Lancer masqué pendant la partie")
+		assert_false(lobby.form.editable, "réglages en lecture seule pour l'host")
+		assert_true(lobby.playing_label.visible, "ligne Partie en cours")
+		assert_true(lobby.playing_label.text.begins_with("Partie en cours"), "texte")
+		lobby.show_state(s, 5) # the newcomer, without a team
+		assert_eq(lobby.join_buttons.size(), 3, "Rejoindre sur chaque équipe")
+		assert_true(lobby.create_toggle.visible, "+ Créer une équipe")
+		assert_false(lobby.form.editable, "réglages en lecture seule")
+		s["phase"] = "lobby"
+		lobby.show_state(s, 0)
+		assert_false(lobby.playing_label.visible, "ligne masquée au salon")
+		assert_true(lobby.start_button.visible, "Lancer de retour"))

@@ -38,6 +38,16 @@ static func server_url() -> String:
 		return str(param) if str(param) != "" else PROD_URL
 	return LOCAL_URL
 
+# Where a LOBBY message sends this player: the game while a match runs and they have a team,
+# otherwise the lobby (where a newcomer picks a team for the next round).
+static func scene_for(state: Dictionary, p_my_id: int) -> String:
+	if state.get("phase") != "playing":
+		return LOBBY_SCENE
+	for p: Variant in state.get("players", []):
+		if p is Dictionary and int(p.get("id", -1)) == p_my_id:
+			return GAME_SCENE if int(p.get("team", -1)) != -1 else LOBBY_SCENE
+	return LOBBY_SCENE
+
 func _init() -> void:
 	client.message.connect(_on_message)
 	client.status_changed.connect(_on_status)
@@ -141,7 +151,7 @@ func _on_message(type: int, body: Variant) -> void:
 				config = SimCodec.decode_config(body.get("config", {}))
 				_set_session("config", config)
 				lobby_changed.emit()
-				_go(GAME_SCENE if body.get("phase") == "playing" else LOBBY_SCENE)
+				_go(scene_for(body, my_id))
 		Msg.ERROR:
 			if body is Dictionary:
 				error_received.emit(str(body.get("error", "")))
