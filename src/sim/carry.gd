@@ -153,6 +153,7 @@ static func throw(world: World, p: PlayerState, charge := 0.0) -> void:
 		p.held_id = -1
 		return
 	var f := FlyingObject.new()
+	f.uid = world.next_uid()
 	f.kind = p.held
 	f.ref_id = p.held_id
 	f.from = p.pos
@@ -175,6 +176,7 @@ static func throw(world: World, p: PlayerState, charge := 0.0) -> void:
 static func fling(world: World, p: PlayerState, dir: Vector2i) -> void:
 	release_links(world, p)
 	var f := FlyingObject.new()
+	f.uid = world.next_uid()
 	f.kind = PlayerState.Held.PLAYER
 	f.ref_id = p.id
 	f.from = p.pos

@@ -24,7 +24,8 @@ var twister_dir := Vector2.ZERO
 
 var teams: Dictionary = {} # player id -> team id; players absent from it are their own team
 var _next_bomb_id := 0
-var _water_index := 0
+var water_index := 0 # water rises done; public so a client mirror sees the next one
+var _next_uid := 0
 
 func _init(p_arena: Arena, player_ids: Array[int], p_cfg: SimConfig, p_rng: RandomNumberGenerator, p_teams: Dictionary = {}) -> void:
 	arena = p_arena
@@ -107,20 +108,20 @@ func is_submerged(c: Vector2i) -> bool:
 
 # Water level of the next rise; null once the last step is reached.
 func next_water_h2() -> Variant:
-	if _water_index >= SimConfig.WATER_STEPS.size():
+	if water_index >= SimConfig.WATER_STEPS.size():
 		return null
-	return SimConfig.WATER_STEPS[_water_index]
+	return SimConfig.WATER_STEPS[water_index]
 
 # True when the next rise is the last one (it covers every cell).
 func next_rise_is_final() -> bool:
-	return _water_index == SimConfig.WATER_STEPS.size() - 1
+	return water_index == SimConfig.WATER_STEPS.size() - 1
 
 # Seconds until the next rise; INF once the last step is reached.
 # Rise k is scheduled WATER_STEP_INTERVAL * k seconds after the timer hits 0.
 func seconds_to_next_rise() -> float:
-	if _water_index >= SimConfig.WATER_STEPS.size():
+	if water_index >= SimConfig.WATER_STEPS.size():
 		return INF
-	return time_left + _water_index * SimConfig.WATER_STEP_INTERVAL
+	return time_left + water_index * SimConfig.WATER_STEP_INTERVAL
 
 func _update_water() -> void:
 	time_left -= SimConfig.DT
@@ -129,7 +130,7 @@ func _update_water() -> void:
 		return
 	if seconds_to_next_rise() <= 0.0:
 		water_h2 = next_water_h2()
-		_water_index += 1
+		water_index += 1
 		events.append({"type": "water_rise", "h2": water_h2})
 	water_warning = next_water_h2() != null and seconds_to_next_rise() <= SimConfig.WATER_WARNING
 
@@ -287,6 +288,11 @@ func _try_place_bomb(p: PlayerState) -> void:
 		if other.is_alive() and Movement.bomb_gap(other.pos, b.pos()) < 0.0:
 			b.passable_for.append(other.id)
 
+# Identifier for an explosion or a flying object, unique in this world.
+func next_uid() -> int:
+	_next_uid += 1
+	return _next_uid
+
 func add_bomb(owner_id: int, cell: Vector2i, fuse: float) -> BombState:
 	var b := BombState.new()
 	b.id = _next_bomb_id
@@ -351,6 +357,7 @@ func _update_bombs() -> void:
 		bombs.erase(b.id)
 		flying = flying.filter(func(f: FlyingObject) -> bool: return not (f.kind == PlayerState.Held.BOMB and f.ref_id == b.id))
 		var e := Explosion.new()
+		e.uid = next_uid()
 		e.origin = origin
 		e.centre = centre
 		e.owner_id = b.owner_id

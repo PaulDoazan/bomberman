@@ -2,6 +2,7 @@ class_name FlyingObject
 extends RefCounted
 
 # Something thrown: a bomb, a player or a block, in flight from `from` to `landing`.
+var uid := -1 # unique in its World (World.next_uid), so a client keeps the same instance
 var kind: int # PlayerState.Held
 var ref_id := -1 # bomb or player id, -1 for a block
 var from := Vector2.ZERO

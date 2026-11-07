@@ -1,6 +1,7 @@
 class_name Explosion
 extends RefCounted
 
+var uid := -1 # unique in its World (World.next_uid), so a client keeps the same instance
 var origin: Vector2i
 var centre: Vector2 # where the bomb was when it went off; the sphere grows from here
 var cells: Array[Vector2i] = []
