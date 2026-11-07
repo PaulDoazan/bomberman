@@ -56,11 +56,20 @@ func start_round() -> void:
 		return a.team < b.team or (a.team == b.team and a.id < b.id))
 	var ids: Array[int] = []
 	var teams := {}
+	var team_sizes: Array[int] = []
+	var last_team := -2
 	for mp in players:
 		ids.append(mp.id)
 		if mp.team >= 0:
 			teams[mp.id] = mp.team
-	var arena := MapGen.generate(cfg.grid_size(), players.size(), rng)
+		if mp.team != last_team:
+			team_sizes.append(0)
+			last_team = mp.team
+		team_sizes[-1] += 1
+	# Without any team, spawns stay evenly spread (solo).
+	if teams.is_empty():
+		team_sizes.clear()
+	var arena := MapGen.generate(cfg.grid_size(), players.size(), rng, team_sizes)
 	world = World.new(arena, ids, cfg, rng, teams)
 	phase = Phase.PLAYING
 	round_number += 1

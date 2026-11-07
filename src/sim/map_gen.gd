@@ -8,7 +8,7 @@ const PILLAR_ANCHORS: Array[Vector2] = [Vector2(0.1, 0.2), Vector2(0.1, 0.55), V
 # so the extra width is open ground on both sides.
 const WIDTH_STRETCH := 1.2
 
-static func generate(size: Vector2i, player_count: int, rng: RandomNumberGenerator) -> Arena:
+static func generate(size: Vector2i, player_count: int, rng: RandomNumberGenerator, team_sizes: Array[int] = []) -> Arena:
 	var w := size.x
 	var h := size.y
 	var a := Arena.create(w, h)
@@ -88,8 +88,11 @@ static func generate(size: Vector2i, player_count: int, rng: RandomNumberGenerat
 	for y in range(h - 2, 0, -1):
 		perim.append(Vector2i(0, y))
 	perim = perim.filter(func(c: Vector2i) -> bool: return a.h2_at(c) == 0)
-	for i in player_count:
-		a.spawns.append(perim[i * perim.size() / player_count])
+	if team_sizes.is_empty():
+		for i in player_count:
+			a.spawns.append(perim[i * perim.size() / player_count])
+	else:
+		a.spawns.assign(_team_spawns(perim, team_sizes))
 
 	# Destructible blocks.
 	for y in h:
@@ -107,6 +110,46 @@ static func generate(size: Vector2i, player_count: int, rng: RandomNumberGenerat
 			if rng.randf() < SimConfig.BLOCK_DENSITY:
 				a.set_tile(c, Arena.Tile.BLOCK)
 	return a
+
+# Spawns for each player, team after team. A team is anchored at its share of the perimeter and
+# takes the ground cells nearest to that anchor, TEAM_SPAWN_STEP apart (closer only if the
+# perimeter runs out).
+static func _team_spawns(perim: Array[Vector2i], team_sizes: Array[int]) -> Array[Vector2i]:
+	var spawns: Array[Vector2i] = []
+	var taken := {}
+	for t in team_sizes.size():
+		var anchor := perim[t * perim.size() / team_sizes.size()]
+		var order: Array[int] = []
+		for i in perim.size():
+			order.append(i)
+		order.sort_custom(func(i: int, j: int) -> bool:
+			var di := Vector2(perim[i] - anchor).length_squared()
+			var dj := Vector2(perim[j] - anchor).length_squared()
+			return di < dj or (di == dj and i < j))
+		var team: Array[Vector2i] = []
+		var step := SimConfig.TEAM_SPAWN_STEP
+		while true:
+			team.clear()
+			for i in order:
+				var c := perim[i]
+				if taken.has(c):
+					continue
+				var apart := true
+				for m in team:
+					if absi(m.x - c.x) + absi(m.y - c.y) < step:
+						apart = false
+						break
+				if apart:
+					team.append(c)
+					if team.size() == team_sizes[t]:
+						break
+			if team.size() == team_sizes[t] or step <= 1:
+				break
+			step -= 1
+		for c in team:
+			taken[c] = true
+		spawns.append_array(team)
+	return spawns
 
 static func _fill(a: Arena, x0: int, x1: int, y0: int, y1: int, h2v: int) -> void:
 	for y in range(y0, y1 + 1):

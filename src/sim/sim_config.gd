@@ -19,6 +19,9 @@ const MAP_SIZE_LABELS := {
 	"immense": "Immense",
 }
 
+# Distance, in perimeter cells, between two teammates' spawns.
+const TEAM_SPAWN_STEP := 3
+
 const PLAYER_SPEED := 3.2
 const GHOST_SPEED := 2.4 # three quarters of the living's speed (user's choice)
 const PLAYER_HALF := 0.35
