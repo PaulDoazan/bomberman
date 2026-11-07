@@ -21,6 +21,12 @@ var _pending := false # a create / join was sent and nothing has come back yet
 static func code_from_hash(h: String) -> String:
 	return RoomCodes.normalize(h)
 
+# A page reloaded (or reopened) on a game this browser is in rejoins it at once. Not after
+# coming back with a message (e.g. a connection given up on), and never after Quitter, which
+# forgets the token and clears the hash.
+static func should_rejoin(code: String, nickname: String, token: String, message: String) -> bool:
+	return code != "" and nickname != "" and token != "" and message == ""
+
 static func status_text(status: int) -> String:
 	match status:
 		NetClient.Status.CONNECTING:
@@ -36,15 +42,22 @@ func _ready() -> void:
 	var linked_code := code_from_hash(_location_hash())
 	code_edit.text = linked_code
 	_net = get_node_or_null(^"/root/Net")
+	var rejoin := false
 	if _net != null:
-		status_label.text = str(_net.get("message"))
+		var shown := str(_net.get("message"))
+		status_label.text = shown
 		_net.set("message", "") # shown once
 		_net.connect("status_changed", _on_status)
 		_net.connect("error_received", show_error)
 		var status: int = (_net.get("client") as NetClient).status
 		if status == NetClient.Status.CONNECTING or status == NetClient.Status.WAKING:
 			status_label.text = status_text(status)
+		rejoin = status == NetClient.Status.OFFLINE and should_rejoin(linked_code,
+				nickname_edit.text.strip_edges(), OnlineStore.token_for(linked_code), shown)
 	_refresh()
+	if rejoin:
+		_on_join()
+		status_label.text = str(_net.get("RECONNECTING_TEXT"))
 	get_viewport().size_changed.connect(_fit)
 	_fit()
 	nickname_edit.grab_focus()

@@ -202,3 +202,57 @@ func test_net_ignores_what_it_did_not_ask_for() -> void:
 	net._on_status(Status.LOST)
 	assert_eq(net.message, NetScript.LOST_MESSAGE, "perdu pendant une demande")
 	net.free()
+
+# Net creates a game and a team; returns true once the LOBBY with the team is in.
+func _created_with_team(net: Node) -> bool:
+	OnlineStore.save_nickname("Paul")
+	net.create_game("Paul")
+	var tick := func(now: float) -> void: net.tick(now)
+	if not _pump_until(tick, func() -> bool: return not net.lobby.is_empty(), "LOBBY"):
+		return false
+	net.send_action(Msg.CREATE_TEAM, {"name": "Rouge"})
+	return _pump_until(tick, func() -> bool: return net.lobby["teams"].size() == 1, "équipe créée")
+
+func test_reconnects_after_a_drop() -> void:
+	if not _start(19096):
+		return
+	_with_net(19096, func(net: Node) -> void:
+		if not _created_with_team(net):
+			return
+		var id: int = net.my_id
+		var room_code: String = net.code
+		var room: Room = core.rooms[room_code]
+		var team: int = room.players[id].team
+		var flags: Array[bool] = []
+		net.reconnecting_changed.connect(func(active: bool) -> void: flags.append(active))
+		for peer: ServerCore.Peer in core._peers:
+			if peer.player_id == id and peer.room_code == room_code:
+				core._drop(peer, _now()) # what the server does to a silent phone
+		var tick := func(now: float) -> void: net.tick(now)
+		var back := func() -> bool: return flags.size() == 2 and not flags[1] and net.is_online()
+		if _pump_until(tick, back, "reconnexion"):
+			assert_true(flags[0], "reconnexion annoncée")
+			assert_eq(net.my_id, id, "même joueur")
+			assert_eq(net.code, room_code, "même partie")
+			assert_true(room.players[id].connected, "connecté côté serveur")
+			assert_eq(room.players[id].team, team, "même équipe")
+			assert_eq(room.players.size(), 1, "pas de doublon")
+			assert_eq(net.message, "", "pas de « Connexion perdue »"))
+	_finish()
+
+func test_reconnect_gives_up() -> void:
+	if not _start(19097):
+		return
+	_with_net(19097, func(net: Node) -> void:
+		net.reconnect_for = 0.5
+		if not _created_with_team(net):
+			return
+		core.stop()
+		core = null
+		var tick := func(now: float) -> void: net.tick(now)
+		if _pump_until(tick, func() -> bool: return net.message != "", "abandon"):
+			assert_eq(net.message, NetScript.LOST_MESSAGE, "Connexion perdue")
+			assert_eq(net.code, "", "plus de partie")
+			assert_false(net.is_reconnecting(), "plus de reconnexion")
+			assert_eq(net.client.status, Status.OFFLINE, "hors ligne"))
+	_finish()

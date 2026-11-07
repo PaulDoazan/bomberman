@@ -70,3 +70,10 @@ func test_error_survives_the_quiet_close() -> void:
 		home.show_error("unknown_code")
 		home._on_status(NetClient.Status.OFFLINE) # Net closes the socket after a refusal
 		assert_eq(home.status_label.text, Protocol.ERROR_LABELS["unknown_code"], "le message reste"))
+
+func test_should_rejoin() -> void:
+	assert_true(HomeScreen.should_rejoin("K7P2QX", "Paul", "tok", ""), "lien, pseudo et jeton")
+	assert_false(HomeScreen.should_rejoin("", "Paul", "tok", ""), "pas de code")
+	assert_false(HomeScreen.should_rejoin("K7P2QX", "", "tok", ""), "pas de pseudo")
+	assert_false(HomeScreen.should_rejoin("K7P2QX", "Paul", "", ""), "pas de jeton (après Quitter)")
+	assert_false(HomeScreen.should_rejoin("K7P2QX", "Paul", "tok", "Connexion perdue"), "retour avec un message")

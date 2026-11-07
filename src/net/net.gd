@@ -13,11 +13,13 @@ const LOBBY_SCENE := "res://src/ui/lobby_screen.tscn"
 const GAME_SCENE := "res://src/game/game.tscn"
 const PING_EVERY := 2.0
 const LOST_MESSAGE := "Connexion perdue"
+const RECONNECTING_TEXT := "Reconnexion…"
 
 signal lobby_changed
 signal error_received(code: String)
 signal snapshot_received(data: Dictionary)
 signal status_changed(status: int)
+signal reconnecting_changed(active: bool)
 
 var url := server_url() # tests point it at a local server
 var client := NetClient.new()
@@ -27,8 +29,11 @@ var lobby: Dictionary = {}
 var ping_ms := -1
 var config: SimConfig
 var message := "" # shown once by the home screen, e.g. LOST_MESSAGE
+var reconnect_for := 20.0 # seconds spent rejoining the room after a lost connection
 var _hello: Array = [] # [type, body] sent as soon as the socket is open
 var _requesting := false # a CREATE or JOIN was asked for and has not been answered yet
+var _reconnect_until := -1.0 # while >= 0, the room is being rejoined after a lost connection
+var _rejoin_due := false # rejoin on the next tick, not from inside the LOST signal
 var _next_ping := 0.0
 var _now := 0.0
 
@@ -61,7 +66,13 @@ func _process(_delta: float) -> void:
 
 func tick(now: float) -> void:
 	_now = now
+	if _rejoin_due:
+		_rejoin_due = false
+		join_game(code, OnlineStore.load_nickname()) # the saved token brings back the same player
 	client.poll(now)
+	if is_reconnecting() and now >= _reconnect_until:
+		_give_up(LOST_MESSAGE)
+		return
 	if client.status == Status.ONLINE and now >= _next_ping:
 		_next_ping = now + PING_EVERY
 		client.send(Msg.PING, {"t": now})
@@ -88,8 +99,16 @@ func leave() -> void:
 func cancel() -> void:
 	_hello = []
 	_requesting = false
+	_rejoin_due = false
+	_set_reconnecting(-1.0)
 	client.close()
 	_reset()
+
+# Back home with a message, e.g. when the room could not be rejoined in time.
+func _give_up(why: String) -> void:
+	cancel()
+	message = why
+	_go(HOME_SCENE)
 
 func send_action(type: int, body: Variant = {}) -> void:
 	client.send(type, body)
@@ -101,6 +120,19 @@ func send_intent(i: PlayerIntent) -> void:
 # Connected and in a room.
 func is_online() -> bool:
 	return client.status == Status.ONLINE and code != ""
+
+# In a room, connected or being reconnected.
+func in_room() -> bool:
+	return code != ""
+
+func is_reconnecting() -> bool:
+	return _reconnect_until >= 0.0
+
+func _set_reconnecting(until: float) -> void:
+	var was := is_reconnecting()
+	_reconnect_until = until
+	if is_reconnecting() != was:
+		reconnecting_changed.emit(is_reconnecting())
 
 func invite_link() -> String:
 	if OS.has_feature("web"):
@@ -137,14 +169,16 @@ func _on_status(status: int) -> void:
 			client.send(_hello[0], _hello[1])
 			_hello = []
 	elif status == Status.LOST:
-		# Only a room or a request this player is waiting on is worth going home for.
-		var mattered := code != "" or _requesting
 		_hello = []
-		_requesting = false
-		_reset()
-		if mattered:
-			message = LOST_MESSAGE
-			_go(HOME_SCENE)
+		if code != "":
+			# In a room (a phone woken up, a network switch): rejoin it for a while first.
+			_requesting = false
+			_rejoin_due = true
+			if not is_reconnecting():
+				_set_reconnecting(_now + reconnect_for)
+		elif _requesting:
+			# Only a request this player is waiting on is worth going home for.
+			_give_up(LOST_MESSAGE)
 	status_changed.emit(status)
 
 func _on_message(type: int, body: Variant) -> void:
@@ -152,6 +186,7 @@ func _on_message(type: int, body: Variant) -> void:
 		Msg.WELCOME:
 			if body is Dictionary and _requesting:
 				_requesting = false
+				_set_reconnecting(-1.0)
 				code = str(body.get("code", ""))
 				my_id = int(body.get("id", -1))
 				_set_session("local_id", my_id)
@@ -167,11 +202,16 @@ func _on_message(type: int, body: Variant) -> void:
 				_go(scene_for(body, my_id))
 		Msg.ERROR:
 			if body is Dictionary:
+				var err := str(body.get("error", ""))
+				if is_reconnecting():
+					# The room is gone, or this client is out of date.
+					_give_up(str(Protocol.ERROR_LABELS[err]) if err == Protocol.ERR_VERSION else LOST_MESSAGE)
+					return
 				if code == "":
 					# A refused CREATE or JOIN: the socket has no use any more (the server would
 					# drop it after a while, which would read as a lost connection).
 					cancel()
-				error_received.emit(str(body.get("error", "")))
+				error_received.emit(err)
 		Msg.SNAPSHOT:
 			if body is Dictionary:
 				snapshot_received.emit(body)

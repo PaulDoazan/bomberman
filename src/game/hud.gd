@@ -142,6 +142,8 @@ func _ready() -> void:
 	_ping = _outlined(16)
 	_ping.visible = false
 	top.add_child(_ping)
+	if _net() != null:
+		_net().reconnecting_changed.connect(_on_reconnecting)
 	_to_lobby = Button.new()
 	_to_lobby.text = "Retour au salon"
 	_to_lobby.focus_mode = Control.FOCUS_NONE
@@ -242,12 +244,18 @@ func _local_id() -> int:
 	var session := get_node_or_null(^"/root/Session")
 	return session.local_id if session != null else 0
 
+# While the connection is being remade, the ping line says so (snapshots resume after).
+func _on_reconnecting(active: bool) -> void:
+	if active:
+		_ping.visible = true
+		_ping.text = str(_net().get("RECONNECTING_TEXT"))
+
 func _on_to_lobby() -> void:
 	_net().send_action(Protocol.Msg.TO_LOBBY)
 
 # Online: leaves the room (a clean departure, not a lost connection) and goes home.
 func _on_quit() -> void:
-	if _is_online():
+	if _net() != null and _net().in_room():
 		var net := _net()
 		net.leave()
 		get_tree().change_scene_to_file(net.HOME_SCENE)

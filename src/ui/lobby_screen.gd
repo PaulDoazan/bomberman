@@ -45,7 +45,9 @@ func _ready() -> void:
 			send_fn = Callable(_net, "send_action")
 		_net.connect("lobby_changed", _on_lobby_changed)
 		_net.connect("error_received", show_error)
+		_net.connect("reconnecting_changed", _on_reconnecting)
 		_on_lobby_changed()
+		_on_reconnecting(_net.call("is_reconnecting"))
 	get_viewport().size_changed.connect(_fit)
 	_fit()
 
@@ -296,6 +298,12 @@ func _on_lobby_changed() -> void:
 	var lobby: Dictionary = _net.get("lobby")
 	if not lobby.is_empty():
 		show_state(lobby, int(_net.get("my_id")))
+
+func _on_reconnecting(active: bool) -> void:
+	if active:
+		status_label.text = str(_net.get("RECONNECTING_TEXT"))
+	elif status_label.text == str(_net.get("RECONNECTING_TEXT")):
+		status_label.text = ""
 
 func _on_form_changed() -> void:
 	var cfg := SimCodec.encode_config(form.build_config())
