@@ -10,6 +10,9 @@ var _evil: Label # what Evil is doing to everyone
 var _panel: PanelContainer
 var _panel_text: Label
 var _fullscreen: Button
+var _ping: Label # online only, top right
+var _spectator: Label # online only: joining at the next round
+var _to_lobby: Button # online only, host only
 var bomb_button: BombButton # touch screens only; the input controller reads touches on it
 var joystick: TouchJoystick # touch screens only
 var action_button: ActionButton # touch screens only: pick up / throw
@@ -135,6 +138,25 @@ func _ready() -> void:
 	# Leaving fullscreen with the browser's own gesture or back button updates the label too.
 	get_viewport().size_changed.connect(_update_fullscreen_text)
 
+	# Online extras: ping, back to the lobby (host), and the spectator note.
+	_ping = _outlined(16)
+	_ping.visible = false
+	top.add_child(_ping)
+	_to_lobby = Button.new()
+	_to_lobby.text = "Retour au salon"
+	_to_lobby.focus_mode = Control.FOCUS_NONE
+	_to_lobby.visible = false
+	_to_lobby.pressed.connect(_on_to_lobby)
+	top.add_child(_to_lobby)
+	_spectator = _outlined(24)
+	_spectator.text = "Tu joues à la prochaine manche"
+	_spectator.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_spectator.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_spectator.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_spectator.offset_bottom = -24
+	_spectator.visible = false
+	root.add_child(_spectator)
+
 	var quit := Button.new()
 	quit.text = "Quitter"
 	quit.focus_mode = Control.FOCUS_NONE # arrows and Space must never reach the button
@@ -208,6 +230,21 @@ func _on_fullscreen() -> void:
 func _update_fullscreen_text() -> void:
 	_fullscreen.text = "Quitter le plein écran" if _is_fullscreen() else "Plein écran"
 
+# The autoloads are reached through the tree: scripts run by the test harness cannot name them.
+func _net() -> Node:
+	return get_node_or_null(^"/root/Net")
+
+func _is_online() -> bool:
+	var net := _net()
+	return net != null and net.is_online()
+
+func _local_id() -> int:
+	var session := get_node_or_null(^"/root/Session")
+	return session.local_id if session != null else 0
+
+func _on_to_lobby() -> void:
+	_net().send_action(Protocol.Msg.TO_LOBBY)
+
 func _on_quit() -> void:
 	get_tree().change_scene_to_file("res://src/ui/settings_screen.tscn")
 
@@ -222,7 +259,10 @@ func sync(match_state: MatchState) -> void:
 	else:
 		_timer_label.text = format_time(world.time_left)
 	_sync_chips(match_state)
-	var me: PlayerState = world.players.get(0, null) # the local player
+	var local_id := _local_id()
+	var me: PlayerState = world.players.get(local_id, null) # the local player
+	var online := _is_online()
+	_sync_online(online, local_id, me)
 	action_button.holding = me != null and me.held != PlayerState.Held.NONE
 	detonate_button.visible = me != null and me.remote
 	_status.text = status_text(me) if me != null and me.life == PlayerState.Life.ALIVE else ""
@@ -232,7 +272,21 @@ func sync(match_state: MatchState) -> void:
 	_warning.visible = world.water_warning and match_state.phase == MatchState.Phase.PLAYING
 	_panel.visible = match_state.phase == MatchState.Phase.ROUND_OVER
 	if _panel.visible:
-		_panel_text.text = _scoreboard_text(match_state)
+		_panel_text.text = team_scoreboard_text(match_state, _team_names()) if online else _scoreboard_text(match_state)
+
+func _sync_online(online: bool, local_id: int, me: PlayerState) -> void:
+	_ping.visible = online
+	_spectator.visible = online and me == null
+	_to_lobby.visible = online and int(_net().lobby.get("host", -1)) == local_id
+	if online:
+		_ping.text = "ping %d ms" % _net().ping_ms if _net().ping_ms >= 0 else "ping …"
+
+# Team id -> name, from the lobby.
+func _team_names() -> Dictionary:
+	var names := {}
+	for t: Dictionary in _net().lobby.get("teams", []):
+		names[int(t["id"])] = str(t["name"])
+	return names
 
 # Square chips: name, lives (or a ghost), wins, one under the other.
 func _sync_chips(m: MatchState) -> void:
@@ -282,4 +336,34 @@ func _scoreboard_text(m: MatchState) -> String:
 	elif names.size() > 1:
 		lines.append("Ex aequo : %s" % ", ".join(names))
 	lines.append("Manche suivante dans %d s" % maxi(ceili(m.phase_timer), 0))
+	return "\n".join(lines)
+
+# The scoreboard of an online round: teams by wins, the winning team, then what comes next.
+static func team_scoreboard_text(m: MatchState, team_names: Dictionary) -> String:
+	var ids: Array = m.team_wins.keys()
+	for mp in m.players:
+		if mp.team >= 0 and not ids.has(mp.team):
+			ids.append(mp.team)
+	ids.sort_custom(func(a: int, b: int) -> bool:
+		var wa: int = m.team_wins.get(a, 0)
+		var wb: int = m.team_wins.get(b, 0)
+		return wa > wb if wa != wb else a < b)
+	var lines: Array[String] = ["Fin de manche", ""]
+	for t: int in ids:
+		lines.append("%s : 🏆 %d" % [team_names.get(t, "Équipe %d" % t), m.team_wins.get(t, 0)])
+	lines.append("")
+	var winners: Array[String] = []
+	for id in m.last_winners:
+		var mp := m.player(id)
+		var name: String = team_names.get(mp.team, "Équipe %d" % mp.team) if mp != null else ""
+		if name != "" and not winners.has(name):
+			winners.append(name)
+	if winners.size() == 1:
+		lines.append("Vainqueur : %s" % winners[0])
+	elif winners.size() > 1:
+		lines.append("Ex aequo : %s" % ", ".join(winners))
+	if m.hold_next_round:
+		lines.append("En attente d'une autre équipe…")
+	else:
+		lines.append("Manche suivante dans %d s" % maxi(ceili(m.phase_timer), 0))
 	return "\n".join(lines)

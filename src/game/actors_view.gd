@@ -34,6 +34,13 @@ const PALETTE := preload("res://assets/characters/bomberman_palette.png")
 const TINT_SHADER := preload("res://src/game/player_tint.gdshader")
 const MODEL_SCALE := 1.2 / 1.75 # the model is 1.75 units tall; players stand about 1.2 cells
 const TURN_SPEED := 0.35 # fraction of the remaining angle turned per tick
+# Nickname letters, in model units (the model is 1.75 tall; torso about 0.5 wide): 3 letters at
+# font_size 64 are about 125 px wide, so 0.004 per pixel spans roughly the torso.
+const LETTERS_HEIGHT := 0.5 # on the torso, below the head
+const LETTERS_DEPTH := 0.3 # in front of / behind the body's centre
+const LETTERS_FONT_SIZE := 128
+const LETTERS_PIXEL_SIZE := 0.0052
+const LETTERS_TILT_DEG := 50.0 # leaned back so the high camera sees them
 const LOOPED_ANIMS := ["Idle", "Walk", "Run"]
 const ONE_SHOT_ANIMS := ["PickUp", "Kick", "KickUnderfoot", "Throw"] # played to the end before going back to the others
 # Moves built from the Idle pose (the model has none of its own). Each key is [time, turns],
@@ -93,6 +100,8 @@ class PlayerNode:
 	extends Node3D
 	var model: Node3D # the character, turned towards the aim
 	var body: MeshInstance3D
+	var front_label: Label3D # the nickname's letters on the chest, online only
+	var back_label: Label3D # the same on the back
 	var anim: AnimationPlayer
 	var held_bomb: MeshInstance3D
 	var held_block: MeshInstance3D
@@ -346,7 +355,7 @@ static func _turned(parent: Quaternion, local: Quaternion, deg: Vector3) -> Quat
 	var turn := Quaternion.from_euler(deg * PI / 180.0)
 	return parent.inverse() * turn * parent * local
 
-func _make_player(color: Color) -> PlayerNode:
+func _make_player(color: Color, tag := "") -> PlayerNode:
 	var n := PlayerNode.new()
 	n.mat = ShaderMaterial.new()
 	n.mat.shader = TINT_SHADER
@@ -356,6 +365,11 @@ func _make_player(color: Color) -> PlayerNode:
 	n.model = _make_model()
 	n.body = n.model.find_child("Body", true, false)
 	n.body.material_override = n.mat
+	if tag != "":
+		n.front_label = _make_letters(tag, LETTERS_DEPTH, 0.0)
+		n.back_label = _make_letters(tag, -LETTERS_DEPTH, PI)
+		n.model.add_child(n.front_label)
+		n.model.add_child(n.back_label)
 	n.anim = n.model.find_child("AnimationPlayer", true, false)
 	n.anim.play("Idle")
 	n.held_bomb = _make_bomb()
@@ -379,6 +393,21 @@ func _make_player(color: Color) -> PlayerNode:
 		n.add_child(c)
 	add_child(n)
 	return n
+
+# White letters with a black outline, not billboarded so they turn with the model.
+static func _make_letters(tag: String, z: float, yaw: float) -> Label3D:
+	var l := Label3D.new()
+	l.text = tag
+	l.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	l.fixed_size = false
+	l.font_size = LETTERS_FONT_SIZE
+	l.pixel_size = LETTERS_PIXEL_SIZE
+	l.modulate = Color.WHITE
+	l.outline_modulate = Color.BLACK
+	l.outline_size = 14
+	l.position = Vector3(0.0, LETTERS_HEIGHT, z)
+	l.rotation = Vector3(-deg_to_rad(LETTERS_TILT_DEG), yaw, 0.0)
+	return l
 
 # A dark triangle with a "Fill" triangle inside, both rising to the right from the same tip,
 # tilted back to face the camera. The part of the triangle left of a point is the same triangle
@@ -466,7 +495,7 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		var mp := match_state.player(id)
 		var n: PlayerNode = _players.get(id, null)
 		if n == null:
-			n = _make_player(mp.color if mp != null else Color.WHITE)
+			n = _make_player(mp.color if mp != null else Color.WHITE, mp.tag if mp != null else "")
 			n.seen_death = p.died_tick
 			n.seen_kick = p.kick_tick
 			n.seen_throw = p.throw_tick
