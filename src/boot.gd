@@ -3,7 +3,7 @@ extends Node
 # The main scene: a dedicated server build (or --server) runs the game server, anything else the game.
 
 const SERVER_SCENE := "res://src/server/server.tscn"
-const CLIENT_SCENE := "res://src/ui/settings_screen.tscn" # becomes the home screen in task 11
+const CLIENT_SCENE := "res://src/ui/home_screen.tscn"
 
 static func is_server() -> bool:
 	return OS.has_feature("dedicated_server") or OS.get_cmdline_user_args().has("--server")
