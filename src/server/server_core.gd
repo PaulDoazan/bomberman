@@ -153,6 +153,8 @@ func _handle(peer: Peer, type: int, body: Variant, now: float) -> void:
 				err = room.set_config(id, SimCodec.decode_config(d["config"]))
 		Msg.START:
 			err = room.start(id)
+			if err == "":
+				_intents[peer.room_code].clear()
 		Msg.TO_LOBBY:
 			err = room.back_to_lobby(id)
 		Msg.INTENT:
@@ -234,6 +236,7 @@ func _leave_room(peer: Peer, now: float) -> void:
 	if room == null:
 		return
 	room.disconnect_player(peer.player_id, now)
+	_intents[room.code].forget(peer.player_id)
 	var p: Room.RoomPlayer = room.players.get(peer.player_id)
 	logged.emit("%s quitte %s" % [p.name if p != null else "?", room.code])
 	_broadcast_lobby(room)
@@ -243,7 +246,10 @@ func _tick_rooms(now: float) -> void:
 	for code: String in rooms.keys():
 		var room: Room = rooms[code]
 		var before := room.phase
+		var round_before := room.match_state.round_number if room.match_state != null else -1
 		room.tick(now, _intents[code].take())
+		if room.match_state != null and room.match_state.round_number != round_before:
+			_intents[code].clear() # nobody carries a move or a held action into the new round
 		# Changes made by the tick itself (players forgotten, host re-elected) are checked once a second.
 		if room.phase != before or (_tick_count % SimConfig.TICK_RATE == 0 and _lobby_changed(room)):
 			_broadcast_lobby(room)

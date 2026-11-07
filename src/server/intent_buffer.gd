@@ -38,3 +38,11 @@ func take() -> Dictionary:
 		cur.detonate = false
 		cur.struggle = 0.0
 	return out
+
+# A player who left or dropped out: their last continuous intent must not keep them moving.
+func forget(id: int) -> void:
+	_pending.erase(id)
+
+# A new match or round starts from nobody moving.
+func clear() -> void:
+	_pending.clear()

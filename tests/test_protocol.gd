@@ -102,6 +102,17 @@ func test_buffer_keeps_state_resets_one_shots() -> void:
 	assert_eq(got.struggle, 0.0, "struggle remis à zéro")
 	assert_eq(buf.take().size(), 1, "joueur gardé")
 
+func test_buffer_forget_and_clear() -> void:
+	var buf := IntentBuffer.new()
+	buf.push(1, _intent(true, Vector2(2, 3)))
+	buf.push(2, _intent(true, Vector2(4, 5)))
+	buf.forget(1)
+	var out := buf.take()
+	assert_false(out.has(1), "joueur oublié")
+	assert_true(out.has(2), "l'autre reste")
+	buf.clear()
+	assert_true(buf.take().is_empty(), "tout effacé")
+
 func test_decode_rejects_bomb() -> void:
 	var zeros := PackedByteArray()
 	zeros.resize(30 * 1024 * 1024)

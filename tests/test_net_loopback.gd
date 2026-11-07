@@ -320,3 +320,67 @@ func test_lobby_change_in_tick_is_broadcast() -> void:
 		var one := func(body: Variant) -> bool: return _players(body).size() == 1
 		assert_true(_expect(a, Msg.LOBBY, "LOBBY après changement dans tick", one, 2.0) != null, "diffusé")
 	_finish()
+
+# Two players in two teams, match started: returns [A, B, code, B's id], or [] on failure.
+func _started_match(port: int) -> Array:
+	var created := _create(port)
+	if created.is_empty():
+		return []
+	var a: Client = created[0]
+	var b := _join(port, created[1]["code"], "Bob")
+	var welcome: Variant = _expect(b, Msg.WELCOME, "WELCOME de B")
+	if welcome == null:
+		return []
+	_send(a, Msg.CREATE_TEAM, {"name": "Rouge"})
+	_send(b, Msg.CREATE_TEAM, {"name": "Bleu"})
+	if _expect(a, Msg.LOBBY, "deux équipes", func(body: Variant) -> bool: return body["can_start"]) == null:
+		return []
+	_send(a, Msg.START, null)
+	if _expect(b, Msg.LOBBY, "LOBBY playing", func(body: Variant) -> bool: return body["phase"] == "playing") == null:
+		return []
+	return [a, b, created[1]["code"], welcome["id"]]
+
+func _moving() -> Array:
+	var intent := PlayerIntent.new()
+	intent.moving = true
+	intent.target = Vector2(3, 3)
+	return Protocol.intent_to_array(intent)
+
+func test_intents_cleared_on_new_round_and_start() -> void:
+	if not _start(19083):
+		return
+	var m := _started_match(19083)
+	if not m.is_empty():
+		var a: Client = m[0]
+		var b: Client = m[1]
+		var buf: IntentBuffer = core._intents[m[2]]
+		var room: Room = core.rooms[m[2]]
+		_send(b, Msg.INTENT, _moving())
+		_pump_until(func() -> bool: return buf._pending.has(m[3]), "intention reçue")
+		room.match_state.phase = MatchState.Phase.ROUND_OVER
+		room.match_state.phase_timer = 0.0
+		_pump_until(func() -> bool: return room.match_state.round_number == 2, "manche 2")
+		assert_true(buf._pending.is_empty(), "rien ne passe à la manche suivante")
+		_send(b, Msg.INTENT, _moving())
+		_pump_until(func() -> bool: return buf._pending.has(m[3]), "intention reçue")
+		_send(a, Msg.TO_LOBBY, null)
+		_expect(b, Msg.LOBBY, "retour au salon", func(body: Variant) -> bool: return body["phase"] == "lobby")
+		_send(a, Msg.START, null)
+		_expect(b, Msg.LOBBY, "relancé", func(body: Variant) -> bool: return body["phase"] == "playing")
+		assert_true(buf._pending.is_empty(), "rien ne passe au nouveau lancement")
+	_finish()
+
+func test_intents_forgotten_on_disconnect() -> void:
+	if not _start(19084):
+		return
+	var m := _started_match(19084)
+	if not m.is_empty():
+		var b: Client = m[1]
+		var buf: IntentBuffer = core._intents[m[2]]
+		var room: Room = core.rooms[m[2]]
+		_send(b, Msg.INTENT, _moving())
+		_pump_until(func() -> bool: return buf._pending.has(m[3]), "intention reçue")
+		b.ws.close()
+		_pump_until(func() -> bool: return not room.players[m[3]].connected, "B déconnecté")
+		assert_false(buf._pending.has(m[3]), "B ne continue pas de marcher")
+	_finish()
