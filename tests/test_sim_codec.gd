@@ -96,6 +96,15 @@ func test_new_round_new_world() -> void:
 	assert_true(next.world != world, "nouveau World")
 	assert_eq(next.round_number, 2, "manche 2")
 
+func test_hold_next_round_roundtrip() -> void:
+	var m := _match()
+	m.hold_next_round = true
+	var mirror := SimCodec.apply_match(SimCodec.encode_match(m), null, _cfg())
+	assert_true(mirror.hold_next_round, "attente transmise")
+	m.hold_next_round = false
+	mirror = SimCodec.apply_match(SimCodec.encode_match(m), mirror, _cfg())
+	assert_false(mirror.hold_next_round, "fin de l'attente transmise")
+
 func _has_key(v: Variant, key: String) -> bool:
 	if v is Dictionary:
 		for k: Variant in v:

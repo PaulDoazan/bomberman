@@ -80,6 +80,7 @@ static func encode_match(m: MatchState) -> Dictionary:
 		"phase_timer": m.phase_timer,
 		"last_winners": _copy(m.last_winners),
 		"team_wins": _copy(m.team_wins),
+		"hold": m.hold_next_round,
 		"roster": _pack_all(m.players, MatchState.MatchPlayer),
 		"arena": [a.width, a.height, _copy(a.h2), _copy(a.tiles), _copy(a.stair_axis), a.goal],
 		"world": _pack(w, _world_keys()),
@@ -107,6 +108,7 @@ static func apply_match(data: Dictionary, mirror: MatchState, cfg: SimConfig) ->
 	mirror.phase_timer = data.phase_timer
 	mirror.last_winners.assign(data.last_winners)
 	mirror.team_wins = _copy(data.team_wins)
+	mirror.hold_next_round = bool(data.get("hold", false))
 	var w := mirror.world
 	_apply_arena(w.arena, data.arena, fresh)
 	_unpack(w, _world_keys(), data.world)
