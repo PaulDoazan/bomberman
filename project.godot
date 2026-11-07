@@ -10,6 +10,7 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 [autoload]
 
 Session="*res://src/session.gd"
+Net="*res://src/net/net.gd"
 
 [display]
 
