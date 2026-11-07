@@ -22,11 +22,13 @@ var evil_timer := 0.0
 var twister_pos := Vector2.ZERO
 var twister_dir := Vector2.ZERO
 
+var teams: Dictionary = {} # player id -> team id; players absent from it are their own team
 var _next_bomb_id := 0
 var _water_index := 0
 
-func _init(p_arena: Arena, player_ids: Array[int], p_cfg: SimConfig, p_rng: RandomNumberGenerator) -> void:
+func _init(p_arena: Arena, player_ids: Array[int], p_cfg: SimConfig, p_rng: RandomNumberGenerator, p_teams: Dictionary = {}) -> void:
 	arena = p_arena
+	teams = p_teams
 	cfg = p_cfg
 	rng = p_rng
 	time_left = cfg.round_time
@@ -215,13 +217,27 @@ func _lowest_respawn_cells(floor_h2: int) -> Array[Vector2i]:
 				best.append(c)
 	return best
 
+func team_of(id: int) -> int:
+	return teams.get(id, id)
+
+# A player leaving mid-round (disconnect) becomes a ghost right away.
+func forfeit(id: int) -> void:
+	var p: PlayerState = players.get(id, null)
+	if p == null or p.life == PlayerState.Life.GHOST:
+		return
+	_eliminate(p, "déconnexion")
+
 func _check_round_end() -> void:
 	var alive: Array[int] = []
+	var alive_teams := {}
+	var all_teams := {}
 	for p: PlayerState in players.values():
+		all_teams[team_of(p.id)] = true
 		if p.life != PlayerState.Life.GHOST:
 			alive.append(p.id)
-	# A lone player (hand-built test worlds) is not a "single survivor": the round only ends once they die.
-	if alive.size() == 1 and players.size() > 1:
+			alive_teams[team_of(p.id)] = true
+	# A lone team (hand-built test worlds) is not a "single survivor": the round only ends once they die.
+	if alive_teams.size() == 1 and all_teams.size() > 1:
 		finished = true
 		winners = alive
 	elif alive.is_empty():
