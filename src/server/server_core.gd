@@ -34,6 +34,9 @@ var join_timeout := 10.0 # seconds a peer may stay without a room before it is d
 # Seconds a peer in a room may stay silent (clients ping every 2 s): a phone put to sleep or a
 # half-open socket is dropped, so the grace delay starts, instead of being kept connected.
 var silence_timeout := 6.0
+# The same outside a match, where nothing waits on the silent player: the host may leave the app
+# a while to share the link without losing their seat and role.
+var lobby_silence_timeout := 60.0
 
 var _tcp := TCPServer.new()
 var _peers: Array[Peer] = []
@@ -98,7 +101,7 @@ func _poll_peer(peer: Peer, now: float) -> void:
 		return
 	if peer.ws.get_available_packet_count() > 0:
 		peer.heard_at = now
-	elif not peer.dropped and peer.room_code != "" and now - peer.heard_at >= silence_timeout:
+	elif not peer.dropped and peer.room_code != "" and now - peer.heard_at >= _silence_limit(peer):
 		logged.emit("Connexion coupée : silencieux")
 		_drop(peer, now)
 		return
@@ -111,6 +114,14 @@ func _poll_peer(peer: Peer, now: float) -> void:
 		var msg := Protocol.decode(bytes)
 		if not msg.is_empty():
 			_handle(peer, msg[0], msg[1], now)
+
+# How long a peer in a room may stay silent before it is dropped: short during a match, where the
+# grace delay must start, long in the lobby.
+func _silence_limit(peer: Peer) -> float:
+	var room: Room = rooms.get(peer.room_code)
+	if room != null and room.phase == Room.Phase.PLAYING:
+		return silence_timeout
+	return lobby_silence_timeout
 
 func _flooding(peer: Peer, now: float) -> bool:
 	peer.budget = minf(FLOOD_BURST, peer.budget + (now - peer.budget_at) * FLOOD_RATE)

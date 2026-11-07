@@ -392,6 +392,7 @@ func test_silent_peer_in_room_is_dropped() -> void:
 	if not _start(19085):
 		return
 	core.silence_timeout = 0.4
+	core.lobby_silence_timeout = 0.4
 	var created := _create(19085)
 	if not created.is_empty():
 		var a: Client = created[0]
@@ -408,6 +409,29 @@ func test_silent_peer_in_room_is_dropped() -> void:
 		assert_eq(a.ws.get_ready_state(), WebSocketPeer.STATE_OPEN, "socket de A ouvert")
 		assert_false(room.players[welcome["id"] if welcome != null else -1].connected, "B, muet, déconnecté")
 		_pump_until(func() -> bool: return b.ws.get_ready_state() == WebSocketPeer.STATE_CLOSED, "socket de B fermé")
+	_finish()
+
+# In the lobby, a host who leaves the app a while to share the link keeps their seat and role.
+func test_silent_peer_in_lobby_is_kept_longer() -> void:
+	if not _start(19087):
+		return
+	core.silence_timeout = 0.4
+	core.lobby_silence_timeout = 30.0
+	var created := _create(19087)
+	if not created.is_empty():
+		var a: Client = created[0]
+		var b := _join(19087, created[1]["code"], "Bob")
+		_expect(b, Msg.WELCOME, "WELCOME de B")
+		var room: Room = core.rooms[created[1]["code"]]
+		# B pings on; A, the host, says nothing for a second.
+		var end := _now() + 1.0
+		while _now() < end:
+			_send(b, Msg.PING, {"t": 0})
+			_pump_once()
+			OS.delay_msec(50)
+		assert_true(room.players[created[1]["id"]].connected, "l'host muet reste connecté au salon")
+		assert_eq(room.host_id, created[1]["id"], "l'host garde son rôle")
+		assert_eq(a.ws.get_ready_state(), WebSocketPeer.STATE_OPEN, "socket de l'host ouvert")
 	_finish()
 
 func test_server_full_past_max_rooms() -> void:
