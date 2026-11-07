@@ -354,9 +354,10 @@ func _scoreboard_text(m: MatchState) -> String:
 
 # The scoreboard of an online round: teams by wins, the winning team, then what comes next.
 static func team_scoreboard_text(m: MatchState, team_names: Dictionary) -> String:
-	var ids: Array = m.team_wins.keys()
+	# A team deleted since (all its members quit) is not listed any more.
+	var ids: Array = m.team_wins.keys().filter(func(t: int) -> bool: return team_names.has(t))
 	for mp in m.players:
-		if mp.team >= 0 and not ids.has(mp.team):
+		if mp.team >= 0 and not ids.has(mp.team) and team_names.has(mp.team):
 			ids.append(mp.team)
 	ids.sort_custom(func(a: int, b: int) -> bool:
 		var wa: int = m.team_wins.get(a, 0)

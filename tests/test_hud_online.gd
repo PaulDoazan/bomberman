@@ -29,3 +29,10 @@ func test_team_scoreboard_tie_lists_teams() -> void:
 	ms.last_winners = [0, 1]
 	var text := Hud.team_scoreboard_text(ms, {0: "A", 1: "B"})
 	assert_true(text.find("Ex aequo : A, B") >= 0, "ex aequo")
+
+func test_team_scoreboard_skips_deleted_teams() -> void:
+	var ms := _match()
+	ms.team_wins[7] = 3 # a team whose members all left
+	var text := Hud.team_scoreboard_text(ms, {0: "A", 1: "B"})
+	assert_true(text.find("Équipe 7") < 0, "équipe disparue absente")
+	assert_true(text.find("A : 🏆 2") >= 0, "les autres restent")
