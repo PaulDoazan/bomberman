@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: bomberman-pauldoazan
+    name: cafenavette
     runtime: docker
     plan: free
     region: frankfurt

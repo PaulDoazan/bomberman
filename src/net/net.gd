@@ -5,7 +5,7 @@ extends Node
 const Msg := Protocol.Msg
 const Status := NetClient.Status
 
-const PROD_URL := "wss://bomberman-pauldoazan.onrender.com"
+const PROD_URL := "wss://cafenavette.onrender.com"
 const LOCAL_URL := "ws://localhost:9080"
 const INVITE_BASE := "https://pauldoazan.github.io/bomberman/"
 const HOME_SCENE := "res://src/ui/home_screen.tscn"

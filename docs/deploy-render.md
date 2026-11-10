@@ -24,11 +24,11 @@ Le push déclenche :
 
 1. Créer un compte sur https://render.com (connexion avec GitHub, et autoriser l'accès au dépôt `PaulDoazan/bomberman`).
 2. New → Blueprint, choisir le dépôt `PaulDoazan/bomberman`, branche `pauldoazan/server-websocket`.
-3. Render lit `render.yaml` : vérifier le service `bomberman-pauldoazan`, la branche `pauldoazan/server-websocket`, la région Frankfurt, et choisir l'instance Free si Render le demande, puis Apply. La première construction prend quelques minutes.
+3. Render lit `render.yaml` : vérifier le service `cafenavette`, la branche `pauldoazan/server-websocket`, la région Frankfurt, et choisir l'instance Free si Render le demande, puis Apply. La première construction prend quelques minutes.
 
 ## 4. Vérifier l'adresse
 
-Le service doit répondre sur `https://bomberman-pauldoazan.onrender.com`. Si Render a donné une autre adresse (nom déjà pris, suffixe ajouté), remplacer `PROD_URL` dans `src/net/net.gd` par `wss://<adresse>` (même hôte, `wss://` au lieu de `https://`), ou donner l'adresse à Claude. Ce changement doit être committé et poussé pour que Pages reconstruise le jeu.
+Le service doit répondre sur `https://cafenavette.onrender.com`. Si Render a donné une autre adresse (nom déjà pris, suffixe ajouté), remplacer `PROD_URL` dans `src/net/net.gd` par `wss://<adresse>` (même hôte, `wss://` au lieu de `https://`), ou donner l'adresse à Claude. Ce changement doit être committé et poussé pour que Pages reconstruise le jeu.
 
 ## 5. Avant de jouer
 
@@ -43,7 +43,7 @@ Dans le tableau de bord Render, onglet Logs : on y voit les parties créées, le
 Le serveur accepte au plus 4 parties à la fois (l'offre gratuite n'a que 0,1 CPU). Pour vérifier qu'une partie à 12 tient, réveiller le serveur (ouvrir la page du jeu), puis lancer depuis le dépôt, en gardant l'onglet Metrics de Render ouvert :
 
 ```bash
-godot --headless --path . -s res://tests/e2e_online.gd -- --url=wss://bomberman-pauldoazan.onrender.com --clients=12
+godot --headless --path . -s res://tests/e2e_online.gd -- --url=wss://cafenavette.onrender.com --clients=12
 ```
 
 Le script joue une partie à 12 clients (2 joueurs et 10 bots qui bougent au hasard) pendant 15 secondes, puis affiche le plus grand écart entre deux instantanés reçus (normalement autour de 70 ms) et `PASS`. Si le CPU reste au-dessus de 80 % pendant le test, ou si l'écart dépasse 300 ms, envisager l'offre Starter.
