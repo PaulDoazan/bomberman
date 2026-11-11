@@ -28,11 +28,11 @@ Le push déclenche :
 
 ## 4. Vérifier l'adresse
 
-Le service doit répondre sur `https://cafenavette-7qgq.onrender.com`. Si Render a donné une autre adresse (nom déjà pris, suffixe ajouté), remplacer `PROD_URL` dans `src/net/net.gd` par `wss://<adresse>` (même hôte, `wss://` au lieu de `https://`), ou donner l'adresse à Claude. Ce changement doit être committé et poussé pour que Pages reconstruise le jeu.
+Le service doit répondre sur `https://cafenavette-7qgq.onrender.com` : ouverte dans un navigateur, cette adresse renvoie vers la page du jeu, et `https://cafenavette-7qgq.onrender.com/CODE` ouvre directement la partie `CODE` (c'est le lien que le salon fait partager). Dans l'image, nginx écoute sur le `PORT` de Render, transmet les connexions WebSocket au serveur Godot (port interne 9090) et redirige le reste ; `/healthz` répond `ok`. Si Render a donné une autre adresse (nom déjà pris, suffixe ajouté), remplacer `PROD_URL` dans `src/net/net.gd` par `wss://<adresse>` (même hôte, `wss://` au lieu de `https://`), ou donner l'adresse à Claude. Ce changement doit être committé et poussé pour que Pages reconstruise le jeu.
 
 ## 5. Avant de jouer
 
-Sur l'offre gratuite, le serveur s'endort après environ 15 minutes sans connexion. Il se réveille à la première connexion, ce qui prend environ une minute. Ouvrir la page du jeu (https://pauldoazan.github.io/bomberman/) environ une minute avant de jouer : l'accueil affiche « Réveil du serveur… » puis les boutons en ligne deviennent actifs. Partager ensuite le lien avec `#CODE`.
+Sur l'offre gratuite, le serveur s'endort après environ 15 minutes sans connexion. Il se réveille à la première connexion, ce qui prend environ une minute. Ouvrir https://cafenavette-7qgq.onrender.com (qui mène à la page du jeu) environ une minute avant de jouer : l'accueil affiche « Réveil du serveur… » puis les boutons en ligne deviennent actifs. Partager ensuite le lien du salon (`https://cafenavette-7qgq.onrender.com/CODE`).
 
 ## 6. Journaux et charge
 
@@ -63,4 +63,4 @@ cd build/web && python3 -m http.server 8000
 http://localhost:8000/?server=ws://localhost:9080
 ```
 
-Pour tester l'image Docker : `docker build --platform linux/amd64 -t bomberman-server .` puis `docker run -p 9080:9080 -e PORT=9080 bomberman-server`. Le script `tests/e2e_online.gd` accepte `-- --url=ws://localhost:9080` pour viser un serveur déjà lancé.
+Pour tester l'image Docker : `docker build --platform linux/amd64 -t bomberman-server .` puis `docker run -p 9080:9080 -e PORT=9080 bomberman-server` (nginx sur 9080, Godot sur 9090 à l'intérieur). Le script `tests/e2e_online.gd` accepte `-- --url=ws://localhost:9080` pour viser un serveur déjà lancé.

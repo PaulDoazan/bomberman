@@ -121,6 +121,13 @@ func test_net_creates_a_game() -> void:
 func test_server_url_off_web() -> void:
 	assert_eq(NetScript.server_url(), "ws://localhost:9080", "serveur local hors web")
 
+func test_invite_link_points_at_the_server_in_production() -> void:
+	var page := "https://pauldoazan.github.io/bomberman/"
+	assert_eq(NetScript.invite_link_for(NetScript.PROD_URL, page, "K7P2QX"),
+		NetScript.PROD_URL.replace("wss://", "https://") + "/K7P2QX", "adresse du serveur")
+	assert_eq(NetScript.invite_link_for("ws://localhost:9080", page, "K7P2QX"),
+		page + "#K7P2QX", "autre serveur : la page elle-même")
+
 func test_scene_for() -> void:
 	var players := [{"id": 1, "team": 0}, {"id": 2, "team": -1}]
 	var lobby := {"phase": "lobby", "players": players}

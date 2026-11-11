@@ -135,9 +135,17 @@ func _set_reconnecting(until: float) -> void:
 		reconnecting_changed.emit(is_reconnecting())
 
 func invite_link() -> String:
+	var page := INVITE_BASE
 	if OS.has_feature("web"):
-		return str(JavaScriptBridge.eval("location.origin + location.pathname", true)) + "#" + code
-	return INVITE_BASE + "#" + code
+		page = str(JavaScriptBridge.eval("location.origin + location.pathname", true))
+	return invite_link_for(url, page, code)
+
+# Against the production server, its own address (it redirects /CODE to the game page with
+# #CODE); against any other server, the page itself with #CODE.
+static func invite_link_for(server: String, page: String, p_code: String) -> String:
+	if server == PROD_URL:
+		return PROD_URL.replace("wss://", "https://") + "/" + p_code
+	return page + "#" + p_code
 
 # The phone's share sheet when there is one, otherwise the clipboard.
 func share_link() -> void:

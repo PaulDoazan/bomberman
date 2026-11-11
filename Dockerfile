@@ -4,7 +4,7 @@ FROM debian:bookworm-slim
 ARG GODOT_VERSION=4.7.2
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl unzip \
+ && apt-get install -y --no-install-recommends ca-certificates curl unzip nginx-light \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -20,5 +20,6 @@ COPY . /app
 # Imports the project once at build time so the server starts fast.
 RUN ./godot --headless --path /app --import
 
-# The server reads PORT (Render sets it) and listens on 9080 by default.
-CMD ["/app/godot", "--headless", "--path", "/app", "--", "--server"]
+# nginx listens on PORT (Render sets it) and sends WebSocket connections to the Godot server
+# on 9090, and browsers to the game page.
+CMD ["/app/deploy/start.sh"]
