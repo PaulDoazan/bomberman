@@ -70,6 +70,14 @@ func test_hold_next_round() -> void:
 	m.step({})
 	assert_eq(m.round_number, round_before + 1, "manche relancée")
 
+func test_no_team_wins_without_teams() -> void:
+	var m := _match([-1, -1])
+	_kill_all(m, 1)
+	m.step({})
+	assert_eq(m.phase, MatchState.Phase.ROUND_OVER, "manche finie")
+	assert_eq(m.player(0).wins, 1, "victoire du joueur")
+	assert_true(m.team_wins.is_empty(), "pas de victoire d'équipe")
+
 func test_sync_roster_adds_player_next_round() -> void:
 	var m := _match([0, 0, 1])
 	_finish_round(m)

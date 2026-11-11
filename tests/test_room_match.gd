@@ -91,6 +91,22 @@ func test_next_round_held_without_two_teams() -> void:
 	_run(r, now, 1.0)
 	assert_eq(r.match_state.round_number, round_before + 1)
 
+func test_single_team_plays_each_for_themselves() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var r := Room.new("K7P2QX", rng)
+	r.join("Ann", "", 0.0)
+	r.join("Bob", "", 0.0)
+	r.create_team(1, "Rouge")
+	r.join_team(2, 0)
+	assert_eq(r.start(1), "")
+	assert_true(r.match_state.world.teams.is_empty(), "chacun pour soi")
+	_run(r, 0.0, 0.5)
+	assert_false(r.match_state.hold_next_round, "deux joueurs : on joue")
+	r.disconnect_player(2, 0.5)
+	_run(r, 0.5, 0.5)
+	assert_true(r.match_state.hold_next_round, "seul connecté : on attend")
+
 func test_forgotten_after_181_seconds() -> void:
 	var r := _started()
 	r.disconnect_player(3, 0.0)

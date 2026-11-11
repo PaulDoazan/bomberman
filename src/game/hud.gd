@@ -286,7 +286,7 @@ func sync(match_state: MatchState) -> void:
 	_warning.visible = world.water_warning and match_state.phase == MatchState.Phase.PLAYING
 	_panel.visible = match_state.phase == MatchState.Phase.ROUND_OVER
 	if _panel.visible:
-		_panel_text.text = team_scoreboard_text(match_state, _team_names()) if online else _scoreboard_text(match_state)
+		_panel_text.text = team_scoreboard_text(match_state, _team_names()) if online and _has_teams(match_state) else player_scoreboard_text(match_state)
 
 func _sync_online(online: bool, local_id: int, me: PlayerState) -> void:
 	_ping.visible = online
@@ -334,7 +334,11 @@ func _sync_chips(m: MatchState) -> void:
 static func _text_color(c: Color) -> Color:
 	return Color.BLACK if c.get_luminance() > 0.45 else Color.WHITE
 
-func _scoreboard_text(m: MatchState) -> String:
+static func _has_teams(m: MatchState) -> bool:
+	return m.players.any(func(mp: MatchState.MatchPlayer) -> bool: return mp.team >= 0)
+
+# The scoreboard by player: solo, and online when the only team plays each for themselves.
+static func player_scoreboard_text(m: MatchState) -> String:
 	var sorted: Array[MatchState.MatchPlayer] = m.players.duplicate()
 	sorted.sort_custom(func(a: MatchState.MatchPlayer, b: MatchState.MatchPlayer) -> bool:
 		return a.wins > b.wins if a.wins != b.wins else a.id < b.id)
@@ -349,7 +353,10 @@ func _scoreboard_text(m: MatchState) -> String:
 		lines.append("Vainqueur : %s" % names[0])
 	elif names.size() > 1:
 		lines.append("Ex aequo : %s" % ", ".join(names))
-	lines.append("Manche suivante dans %d s" % maxi(ceili(m.phase_timer), 0))
+	if m.hold_next_round:
+		lines.append("En attente d'un autre joueur…")
+	else:
+		lines.append("Manche suivante dans %d s" % maxi(ceili(m.phase_timer), 0))
 	return "\n".join(lines)
 
 # The scoreboard of an online round: teams by wins, the winning team, then what comes next.

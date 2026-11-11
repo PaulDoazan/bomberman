@@ -194,11 +194,13 @@ func tick(now: float, intents: Dictionary) -> void:
 		match_state.sync_roster(_build_roster())
 		for p: RoomPlayer in players.values():
 			p.forfeited = false
-	var teams_online := {}
+	# The next round waits until two sides are connected: teams, or players when each plays for themselves.
+	var free_for_all := _free_for_all()
+	var sides_online := {}
 	for p: RoomPlayer in players.values():
 		if p.connected and p.team != -1:
-			teams_online[p.team] = true
-	match_state.hold_next_round = teams_online.size() < 2
+			sides_online[p.id if free_for_all else p.team] = true
+	match_state.hold_next_round = sides_online.size() < 2
 	match_state.step(intents)
 
 # True once nobody has been connected for EMPTY_ROOM_TTL.
@@ -209,14 +211,22 @@ func is_dead(now: float) -> bool:
 func in_match(id: int) -> bool:
 	return phase == Phase.PLAYING and match_state != null and match_state.world.players.has(id)
 
-# At least two teams and everybody in one.
+# At least two players and everybody in a team (a single team plays each for themselves).
 func can_start() -> bool:
-	if teams.size() < 2:
+	if players.size() < 2:
 		return false
 	for p: RoomPlayer in players.values():
 		if p.team == -1:
 			return false
 	return true
+
+# True when the players with a team all share the same one: the match is then each for themselves.
+func _free_for_all() -> bool:
+	var used := {}
+	for p: RoomPlayer in players.values():
+		if p.team != -1:
+			used[p.team] = true
+	return used.size() < 2
 
 func lobby_state() -> Dictionary:
 	var team_list := []
@@ -334,6 +344,7 @@ func _build_roster() -> Array[MatchState.MatchPlayer]:
 		if not by_team.has(p.team):
 			by_team[p.team] = []
 		by_team[p.team].append(pid)
+	var free_for_all := by_team.size() < 2
 	var roster: Array[MatchState.MatchPlayer] = []
 	for pid: int in ids:
 		var p: RoomPlayer = players[pid]
@@ -344,7 +355,7 @@ func _build_roster() -> Array[MatchState.MatchPlayer]:
 		mp.id = p.id
 		mp.name = p.name
 		mp.is_bot = false
-		mp.team = p.team
+		mp.team = -1 if free_for_all else p.team
 		mp.color = TeamColors.tint(teams[p.team].color_index, members.find(pid), members.size())
 		mp.tag = MatchState.tag_of(p.name)
 		roster.append(mp)

@@ -82,7 +82,7 @@ Pensé d'abord pour un écran de téléphone en portrait. De haut en bas :
 - Nom d'équipe : de 1 à 16 caractères (choix Claude). Deux équipes peuvent porter le même nom, leurs couleurs les distinguent.
 - On peut être « sans équipe » dans le salon (choix Claude).
 - Une équipe que tout le monde a quittée disparaît, et sa couleur redevient libre (choix Claude).
-- **Conditions pour lancer** (choix Claude) : au moins 2 équipes avec au moins un joueur chacune, et aucun joueur sans équipe.
+- **Conditions pour lancer** (demande de l'utilisateur, 2026-11-11) : au moins 2 joueurs, tous dans une équipe. S'ils sont tous dans la même équipe, la partie se joue chacun pour soi (scores par joueur) ; la manche suivante attend alors deux joueurs connectés au lieu de deux équipes.
 - Il n'y a **pas de limite de joueurs par équipe**, hormis le maximum de 12 au total. Les équipes peuvent être déséquilibrées.
 
 ### Maximum de joueurs

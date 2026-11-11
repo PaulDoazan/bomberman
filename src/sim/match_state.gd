@@ -81,7 +81,8 @@ func step(intents: Dictionary) -> void:
 			var won_teams := {}
 			for id in world.winners:
 				player(id).wins += 1
-				won_teams[world.team_of(id)] = true
+				if world.teams.has(id): # without teams, wins are only the players' own
+					won_teams[world.team_of(id)] = true
 			for t in won_teams:
 				team_wins[t] = team_wins.get(t, 0) + 1
 			last_winners = world.winners.duplicate()

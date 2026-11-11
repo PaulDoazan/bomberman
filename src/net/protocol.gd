@@ -28,7 +28,7 @@ const ERROR_LABELS := {
 	ERR_BAD_NAME: "Nom invalide",
 	ERR_TEAMS_FULL: "Il y a déjà 4 équipes",
 	ERR_HOST_ONLY: "Seul l'host peut faire ça",
-	ERR_CANNOT_START: "Il faut au moins 2 équipes et tout le monde dans une équipe",
+	ERR_CANNOT_START: "Il faut au moins 2 joueurs, tous dans une équipe",
 	ERR_NOT_NOW: "Pas pendant la partie",
 	ERR_VERSION: "Nouvelle version du jeu : recharge la page",
 	ERR_SERVER_FULL: "Serveur plein, réessaie plus tard",

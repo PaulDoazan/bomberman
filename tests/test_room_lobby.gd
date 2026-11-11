@@ -116,9 +116,18 @@ func test_start_rules() -> void:
 	r.join_team(c, 0)
 	assert_true(r.can_start())
 	r.leave_team(2)
-	assert_eq(r.start(1), Protocol.ERR_CANNOT_START, "une seule équipe")
+	assert_eq(r.start(1), Protocol.ERR_CANNOT_START, "joueur sans équipe")
 	r.join_team(2, 0)
-	assert_eq(r.start(1), Protocol.ERR_CANNOT_START)
+	assert_true(r.can_start(), "une seule équipe suffit")
+
+func test_start_needs_two_players() -> void:
+	var r := _room()
+	var a: int = r.join("Ann", "", 0.0)["id"]
+	r.create_team(a, "Rouge")
+	assert_false(r.can_start(), "seul")
+	var b: int = r.join("Bob", "", 0.0)["id"]
+	r.join_team(b, 0)
+	assert_true(r.can_start(), "deux dans la même équipe")
 
 func test_start_builds_match() -> void:
 	var r := _ready_room()

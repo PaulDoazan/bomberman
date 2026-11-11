@@ -24,6 +24,13 @@ func test_team_scoreboard_waits_for_server() -> void:
 	assert_true(text.find("En attente d'une autre équipe") >= 0, "attente")
 	assert_true(text.find("Manche suivante") < 0, "pas de compte à rebours")
 
+func test_player_scoreboard_waits_for_server() -> void:
+	var ms := _match()
+	ms.hold_next_round = true
+	var text := Hud.player_scoreboard_text(ms)
+	assert_true(text.find("En attente d'un autre joueur") >= 0, "attente")
+	assert_true(text.find("Manche suivante") < 0, "pas de compte à rebours")
+
 func test_team_scoreboard_tie_lists_teams() -> void:
 	var ms := _match()
 	ms.last_winners = [0, 1]
