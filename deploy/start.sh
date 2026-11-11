@@ -3,7 +3,7 @@
 # stops (and Render restarts it) as soon as either one exits.
 set -euo pipefail
 
-PAGE_URL="${PAGE_URL:-https://pauldoazan.github.io/bomberman/}"
+PAGE_URL="${PAGE_URL:-https://cafenavette.com/}"
 sed -e "s|__PORT__|${PORT:-10000}|" -e "s|__PAGE__|${PAGE_URL}|g" /app/deploy/nginx.conf > /tmp/nginx.conf
 
 PORT=9090 /app/godot --headless --path /app -- --server &

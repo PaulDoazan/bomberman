@@ -1,0 +1,28 @@
+# Runs the tests on every push; Render deploys the site and the server once they pass.
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          base=https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable
+          curl -sSLo godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip
+          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" godot
+          rm godot.zip
+
+      - name: Run the tests
+        run: |
+          ./godot --headless --path . --import
+          ./godot --headless --path . -s res://tests/run_tests.gd

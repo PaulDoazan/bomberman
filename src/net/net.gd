@@ -8,6 +8,7 @@ const Status := NetClient.Status
 const PROD_URL := "wss://cafenavette-7qgq.onrender.com"
 const LOCAL_URL := "ws://localhost:9080"
 const INVITE_BASE := "https://pauldoazan.github.io/bomberman/"
+const SITE_URL := "https://cafenavette.com/" # the production page, which reads /CODE
 const HOME_SCENE := "res://src/ui/home_screen.tscn"
 const LOBBY_SCENE := "res://src/ui/lobby_screen.tscn"
 const GAME_SCENE := "res://src/game/game.tscn"
@@ -86,13 +87,13 @@ func join_game(p_code: String, p_name: String) -> void:
 	_hello_or_send(Msg.JOIN, {"code": p_code, "name": p_name, "token": OnlineStore.token_for(p_code), "schema": SimCodec.schema_hash()})
 
 # Quitter: the server removes this player from the room, and this browser forgets the game
-# (token and #CODE) so that nothing rejoins it on its own.
+# (token and the code in the address) so that nothing rejoins it on its own.
 func leave() -> void:
 	if code != "":
 		client.send(Msg.LEAVE, null)
 		OnlineStore.forget_token(code)
 		if OS.has_feature("web"):
-			JavaScriptBridge.eval("history.replaceState(null, '', location.pathname + location.search)", true)
+			_set_address("")
 	cancel()
 
 # Drops the connection and whatever was asked, without a word (Solo, a refused request).
@@ -140,11 +141,25 @@ func invite_link() -> String:
 		page = str(JavaScriptBridge.eval("location.origin + location.pathname", true))
 	return invite_link_for(url, page, code)
 
-# Against the production server, its own address (it redirects /CODE to the game page with
-# #CODE); against any other server, the page itself with #CODE.
+# The page's path without the room code an invitation link may end with ("/K7P2QX" -> "/").
+static func page_path(path: String) -> String:
+	var trimmed := path.trim_suffix("/")
+	if trimmed.get_file() != "" and RoomCodes.normalize(trimmed.get_file()) != "":
+		return trimmed.get_base_dir().trim_suffix("/") + "/"
+	return path
+
+# Rewrites the address bar to the page itself plus the given hash, without reloading.
+func _set_address(hash_part: String) -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("history.replaceState(null, '', %s + location.search + %s)" % [
+			JSON.stringify(page_path(str(JavaScriptBridge.eval("location.pathname", true)))),
+			JSON.stringify(hash_part)], true)
+
+# Against the production server, the site with /CODE; against any other server, the page
+# itself with #CODE.
 static func invite_link_for(server: String, page: String, p_code: String) -> String:
 	if server == PROD_URL:
-		return PROD_URL.replace("wss://", "https://") + "/" + p_code
+		return SITE_URL + p_code
 	return page + "#" + p_code
 
 # The phone's share sheet when there is one, otherwise the clipboard.
@@ -199,8 +214,7 @@ func _on_message(type: int, body: Variant) -> void:
 				my_id = int(body.get("id", -1))
 				_set_session("local_id", my_id)
 				OnlineStore.save_token(code, str(body.get("token", "")))
-				if OS.has_feature("web"):
-					JavaScriptBridge.eval("history.replaceState(null, '', %s)" % JSON.stringify("#" + code), true)
+				_set_address("#" + code)
 		Msg.LOBBY:
 			if body is Dictionary and code != "": # only for the room this player is in
 				lobby = body

@@ -124,9 +124,16 @@ func test_server_url_off_web() -> void:
 func test_invite_link_points_at_the_server_in_production() -> void:
 	var page := "https://pauldoazan.github.io/bomberman/"
 	assert_eq(NetScript.invite_link_for(NetScript.PROD_URL, page, "K7P2QX"),
-		NetScript.PROD_URL.replace("wss://", "https://") + "/K7P2QX", "adresse du serveur")
+		"https://cafenavette.com/K7P2QX", "le site")
 	assert_eq(NetScript.invite_link_for("ws://localhost:9080", page, "K7P2QX"),
 		page + "#K7P2QX", "autre serveur : la page elle-même")
+
+func test_page_path_drops_the_code() -> void:
+	assert_eq(NetScript.page_path("/K7P2QX"), "/", "code seul")
+	assert_eq(NetScript.page_path("/k7p2qx/"), "/", "barre finale")
+	assert_eq(NetScript.page_path("/"), "/", "racine")
+	assert_eq(NetScript.page_path("/bomberman/"), "/bomberman/", "sous-dossier")
+	assert_eq(NetScript.page_path("/bomberman/K7P2QX"), "/bomberman/", "code sous un dossier")
 
 func test_scene_for() -> void:
 	var players := [{"id": 1, "team": 0}, {"id": 2, "team": -1}]
