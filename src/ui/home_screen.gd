@@ -21,6 +21,15 @@ var _pending := false # a create / join was sent and nothing has come back yet
 static func code_from_hash(h: String) -> String:
 	return RoomCodes.normalize(h)
 
+# The room code of an invitation link: its hash ("#k7p2qx") or, failing that, a path made of the
+# code alone ("/k7p2qx", the site's invitation links), or "" when there is none.
+static func code_from_location(h: String, path: String) -> String:
+	var from_hash := code_from_hash(h)
+	if from_hash != "":
+		return from_hash
+	var segment := path.trim_prefix("/").trim_suffix("/")
+	return "" if segment.contains("/") else RoomCodes.normalize(segment)
+
 # A page reloaded (or reopened) on a game this browser is in rejoins it at once. Not after
 # coming back with a message (e.g. a connection given up on), and never after Quitter, which
 # forgets the token and clears the hash.
@@ -39,7 +48,7 @@ static func status_text(status: int) -> String:
 
 func _ready() -> void:
 	build()
-	var linked_code := code_from_hash(_location_hash())
+	var linked_code := code_from_location(_location("hash"), _location("pathname"))
 	code_edit.text = linked_code
 	_net = get_node_or_null(^"/root/Net")
 	var rejoin := false
@@ -229,9 +238,10 @@ func _button(text: String) -> Button:
 	b.custom_minimum_size = Vector2(0, SettingsForm.ROW_HEIGHT)
 	return b
 
-func _location_hash() -> String:
+# A part of the page's address ("hash", "pathname"); "" outside a web build.
+func _location(part: String) -> String:
 	if OS.has_feature("web"):
-		return str(JavaScriptBridge.eval("window.location.hash", true))
+		return str(JavaScriptBridge.eval("window.location." + part, true))
 	return ""
 
 func _fit() -> void:

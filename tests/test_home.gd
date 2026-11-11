@@ -26,6 +26,14 @@ func test_code_from_hash() -> void:
 	assert_eq(HomeScreen.code_from_hash("#k7p2"), "", "trop court")
 	assert_eq(HomeScreen.code_from_hash("#K7P2QX/"), "K7P2QX", "barre finale")
 
+func test_code_from_location() -> void:
+	assert_eq(HomeScreen.code_from_location("", "/k7p2qx"), "K7P2QX", "chemin")
+	assert_eq(HomeScreen.code_from_location("", "/K7P2QX/"), "K7P2QX", "chemin, barre finale")
+	assert_eq(HomeScreen.code_from_location("#ABC234", "/K7P2QX"), "ABC234", "le hash d'abord")
+	assert_eq(HomeScreen.code_from_location("", "/"), "", "racine")
+	assert_eq(HomeScreen.code_from_location("", "/index.html"), "", "pas un code")
+	assert_eq(HomeScreen.code_from_location("", "/bomberman/"), "", "sous-dossier")
+
 func test_status_text() -> void:
 	assert_true(HomeScreen.status_text(NetClient.Status.WAKING).contains("Réveil"), "réveil")
 	assert_eq(HomeScreen.status_text(NetClient.Status.CONNECTING), "Connexion…", "connexion")
