@@ -155,3 +155,23 @@ func test_snapshot_size_budget() -> void:
 	var size := Protocol.encode(Protocol.Msg.SNAPSHOT, SimCodec.encode_match(m)).size()
 	print("snapshot size: %d bytes" % size)
 	assert_true(size < 2500, "instantané < 2500 octets, obtenu %d" % size)
+
+# Les objets en route vers le sol (caisses, bombes qui jaillissent) passent dans l'instantané.
+func test_drops_roundtrip() -> void:
+	var m := _played(10)
+	for kind in [Drop.Kind.CRATE, Drop.Kind.SPILL]:
+		var d := Drop.new()
+		d.uid = m.world.next_uid()
+		d.kind = kind
+		d.item = SimConfig.Item.BOMB
+		d.from = Vector2(3.5, 2.5)
+		d.cell = Vector2i(4, 2)
+		d.elapsed = 0.2
+		m.world.drops.append(d)
+	var data := SimCodec.encode_match(m)
+	var mirror := SimCodec.apply_match(bytes_to_var(var_to_bytes(data)), null, _cfg())
+	assert_eq(mirror.world.drops.size(), 2)
+	assert_eq(SimCodec.encode_match(mirror), SimCodec.encode_match(m), "même état")
+	var kept: Drop = mirror.world.drops[0]
+	SimCodec.apply_match(data, mirror, _cfg())
+	assert_true(mirror.world.drops[0] == kept, "même instance d'un instantané à l'autre")

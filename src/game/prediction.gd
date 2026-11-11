@@ -75,7 +75,10 @@ func _step(m: MatchState, my_id: int, intent: PlayerIntent) -> void:
 	var w := m.world
 	if m.phase != MatchState.Phase.PLAYING or w.finished or not w.players.has(my_id):
 		return
+	var crate_timer := w.crate_timer
+	w.crate_timer = INF # only the server brings crates down: where, and with what, is its draw
 	w.step({my_id: intent})
+	w.crate_timer = crate_timer - SimConfig.DT
 	for id: int in _others:
 		var p: PlayerState = w.players.get(id)
 		if p != null and p.carried_by != my_id and p.possessed_by != my_id:

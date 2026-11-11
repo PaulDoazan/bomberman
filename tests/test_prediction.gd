@@ -142,3 +142,24 @@ func test_world_step_records_the_seq() -> void:
 	assert_eq(w.players[0].input_seq, 9)
 	w.step({})
 	assert_eq(w.players[0].input_seq, 9, "sans intention : inchangé")
+
+# Seule la caisse du serveur descend : le client ne tire ni sa case ni son objet.
+func test_only_the_server_brings_crates_down() -> void:
+	var server := _server()
+	server.world.crate_timer = SimConfig.DT * 0.5 # due at the next step
+	var mirror := _mirror(server)
+	var pred := Prediction.new()
+	pred.on_snapshot(mirror, 0, Vector2.INF)
+	pred.record(mirror, 0, _intent(pred))
+	assert_true(mirror.world.drops.is_empty(), "pas de caisse prédite")
+	server.world.step({})
+	assert_eq(server.world.drops.size(), 1, "le serveur en fait descendre une")
+	mirror = _mirror(server, mirror)
+	pred.on_snapshot(mirror, 0, Vector2.INF)
+	assert_eq(mirror.world.drops.size(), 1, "le client la reçoit")
+	var crate: Drop = mirror.world.drops[0]
+	assert_eq(crate.cell, server.world.drops[0].cell, "à la même case")
+	assert_eq(crate.item, server.world.drops[0].item, "avec le même objet")
+	pred.record(mirror, 0, _intent(pred))
+	assert_true(mirror.world.drops[0] == crate, "même instance : l'affichage la garde")
+	assert_true(crate.elapsed > 0.0, "elle continue de descendre")

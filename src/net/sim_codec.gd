@@ -7,7 +7,7 @@ extends RefCounted
 # (same World, Arena and objects) because the views key their nodes by instance.
 
 # World fields sent separately (arena, objects), not needed (cfg, rng, events) or secret (hidden).
-const WORLD_EXCLUDED := ["arena", "cfg", "rng", "players", "bombs", "explosions", "flying", "events", "hidden"]
+const WORLD_EXCLUDED := ["arena", "cfg", "rng", "players", "bombs", "explosions", "flying", "drops", "events", "hidden"]
 const ARENA_KEYS := ["w", "h", "h2", "tiles", "stair_axis", "goal"]
 
 static var _keys_cache: Dictionary = {} # Script -> Array[String]
@@ -35,7 +35,7 @@ static func _world_keys() -> Array[String]:
 # Changes as soon as a field of the simulation is added, removed or renamed, or Protocol.VERSION.
 static func schema_hash() -> int:
 	var all: Array[String] = []
-	for script: Script in [PlayerState, BombState, Explosion, FlyingObject, MatchState.MatchPlayer]:
+	for script: Script in [PlayerState, BombState, Explosion, FlyingObject, Drop, MatchState.MatchPlayer]:
 		all.append_array(keys_of(script))
 	all.append_array(_world_keys())
 	all.append_array(ARENA_KEYS)
@@ -95,6 +95,7 @@ static func encode_match(m: MatchState) -> Dictionary:
 		"bombs": _pack_all(w.bombs.values(), BombState),
 		"explosions": _pack_all(w.explosions, Explosion),
 		"flying": _pack_all(w.flying, FlyingObject),
+		"drops": _pack_all(w.drops, Drop),
 	}
 
 # Updates mirror from data and returns it, or returns a new MatchState when there is no mirror
@@ -123,6 +124,7 @@ static func apply_match(data: Dictionary, mirror: MatchState, cfg: SimConfig) ->
 	w.bombs = _apply_by(data.bombs, w.bombs, BombState, "id")
 	w.explosions = _apply_by(data.explosions, _index(w.explosions), Explosion, "uid").values()
 	w.flying = _apply_by(data.flying, _index(w.flying), FlyingObject, "uid").values()
+	w.drops = _apply_by(data.get("drops", []), _index(w.drops), Drop, "uid").values()
 	return mirror
 
 static func _apply_roster(rows: Array, mirror: MatchState) -> Array[MatchState.MatchPlayer]:

@@ -18,7 +18,6 @@ const SIT_STAR_HEIGHT := 1.2 # stars above a player sitting knocked out
 const HOP_HEIGHT := 0.35 # top of the hop of a player knocked back by a bomb
 const BIG_SCALE := 1.5 # a big player (Big sickness), drawn larger
 const TINY_SCALE := 0.6
-const SICK_BADGE_HEIGHT := 1.75 # a little café navette above the head of a sick player
 # The throw gauge above what is held: a triangle rising to the right, like a volume control,
 # filling from its tip while the button is held.
 const GAUGE_HEIGHT := 2.5
@@ -99,7 +98,6 @@ class PlayerNode:
 	var held_bomb: MeshInstance3D
 	var held_block: MeshInstance3D
 	var held_item: Node3D # a café navette being carried
-	var sick_badge: Node3D
 	var color: Color
 	var size := 1.0 # drawn size, eased towards the target
 	var stars: Node3D # spins above the head while stunned
@@ -374,12 +372,9 @@ func _make_player(color: Color) -> PlayerNode:
 		s.position = Vector3(cos(a), 0.0, sin(a)) * STAR_ORBIT
 		n.stars.add_child(s)
 	n.held_item = ItemsView.make_item(SimConfig.Item.COFFEE)
-	n.sick_badge = ItemsView.make_item(SimConfig.Item.COFFEE)
-	n.sick_badge.scale = Vector3.ONE * 0.6
-	n.sick_badge.position.y = SICK_BADGE_HEIGHT
 	n.gauge = _make_gauge()
 	n.gauge_fill = n.gauge.get_node("Fill")
-	for c in [n.model, n.held_bomb, n.held_block, n.held_item, n.sick_badge, n.stars, n.gauge]:
+	for c in [n.model, n.held_bomb, n.held_block, n.held_item, n.stars, n.gauge]:
 		n.add_child(c)
 	add_child(n)
 	return n
@@ -549,7 +544,7 @@ func _sync_players(world: World, match_state: MatchState, dt: float = SimConfig.
 		n.gauge.visible = p.charging
 		n.gauge_fill.scale = Vector3(maxf(p.charge, 0.001), maxf(p.charge, 0.001), 1.0)
 
-# Size, flames and the café navette badge of a sick player.
+# Size and flames of a sick player.
 func _show_sickness(world: World, n: PlayerNode, p: PlayerState, ghost: bool, dt: float = SimConfig.DT) -> void:
 	var want := 1.0
 	if not ghost and p.sick == SimConfig.Sick.BIG:
@@ -558,9 +553,6 @@ func _show_sickness(world: World, n: PlayerNode, p: PlayerState, ghost: bool, dt
 		want = TINY_SCALE
 	n.size = lerpf(n.size, want, _per_tick(0.2, dt))
 	n.model.scale = Vector3.ONE * MODEL_SCALE * n.size
-	n.sick_badge.visible = p.sick != SimConfig.Sick.NONE and not ghost
-	n.sick_badge.position.y = SICK_BADGE_HEIGHT * n.size
-	n.sick_badge.rotation.y = _time * 2.0
 	var tint := n.color
 	if p.sick == SimConfig.Sick.FIRE and not ghost:
 		tint = n.color.lerp(FIRE_TINT, 0.5 + 0.4 * sin(_time * 25.0))

@@ -17,6 +17,8 @@ var finished := false
 var winners: Array[int] = []
 var hidden: Dictionary = {} # block cell -> SimConfig.Item it hides
 var items: Dictionary = {} # cell -> SimConfig.Item lying there
+var drops: Array = [] # Drop: items on their way to the ground
+var crate_timer := SimConfig.CRATE_FIRST # until the next crate comes down
 
 var teams: Dictionary = {} # player id -> team id; players absent from it are their own team
 var next_bomb_id := 0 # public so a client mirror predicts the ids the server will give
@@ -94,6 +96,7 @@ func step(intents: Dictionary) -> void:
 	Carry.update_flying(self)
 	Ghosts.update(self)
 	Kick.update_rolling(self)
+	Items.update_drops(self)
 	Items.update_pickups(self)
 	Items.update(self)
 	_update_explosions()
@@ -372,14 +375,13 @@ func _update_bombs() -> void:
 		e.cells = Explosion.hit_cells(arena, origin, e.full_radius)
 		explosions.append(e)
 		events.append({"type": "explosion", "cell": origin, "radius": e.full_radius, "cells": e.cells})
-		Items.burn(self, e.cells)
 		for c in e.cells:
 			if arena.tile_at(c) == Arena.Tile.BLOCK:
 				destroyed[c] = true
 		for other: BombState in bombs.values():
 			if other.state != BombState.State.FLYING and bomb_cell(other) in e.cells and not other in queue:
 				queue.append(other)
-	for c: Vector2i in destroyed: # what they hid appears after the blasts, unharmed
+	for c: Vector2i in destroyed: # what they hid appears
 		arena.set_tile(c, Arena.Tile.FLOOR)
 		Items.reveal(self, c)
 		events.append({"type": "block_destroyed", "cell": c})
