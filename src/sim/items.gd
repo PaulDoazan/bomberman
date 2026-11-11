@@ -2,7 +2,7 @@ class_name Items
 extends RefCounted
 
 # Items, as in Bomberman 64: hidden in blocks, revealed when the block goes (blown up or lifted),
-# picked up by walking over them, destroyed by a later blast. The Café navette makes whoever picks it up
+# picked up by walking over them; blasts leave them be. The Café navette makes whoever picks it up
 # sick for a while (it can also be lifted from the front and thrown at someone). Static helpers
 # over a World.
 
@@ -36,13 +36,6 @@ static func reveal(world: World, c: Vector2i) -> void:
 	if world.hidden.has(c):
 		world.items[c] = world.hidden[c]
 		world.hidden.erase(c)
-
-# A blast destroys the items lying in its cells.
-static func burn(world: World, cells: Array[Vector2i]) -> void:
-	for c in cells:
-		if world.items.has(c):
-			world.items.erase(c)
-			world.events.append({"type": "item_burnt", "cell": c})
 
 # Players walking over an item pick it up (a carried or flying player does not touch the ground).
 static func update_pickups(world: World) -> void:

@@ -338,14 +338,13 @@ func _update_bombs() -> void:
 		e.cells = Explosion.hit_cells(arena, origin, e.full_radius)
 		explosions.append(e)
 		events.append({"type": "explosion", "cell": origin, "radius": e.full_radius, "cells": e.cells})
-		Items.burn(self, e.cells)
 		for c in e.cells:
 			if arena.tile_at(c) == Arena.Tile.BLOCK:
 				destroyed[c] = true
 		for other: BombState in bombs.values():
 			if other.state != BombState.State.FLYING and bomb_cell(other) in e.cells and not other in queue:
 				queue.append(other)
-	for c: Vector2i in destroyed: # what they hid appears after the blasts, unharmed
+	for c: Vector2i in destroyed: # what they hid appears
 		arena.set_tile(c, Arena.Tile.FLOOR)
 		Items.reveal(self, c)
 		events.append({"type": "block_destroyed", "cell": c})

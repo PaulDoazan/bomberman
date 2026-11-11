@@ -49,8 +49,8 @@ func test_blocks_hide_items_only_when_turned_on() -> void:
 	for item: int in w3.hidden.values():
 		assert_eq(item, SimConfig.Item.HEART, "seulement les objets activés")
 
-# Un bloc détruit révèle son objet, intact ; une explosion suivante le détruit.
-func test_blown_block_reveals_its_item_and_a_later_blast_burns_it() -> void:
+# Un bloc détruit révèle son objet, intact ; une explosion suivante le laisse aussi.
+func test_blown_block_reveals_its_item_and_blasts_leave_it() -> void:
 	var a := Fixtures.flat(9, 3)
 	a.set_tile(Vector2i(4, 1), Arena.Tile.BLOCK)
 	var w := _world([Vector2(8.5, 0.5)], a)
@@ -61,7 +61,7 @@ func test_blown_block_reveals_its_item_and_a_later_blast_burns_it() -> void:
 	_wait(w, 1.0)
 	w.add_bomb(0, Vector2i(3, 1), 0.1)
 	_wait(w, 0.2)
-	assert_false(w.items.has(Vector2i(4, 1)), "brûlé par l'explosion suivante")
+	assert_eq(w.items.get(Vector2i(4, 1)), SimConfig.Item.FIRE, "une explosion ne le détruit pas")
 
 func test_lifting_a_block_reveals_its_item() -> void:
 	var a := Fixtures.flat(9, 3)
