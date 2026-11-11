@@ -1,8 +1,8 @@
 class_name ItemsView
 extends Node3D
 
-# Items lying on the ground, bobbing a little above it, and those on their way down in crates
-# under a parachute. Each item is a coloured tile with a short
+# Items lying on the ground, bobbing a little above it, and those on their way down: crates under
+# a parachute, Bomb items bursting out of a dead player. Each item is a coloured tile with a short
 # label; the Bomb is a little blue bomb, the Café navette a cup of coffee with a navette, the Heart a big pink heart and the Fire a little fire.
 
 const COLORS := {
@@ -21,6 +21,7 @@ const CRATE_START := 9.0 # height a crate starts coming down from
 const CRATE_SIZE := 0.5
 const CANOPY_RADIUS := 0.55
 const CANOPY_ABOVE := 0.85 # from the crate's middle to the parachute's rim
+const SPILL_ARC := 1.4 # top of a spilt item's flight
 const SWAY := 0.12 # radians a crate swings under its parachute
 const BOB := 0.08
 const HEART_HEIGHT := 0.6 # half a player
@@ -75,19 +76,24 @@ func _sync_drops(world: World) -> void:
 	for d: Drop in world.drops:
 		var n: Node3D = _drops.get(d, null)
 		if n == null:
-			n = make_crate()
+			n = make_crate() if d.kind == Drop.Kind.CRATE else make_item(d.item)
 			add_child(n)
 			_drops[d] = n
 		var t := d.progress()
 		var ground := world.arena.h2_at(d.cell) * 0.5 if world.arena.in_bounds(d.cell) else 0.0
 		var to := Vector3(d.cell.x + 0.5, ground, d.cell.y + 0.5)
-		var body: Node3D = n.get_node("Body")
-		body.position.y = lerpf(CRATE_START, 0.5 * CRATE_SIZE, t)
-		body.rotation.z = sin(_time * 2.5 + d.cell.x) * SWAY
-		body.rotation.x = sin(_time * 1.9 + d.cell.y) * SWAY * 0.6
-		var shadow: Node3D = n.get_node("Shadow")
-		shadow.scale = Vector3.ONE * lerpf(0.4, 1.0, t) # grows as the crate nears
-		n.position = to
+		if d.kind == Drop.Kind.CRATE:
+			var body: Node3D = n.get_node("Body")
+			body.position.y = lerpf(CRATE_START, 0.5 * CRATE_SIZE, t)
+			body.rotation.z = sin(_time * 2.5 + d.cell.x) * SWAY
+			body.rotation.x = sin(_time * 1.9 + d.cell.y) * SWAY * 0.6
+			var shadow: Node3D = n.get_node("Shadow")
+			shadow.scale = Vector3.ONE * lerpf(0.4, 1.0, t) # grows as the crate nears
+			n.position = to
+		else:
+			var from := Vector3(d.from.x, ground, d.from.y)
+			n.position = from.lerp(to, t) + Vector3.UP * (HOVER + 4.0 * SPILL_ARC * t * (1.0 - t))
+			n.rotation.y = t * TAU
 
 # A new drawing of an item, centred on its middle.
 static func make_item(item: int) -> Node3D:

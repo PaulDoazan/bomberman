@@ -219,6 +219,32 @@ func test_a_thrown_coffee_makes_its_target_sick() -> void:
 	_wait(w, SimConfig.THROW_FLIGHT + 0.1)
 	assert_true((w.players[1] as PlayerState).sick != SimConfig.Sick.NONE, "la cible tombe malade")
 
+# Mort avec des bombes en plus : elles jaillissent autour, et les autres peuvent les ramasser.
+func test_a_dead_player_spills_their_bomb_items() -> void:
+	var w := _world([Vector2(4.5, 1.5), Vector2(0.5, 1.5)])
+	var p := w.players[0] as PlayerState
+	p.max_bombs = SimConfig.MAX_BOMBS + 3
+	w.kill(0, "explosion")
+	assert_eq(p.max_bombs, SimConfig.MAX_BOMBS, "il les perd")
+	assert_eq(w.drops.size(), 3, "trois bombes jaillissent")
+	for d: Drop in w.drops:
+		assert_eq(d.item, SimConfig.Item.BOMB)
+		assert_true(d.cell != p.cell() and absi(d.cell.x - 4) <= SimConfig.DROP_REACH, "autour du mort")
+	assert_true(w.items.is_empty(), "encore en l'air")
+	_wait(w, SimConfig.SPILL_FLIGHT + 0.05)
+	assert_eq(w.items.size(), 3, "au sol")
+	assert_true(w.drops.is_empty())
+	var cells: Array = w.items.keys()
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.x < b.x)
+	var q := w.players[1] as PlayerState
+	_wait(w, 3.0, {1: _go(Arena.center_of(cells[-1]))})
+	assert_true(q.max_bombs > SimConfig.MAX_BOMBS, "un autre les ramasse")
+
+func test_dying_without_bomb_items_spills_nothing() -> void:
+	var w := _world([Vector2(4.5, 1.5)])
+	w.kill(0, "explosion")
+	assert_true(w.drops.is_empty())
+
 # Des caisses descendent en parachute pendant la partie, avec un objet dedans.
 func test_crates_come_down_with_items() -> void:
 	var w := _world([Vector2(0.5, 0.5)], Fixtures.flat(9, 9))
@@ -228,6 +254,7 @@ func test_crates_come_down_with_items() -> void:
 	_wait(w, 0.2)
 	assert_eq(w.drops.size(), 1, "une caisse descend")
 	var d: Drop = w.drops[0]
+	assert_eq(d.kind, Drop.Kind.CRATE)
 	assert_eq(d.item, SimConfig.Item.HEART, "un objet activé")
 	_wait(w, SimConfig.CRATE_FALL)
 	assert_eq(w.items.get(d.cell), SimConfig.Item.HEART, "posée, elle laisse son objet")
@@ -242,6 +269,7 @@ func test_no_crates_when_every_item_is_off() -> void:
 func test_a_drop_whose_cell_got_taken_lands_next_to_it() -> void:
 	var w := _world([Vector2(0.5, 0.5)])
 	var d := Drop.new()
+	d.kind = Drop.Kind.CRATE
 	d.item = SimConfig.Item.BOMB
 	d.cell = Vector2i(4, 1)
 	w.drops.append(d)

@@ -76,6 +76,7 @@ func test_drops_are_drawn_on_their_way_down() -> void:
 	var view := ItemsView.new()
 	var w := World.new(Fixtures.flat(9, 3), [0] as Array[int], SimConfig.new(), RandomNumberGenerator.new())
 	var d := Drop.new()
+	d.kind = Drop.Kind.CRATE
 	d.item = SimConfig.Item.FIRE
 	d.cell = Vector2i(4, 1)
 	w.drops.append(d)

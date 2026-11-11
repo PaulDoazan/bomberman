@@ -2,7 +2,8 @@ class_name Items
 extends RefCounted
 
 # Items, as in Bomberman 64: hidden in blocks, revealed when the block goes (blown up or lifted),
-# picked up by walking over them; blasts leave them be. Crates bring more down during a round. The Café navette makes whoever picks it up
+# picked up by walking over them; blasts leave them be. Crates bring more down during a round, and a
+# player who dies spills their Bomb items around. The Café navette makes whoever picks it up
 # sick for a while (it can also be lifted from the front and thrown at someone). Static helpers
 # over a World.
 
@@ -47,7 +48,8 @@ static func _pool(world: World) -> Array[int]:
 			pool.append(item)
 	return pool
 
-# A crate comes down every CRATE_EVERY seconds on a free cell; crates land, each on its cell, or the nearest free one if that has been taken meanwhile (lost if none).
+# A crate comes down every CRATE_EVERY seconds on a free cell; it and the spilt items in flight
+# land, each on its cell, or the nearest free one if that has been taken meanwhile (lost if none).
 static func update_drops(world: World) -> void:
 	world.crate_timer -= SimConfig.DT
 	if world.crate_timer <= 1e-6:
@@ -63,7 +65,7 @@ static func update_drops(world: World) -> void:
 		var c: Variant = _nearest_free(world, d.cell)
 		if c != null:
 			world.items[c] = d.item
-			world.events.append({"type": "drop_landed", "cell": c, "item": d.item})
+			world.events.append({"type": "drop_landed", "cell": c, "item": d.item, "kind": d.kind})
 
 static func _drop_crate(world: World) -> void:
 	var pool := _pool(world)
@@ -74,6 +76,7 @@ static func _drop_crate(world: World) -> void:
 	for item in pool:
 		total += SimConfig.ITEM_WEIGHTS[item]
 	var d := Drop.new()
+	d.kind = Drop.Kind.CRATE
 	d.item = _draw(world, pool, total)
 	d.cell = cells[world.rng.randi_range(0, cells.size() - 1)]
 	world.drops.append(d)
@@ -106,6 +109,27 @@ static func _nearest_free(world: World, c: Vector2i) -> Variant:
 		if best == null or (f - c).length_squared() < (best - c).length_squared():
 			best = f
 	return best
+
+# A dying player loses their Bomb items: they burst out of them to free cells around.
+static func spill_bombs(world: World, p: PlayerState) -> void:
+	var extra := p.max_bombs - SimConfig.MAX_BOMBS
+	p.max_bombs = SimConfig.MAX_BOMBS
+	if extra <= 0:
+		return
+	var cells := _free_cells(world, p.cell(), SimConfig.DROP_REACH)
+	cells.erase(p.cell())
+	for i in range(cells.size() - 1, 0, -1): # shuffled
+		var j := world.rng.randi_range(0, i)
+		var t := cells[i]
+		cells[i] = cells[j]
+		cells[j] = t
+	for i in mini(extra, cells.size()):
+		var d := Drop.new()
+		d.kind = Drop.Kind.SPILL
+		d.item = SimConfig.Item.BOMB
+		d.from = p.pos
+		d.cell = cells[i]
+		world.drops.append(d)
 
 # Players walking over an item pick it up (a carried or flying player does not touch the ground).
 static func update_pickups(world: World) -> void:
@@ -154,9 +178,10 @@ static func cure(p: PlayerState) -> void:
 	p.sick = SimConfig.Sick.NONE
 	p.sick_timer = 0.0
 
-# Losing a life loses the Remote and the sickness; the other items stay.
+# Losing a life loses the Remote and the sickness and spills the Bomb items; the other items stay.
 static func on_death(world: World, p: PlayerState) -> void:
 	cure(p)
+	spill_bombs(world, p)
 	if p.remote:
 		p.remote = false
 		for b: BombState in world.bombs.values():
