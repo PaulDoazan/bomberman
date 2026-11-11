@@ -63,23 +63,23 @@ const KICK_PUSH_TIME := 0.2 # seconds pushing against a bomb before kicking it
 const KICK_SPEED := 6.0 # cells per second
 
 # Items hidden in destructible blocks, as in Bomberman 64. Each can be turned off in the settings.
-enum Item { FIRE, BOMB, REMOTE, HEART, SKULL }
+enum Item { FIRE, BOMB, REMOTE, HEART, COFFEE }
 const ITEM_LABELS := {
 	Item.FIRE: "Feu",
 	Item.BOMB: "Bombe",
 	Item.REMOTE: "Télécommande",
 	Item.HEART: "Cœur",
-	Item.SKULL: "Tête de mort",
+	Item.COFFEE: "Café navette",
 }
 const ITEM_CHANCE := 0.35 # share of blocks hiding an item
-const ITEM_WEIGHTS := {Item.FIRE: 25, Item.BOMB: 25, Item.REMOTE: 8, Item.HEART: 8, Item.SKULL: 12}
+const ITEM_WEIGHTS := {Item.FIRE: 25, Item.BOMB: 25, Item.REMOTE: 8, Item.HEART: 8, Item.COFFEE: 12}
 const MAX_BOMBS_CAP := 8 # Bomb items stop there
 const FIRE_MAX := 3 # Fire level of a regular bomb; pumping goes up to LEVEL_MAX
 const PUMP_MAX := 3 # pumps a held bomb takes
 const LEVEL_MAX := 6
 const LEVEL_RADIUS := 0.75 # blast radius added per level
 
-# Skull sicknesses, one drawn at random.
+# Café navette sicknesses, one drawn at random.
 enum Sick { NONE, BIG, TINY, DISARMED, REVERSE, DISGUISE, INSTANT, FIRE }
 const SICK_LABELS := {
 	Sick.BIG: "Géant", Sick.TINY: "Minuscule", Sick.DISARMED: "Désarmé", Sick.REVERSE: "Inversé",

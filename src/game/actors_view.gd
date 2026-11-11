@@ -18,7 +18,7 @@ const SIT_STAR_HEIGHT := 1.2 # stars above a player sitting knocked out
 const HOP_HEIGHT := 0.35 # top of the hop of a player knocked back by a bomb
 const BIG_SCALE := 1.5 # a big player (Big sickness), drawn larger
 const TINY_SCALE := 0.6
-const SICK_BADGE_HEIGHT := 1.75 # a little skull above the head of a sick player
+const SICK_BADGE_HEIGHT := 1.75 # a little café navette above the head of a sick player
 # The throw gauge above what is held: a triangle rising to the right, like a volume control,
 # filling from its tip while the button is held.
 const GAUGE_HEIGHT := 2.5
@@ -96,7 +96,7 @@ class PlayerNode:
 	var anim: AnimationPlayer
 	var held_bomb: MeshInstance3D
 	var held_block: MeshInstance3D
-	var held_item: Node3D # a skull being carried
+	var held_item: Node3D # a café navette being carried
 	var sick_badge: Node3D
 	var color: Color
 	var size := 1.0 # drawn size, eased towards the target
@@ -117,7 +117,7 @@ class PlayerNode:
 
 var _players: Dictionary = {} # id -> PlayerNode
 var _bombs: Dictionary = {} # id -> MeshInstance3D
-var _blocks_flying: Dictionary = {} # FlyingObject instance id -> Node3D (a block or a skull)
+var _blocks_flying: Dictionary = {} # FlyingObject instance id -> Node3D (a block or a café navette)
 var _domes: Dictionary = {} # Explosion instance id -> MeshInstance3D
 var _corpses: Array[Dictionary] = [] # {node: Node3D, mat: StandardMaterial3D, born: float}
 
@@ -369,8 +369,8 @@ func _make_player(color: Color) -> PlayerNode:
 		var a := TAU * i / STAR_COUNT
 		s.position = Vector3(cos(a), 0.0, sin(a)) * STAR_ORBIT
 		n.stars.add_child(s)
-	n.held_item = ItemsView.make_item(SimConfig.Item.SKULL)
-	n.sick_badge = ItemsView.make_item(SimConfig.Item.SKULL)
+	n.held_item = ItemsView.make_item(SimConfig.Item.COFFEE)
+	n.sick_badge = ItemsView.make_item(SimConfig.Item.COFFEE)
 	n.sick_badge.scale = Vector3.ONE * 0.6
 	n.sick_badge.position.y = SICK_BADGE_HEIGHT
 	n.gauge = _make_gauge()
@@ -544,7 +544,7 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		n.gauge.visible = p.charging
 		n.gauge_fill.scale = Vector3(maxf(p.charge, 0.001), maxf(p.charge, 0.001), 1.0)
 
-# Size, flames and the skull badge of a sick player.
+# Size, flames and the café navette badge of a sick player.
 func _show_sickness(world: World, n: PlayerNode, p: PlayerState, ghost: bool) -> void:
 	var want := 1.0
 	if not ghost and p.sick == SimConfig.Sick.BIG:

@@ -29,3 +29,20 @@ func test_the_fire_is_a_little_fire_of_three_flames() -> void:
 	assert_eq(outer.material_override.albedo_color, Color("ff3d1a"), "rouge dehors")
 	assert_eq((flames[2] as MeshInstance3D).material_override.albedo_color, Color("ffe14d"), "jaune dedans")
 	n.free()
+
+# Le Café navette est une tasse de café sur sa soucoupe, avec une navette dorée fendue sur le dessus.
+func test_the_cafe_navette_is_a_cup_of_coffee_with_a_navette() -> void:
+	var n := ItemsView.make_item(SimConfig.Item.COFFEE)
+	assert_true(n.find_child("Cup", true, false) != null, "une tasse")
+	assert_true(n.find_child("Coffee", true, false) != null, "du café dedans")
+	assert_true(n.find_child("Handle", true, false) != null, "une anse")
+	assert_true(n.find_child("Saucer", true, false) != null, "une soucoupe")
+	var navette: MeshInstance3D = n.find_child("Navette", true, false)
+	assert_true(navette != null, "une navette")
+	assert_true(navette.find_child("Slit", true, false) != null, "fendue")
+	var size := navette.mesh.get_aabb().size
+	assert_almost(size.x, ItemsView.NAVETTE_LENGTH, 1e-3, "longue")
+	assert_true(size.x > 3.0 * size.z, "allongée comme un petit bateau")
+	assert_eq(navette.material_override.albedo_color, ItemsView.NAVETTE_COLOR, "dorée")
+	assert_true(n.find_children("*", "Label3D", true, false).is_empty(), "pas d'étiquette")
+	n.free()

@@ -2,7 +2,7 @@ class_name Items
 extends RefCounted
 
 # Items, as in Bomberman 64: hidden in blocks, revealed when the block goes (blown up or lifted),
-# picked up by walking over them, destroyed by a later blast. The Skull makes whoever picks it up
+# picked up by walking over them, destroyed by a later blast. The Café navette makes whoever picks it up
 # sick for a while (it can also be lifted from the front and thrown at someone). Static helpers
 # over a World.
 
@@ -66,7 +66,7 @@ static func apply(world: World, p: PlayerState, item: int) -> void:
 			p.remote = true
 		SimConfig.Item.HEART:
 			p.heart = true
-		SimConfig.Item.SKULL:
+		SimConfig.Item.COFFEE:
 			infect(world, p)
 
 # A random sickness for SICK_TIME, replacing the one p may have.

@@ -81,7 +81,7 @@ func decide(world: World, id: int) -> PlayerIntent:
 	var goal := func(c: Vector2i) -> bool:
 		if c == cell:
 			return false
-		if world.items.has(c) and world.items[c] != SimConfig.Item.SKULL:
+		if world.items.has(c) and world.items[c] != SimConfig.Item.COFFEE:
 			return true # an item to pick up
 		for d in Arena.ORTHOGONAL:
 			var n: Vector2i = c + d
@@ -141,7 +141,7 @@ func _can_enter(world: World, bot: PlayerState, bomb_cells: Dictionary, from: Ve
 	var b: BombState = bomb_cells.get(to, null)
 	if b != null and not bot.id in b.passable_for:
 		return false
-	if world.items.get(to, -1) == SimConfig.Item.SKULL:
+	if world.items.get(to, -1) == SimConfig.Item.COFFEE:
 		return false # never walk into a sickness
 	return not (_water_unsafe(world, to) if strict else world.is_submerged(to))
 

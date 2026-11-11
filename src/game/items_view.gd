@@ -2,7 +2,7 @@ class_name ItemsView
 extends Node3D
 
 # Items lying on the ground, bobbing a little above it. Each item is a coloured tile with a short
-# label; the Skull is a little skull, the Heart a big pink heart and the Fire a little fire.
+# label; the Café navette is a cup of coffee with a navette, the Heart a big pink heart and the Fire a little fire.
 
 const COLORS := {
 	SimConfig.Item.FIRE: Color("ff5a1f"),
@@ -21,6 +21,12 @@ const BOB := 0.08
 const HEART_HEIGHT := 0.6 # half a player
 const HEART_DEPTH := 0.14 # how far each face bulges, like an emoji
 const FIRE_HEIGHT := 0.6
+const CUP_HEIGHT := 0.3
+const CUP_RADIUS := 0.16 # at the rim
+const SAUCER_RADIUS := 0.3
+const NAVETTE_LENGTH := 0.52 # the Marseille biscuit, a little boat
+const NAVETTE_RADIUS := 0.075
+const NAVETTE_COLOR := Color("e9c27e")
 const PUFFY_SIDES := 48
 const FLICKER := 0.08 # how much a fire stretches and squashes as it flickers
 
@@ -54,8 +60,8 @@ func sync(world: World) -> void:
 static func make_item(item: int) -> Node3D:
 	var n := Node3D.new()
 	n.set_meta("item", item)
-	if item == SimConfig.Item.SKULL:
-		n.add_child(_make_skull())
+	if item == SimConfig.Item.COFFEE:
+		n.add_child(_make_coffee())
 		return n
 	if item == SimConfig.Item.HEART:
 		n.add_child(_make_heart())
@@ -84,29 +90,109 @@ static func make_item(item: int) -> Node3D:
 	n.add_child(label)
 	return n
 
-static func _make_skull() -> Node3D:
-	var skull := Node3D.new()
-	var white := StandardMaterial3D.new()
-	white.albedo_color = Color("eeeae0")
-	var black := StandardMaterial3D.new()
-	black.albedo_color = Color("111111")
-	var head := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.3
-	sphere.height = 0.55
-	head.mesh = sphere
-	head.material_override = white
-	skull.add_child(head)
-	for side in [-1.0, 1.0]:
-		var eye := MeshInstance3D.new()
-		var e := SphereMesh.new()
-		e.radius = 0.08
-		e.height = 0.16
-		eye.mesh = e
-		eye.material_override = black
-		eye.position = Vector3(0.11 * side, 0.04, 0.25) # facing +Z, the camera's side
-		skull.add_child(eye)
-	return skull
+# A café navette: a white cup of black coffee on its saucer, and a navette, the boat-shaped
+# Marseille biscuit, lying across the front of the saucer, against the cup.
+static func _make_coffee() -> Node3D:
+	var root := Node3D.new()
+	root.name = "CafeNavette"
+	var china := StandardMaterial3D.new()
+	china.albedo_color = Color("f6f3ec")
+	china.roughness = 0.2
+	var bottom := -0.5 * (CUP_HEIGHT + 0.03) # centred on its middle
+	var saucer := MeshInstance3D.new()
+	saucer.name = "Saucer"
+	var plate := CylinderMesh.new()
+	plate.top_radius = SAUCER_RADIUS
+	plate.bottom_radius = SAUCER_RADIUS * 0.75
+	plate.height = 0.03
+	saucer.mesh = plate
+	saucer.material_override = china
+	saucer.position.y = bottom + 0.015
+	root.add_child(saucer)
+	var cup := MeshInstance3D.new()
+	cup.name = "Cup"
+	var body := CylinderMesh.new()
+	body.top_radius = CUP_RADIUS
+	body.bottom_radius = CUP_RADIUS * 0.72
+	body.height = CUP_HEIGHT
+	cup.mesh = body
+	cup.material_override = china
+	cup.position = Vector3(0.0, bottom + 0.03 + 0.5 * CUP_HEIGHT, -0.06)
+	root.add_child(cup)
+	var coffee := MeshInstance3D.new()
+	coffee.name = "Coffee"
+	var surface := CylinderMesh.new()
+	surface.top_radius = CUP_RADIUS * 0.85 # a white rim shows around it
+	surface.bottom_radius = CUP_RADIUS * 0.85
+	surface.height = 0.006
+	coffee.mesh = surface
+	var brown := StandardMaterial3D.new()
+	brown.albedo_color = Color("3a2114")
+	brown.roughness = 0.1
+	coffee.material_override = brown
+	coffee.position.y = 0.5 * CUP_HEIGHT + 0.003
+	cup.add_child(coffee)
+	var handle := MeshInstance3D.new()
+	handle.name = "Handle"
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.045
+	ring.outer_radius = 0.075
+	handle.mesh = ring
+	handle.material_override = china
+	handle.rotation.x = PI * 0.5 # standing up, facing the camera
+	handle.position = Vector3(CUP_RADIUS * 0.95, 0.02, 0.0)
+	cup.add_child(handle)
+	var navette := _make_navette()
+	navette.position = Vector3(0.0, bottom + 0.03 + NAVETTE_RADIUS * 0.85, CUP_RADIUS + NAVETTE_RADIUS - 0.04)
+	navette.rotation.y = deg_to_rad(-12.0)
+	root.add_child(navette)
+	return root
+
+# A navette lying along X: a golden stick narrowing to rounded ends, a little flattened,
+# with the long slit of a darker crust open along its top.
+static func _make_navette() -> Node3D:
+	var gold := StandardMaterial3D.new()
+	gold.albedo_color = NAVETTE_COLOR
+	gold.roughness = 0.7
+	var navette := MeshInstance3D.new()
+	navette.name = "Navette"
+	navette.mesh = _spindle(NAVETTE_LENGTH, NAVETTE_RADIUS, 0.8, 0.3)
+	navette.material_override = gold
+	var crust := StandardMaterial3D.new()
+	crust.albedo_color = Color("c98a3c")
+	crust.roughness = 0.8
+	var slit := MeshInstance3D.new()
+	slit.name = "Slit"
+	slit.mesh = _spindle(NAVETTE_LENGTH * 0.66, NAVETTE_RADIUS * 0.45, 0.35, 0.8) # pointed, like an eye
+	slit.material_override = crust
+	slit.position.y = NAVETTE_RADIUS * 0.8 * 0.9 # sunk a little into the top
+	navette.add_child(slit)
+	return navette
+
+# A solid of revolution along X, length long and radius wide at its middle, narrowing to rounded
+# ends (pointier as sharp grows); flat squashes its height.
+static func _spindle(length: float, radius: float, flat: float, sharp: float) -> ArrayMesh:
+	const ALONG := 40
+	const AROUND := 16
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rings: Array = []
+	for i in ALONG + 1:
+		var t := float(i) / ALONG
+		var r := radius * pow(sin(PI * t), sharp)
+		var ring: Array[Vector3] = []
+		for j in AROUND:
+			var a := TAU * j / AROUND
+			ring.append(Vector3((t - 0.5) * length, sin(a) * r * flat, cos(a) * r))
+		rings.append(ring)
+	for i in ALONG:
+		for j in AROUND:
+			var k := (j + 1) % AROUND
+			var quad: Array[Vector3] = [rings[i][j], rings[i + 1][j], rings[i + 1][k], rings[i][k]]
+			for q in [0, 1, 2, 0, 2, 3]:
+				st.add_vertex(quad[q])
+	st.generate_normals()
+	return st.commit()
 
 # A puffy heart standing up and tilted back to face the camera.
 static func _make_heart() -> Node3D:

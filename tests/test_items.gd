@@ -44,7 +44,7 @@ func test_blocks_hide_items_only_when_turned_on() -> void:
 	var w2 := World.new(Fixtures.flat(9, 9), [0] as Array[int], cfg, RandomNumberGenerator.new())
 	assert_true(w2.hidden.is_empty(), "aucun objet quand tout est désactivé")
 	cfg.items = {SimConfig.Item.FIRE: false, SimConfig.Item.BOMB: false,
-			SimConfig.Item.REMOTE: false, SimConfig.Item.SKULL: false}
+			SimConfig.Item.REMOTE: false, SimConfig.Item.COFFEE: false}
 	var w3 := World.new(a, [0] as Array[int], cfg, RandomNumberGenerator.new())
 	for item: int in w3.hidden.values():
 		assert_eq(item, SimConfig.Item.HEART, "seulement les objets activés")
@@ -158,9 +158,9 @@ func test_heart_takes_one_blast() -> void:
 	_wait(w, 0.3)
 	assert_eq(p.lives, 2, "le coup suivant tue")
 
-func test_skull_makes_sick_then_wears_off() -> void:
+func test_coffee_makes_sick_then_wears_off() -> void:
 	var w := _world([Vector2(1.5, 1.5)])
-	w.items[Vector2i(2, 1)] = SimConfig.Item.SKULL
+	w.items[Vector2i(2, 1)] = SimConfig.Item.COFFEE
 	_wait(w, 0.5, {0: _go(Vector2(2.5, 1.5))})
 	var p := w.players[0] as PlayerState
 	assert_true(p.sick != SimConfig.Sick.NONE, "malade")
@@ -206,14 +206,14 @@ func test_on_fire_burns_unless_killing_someone() -> void:
 	w.kill(2, "explosion", 1)
 	assert_eq(q.sick, SimConfig.Sick.NONE, "guéri en éliminant quelqu'un")
 
-func test_a_thrown_skull_makes_its_target_sick() -> void:
+func test_a_thrown_coffee_makes_its_target_sick() -> void:
 	var w := _world([Vector2(1.5, 1.5), Vector2(4.5, 1.5)]) # a throw lands 3 cells ahead
 	var p := w.players[0] as PlayerState
 	p.facing = Vector2i(1, 0)
 	p.aim = Vector2i(1, 0)
-	w.items[Vector2i(2, 1)] = SimConfig.Item.SKULL
+	w.items[Vector2i(2, 1)] = SimConfig.Item.COFFEE
 	w.step({0: _intent(false, true)})
-	assert_eq(p.held, PlayerState.Held.ITEM, "tête de mort en main")
+	assert_eq(p.held, PlayerState.Held.ITEM, "café navette en main")
 	assert_eq(p.sick, SimConfig.Sick.NONE, "sans tomber malade")
 	w.step({0: _intent(false, true)})
 	_wait(w, SimConfig.THROW_FLIGHT + 0.1)

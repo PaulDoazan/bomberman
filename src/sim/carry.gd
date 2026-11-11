@@ -1,7 +1,7 @@
 class_name Carry
 extends RefCounted
 
-# Picking up, carrying and throwing bombs, players, blocks and skulls. Static helpers over a World.
+# Picking up, carrying and throwing bombs, players, blocks and cafés navette. Static helpers over a World.
 
 # carried_by of a player in flight: neither free (-1) nor carried by anyone. Such a player
 # cannot act, be hit, drown or be possessed until they land.
@@ -74,10 +74,10 @@ static func pick_up(world: World, p: PlayerState) -> void:
 	if b != null:
 		_hold_bomb(p, b)
 		return
-	if world.items.get(front, -1) == SimConfig.Item.SKULL:
+	if world.items.get(front, -1) == SimConfig.Item.COFFEE:
 		world.items.erase(front)
 		p.held = PlayerState.Held.ITEM
-		p.held_id = SimConfig.Item.SKULL
+		p.held_id = SimConfig.Item.COFFEE
 		return
 	var other := _player_in_reach(world, p)
 	if other != null:
@@ -213,7 +213,7 @@ static func _land(world: World, f: FlyingObject) -> void:
 				var t: PlayerState = world.players[f.ref_id]
 				t.carried_by = -1
 				world.kill(t.id, "drown")
-		return # a skull sinks
+		return # a café navette sinks
 	f.landing = c
 	match f.kind:
 		PlayerState.Held.BOMB:
