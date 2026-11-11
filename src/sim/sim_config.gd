@@ -66,24 +66,23 @@ const KICK_PUSH_TIME := 0.2 # seconds pushing against a bomb before kicking it
 const KICK_SPEED := 6.0 # cells per second
 
 # Items hidden in destructible blocks, as in Bomberman 64. Each can be turned off in the settings.
-enum Item { FIRE, BOMB, REMOTE, HEART, SKULL, EVIL }
+enum Item { FIRE, BOMB, REMOTE, HEART, COFFEE }
 const ITEM_LABELS := {
 	Item.FIRE: "Feu",
 	Item.BOMB: "Bombe",
 	Item.REMOTE: "Télécommande",
 	Item.HEART: "Cœur",
-	Item.SKULL: "Tête de mort",
-	Item.EVIL: "Mal",
+	Item.COFFEE: "Café navette",
 }
-const ITEM_CHANCE := 0.35 # share of blocks hiding an item (Evil aside)
-const ITEM_WEIGHTS := {Item.FIRE: 25, Item.BOMB: 25, Item.REMOTE: 8, Item.HEART: 8, Item.SKULL: 12}
+const ITEM_CHANCE := 0.35 # share of blocks hiding an item
+const ITEM_WEIGHTS := {Item.FIRE: 25, Item.BOMB: 25, Item.REMOTE: 8, Item.HEART: 8, Item.COFFEE: 12}
 const MAX_BOMBS_CAP := 8 # Bomb items stop there
 const FIRE_MAX := 3 # Fire level of a regular bomb; pumping goes up to LEVEL_MAX
 const PUMP_MAX := 3 # pumps a held bomb takes
 const LEVEL_MAX := 6
 const LEVEL_RADIUS := 0.75 # blast radius added per level
 
-# Skull sicknesses, one drawn at random.
+# Café navette sicknesses, one drawn at random.
 enum Sick { NONE, BIG, TINY, DISARMED, REVERSE, DISGUISE, INSTANT, FIRE }
 const SICK_LABELS := {
 	Sick.BIG: "Géant", Sick.TINY: "Minuscule", Sick.DISARMED: "Désarmé", Sick.REVERSE: "Inversé",
@@ -91,18 +90,9 @@ const SICK_LABELS := {
 }
 const SICK_TIME := 15.0
 const INSTANT_FUSE := 1.0
-const BIG_SPEED := 0.6 # speed factor of a big player (Big sickness, Gulliver)
+const BIG_SPEED := 0.6 # speed factor of a big player (Big sickness)
 const TINY_SPEED := 1.5
 
-# Evil: one per round, something happens to everyone for a while.
-enum Evil { NONE, GULLIVER, TWISTER, SHUFFLE, MAXIMUM }
-const EVIL_LABELS := {
-	Evil.GULLIVER: "Gulliver", Evil.TWISTER: "Tornade", Evil.SHUFFLE: "Mélange", Evil.MAXIMUM: "Maximum",
-}
-const EVIL_TIME := 10.0
-const TWISTER_SPEED := 2.5
-const TWISTER_REACH := 0.6 # how close a player must come to be caught
-const TWISTER_THROW := 3 # cells a caught player is flung
 
 const BLOCK_DENSITY := 0.15
 const SPAWN_CLEARANCE := 2

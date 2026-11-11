@@ -2,7 +2,7 @@ class_name PlayerState
 extends RefCounted
 
 enum Life { ALIVE, WAITING_RESPAWN, GHOST }
-enum Held { NONE, BOMB, PLAYER, BLOCK, ITEM } # ITEM: a skull, held_id its SimConfig.Item
+enum Held { NONE, BOMB, PLAYER, BLOCK, ITEM } # ITEM: a café navette, held_id its SimConfig.Item
 
 var id: int
 var pos: Vector2

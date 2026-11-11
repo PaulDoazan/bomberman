@@ -8,7 +8,7 @@ func _custom() -> SimConfig:
 	cfg.round_time = 90.0
 	cfg.lives = 2
 	cfg.map_size = "grande"
-	cfg.items[SimConfig.Item.SKULL] = false
+	cfg.items[SimConfig.Item.COFFEE] = false
 	return cfg
 
 func _labels(node: Node, out: Array[String] = []) -> Array[String]:
@@ -42,7 +42,7 @@ func test_load_then_build_round_trips() -> void:
 	assert_almost(cfg.round_time, 90.0, 0.01, "chrono")
 	assert_eq(cfg.lives, 2, "vies")
 	assert_eq(cfg.map_size, "grande", "taille")
-	assert_false(cfg.item_enabled(SimConfig.Item.SKULL), "malus coupé")
+	assert_false(cfg.item_enabled(SimConfig.Item.COFFEE), "malus coupé")
 	assert_true(cfg.item_enabled(SimConfig.Item.FIRE), "autres actifs")
 	form.free()
 
@@ -73,7 +73,7 @@ func test_changes_emit_changed_but_load_does_not() -> void:
 	assert_eq(count[0], 0, "load_config sans changed")
 	form.lives.get_child(2).pressed.emit() # the + button
 	assert_eq(count[0], 1, "stepper")
-	form.item_switches[SimConfig.Item.SKULL].button_pressed = true
+	form.item_switches[SimConfig.Item.COFFEE].button_pressed = true
 	assert_eq(count[0], 2, "interrupteur")
 	form.size_buttons["petite"].button_pressed = true
 	assert_eq(count[0], 3, "taille")

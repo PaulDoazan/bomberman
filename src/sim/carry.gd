@@ -1,7 +1,7 @@
 class_name Carry
 extends RefCounted
 
-# Picking up, carrying and throwing bombs, players, blocks and skulls. Static helpers over a World.
+# Picking up, carrying and throwing bombs, players, blocks and cafés navette. Static helpers over a World.
 
 # carried_by of a player in flight: neither free (-1) nor carried by anyone. Such a player
 # cannot act, be hit, drown or be possessed until they land.
@@ -74,10 +74,10 @@ static func pick_up(world: World, p: PlayerState) -> void:
 	if b != null:
 		_hold_bomb(p, b)
 		return
-	if world.items.get(front, -1) == SimConfig.Item.SKULL:
+	if world.items.get(front, -1) == SimConfig.Item.COFFEE:
 		world.items.erase(front)
 		p.held = PlayerState.Held.ITEM
-		p.held_id = SimConfig.Item.SKULL
+		p.held_id = SimConfig.Item.COFFEE
 		return
 	var other := _player_in_reach(world, p)
 	if other != null:
@@ -172,23 +172,6 @@ static func throw(world: World, p: PlayerState, charge := 0.0) -> void:
 	p.held_id = -1
 	p.throw_tick = world.tick
 
-# Flings p, with nobody throwing them (a twister): like a thrown player, stunned on landing.
-static func fling(world: World, p: PlayerState, dir: Vector2i) -> void:
-	release_links(world, p)
-	var f := FlyingObject.new()
-	f.uid = world.next_uid()
-	f.kind = PlayerState.Held.PLAYER
-	f.ref_id = p.id
-	f.from = p.pos
-	f.dir = dir
-	var dist := SimConfig.TWISTER_THROW if dir.x == 0 or dir.y == 0 else roundi(SimConfig.TWISTER_THROW / sqrt(2.0))
-	var land := _find_landing(world, p.cell() + dir * dist, dir, PlayerState.Held.PLAYER)
-	if world.arena.in_bounds(land):
-		f.landing = land
-	f.to = Arena.center_of(land)
-	p.carried_by = THROWN
-	world.flying.append(f)
-
 # Carried players follow their carrier and break free when their timer runs out.
 static func update_carried(world: World) -> void:
 	for p: PlayerState in world.players.values():
@@ -231,7 +214,7 @@ static func _land(world: World, f: FlyingObject) -> void:
 				var t: PlayerState = world.players[f.ref_id]
 				t.carried_by = -1
 				world.kill(t.id, "drown")
-		return # a skull sinks
+		return # a café navette sinks
 	f.landing = c
 	match f.kind:
 		PlayerState.Held.BOMB:

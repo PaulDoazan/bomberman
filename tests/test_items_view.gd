@@ -30,12 +30,34 @@ func test_the_fire_is_a_little_fire_of_three_flames() -> void:
 	assert_eq((flames[2] as MeshInstance3D).material_override.albedo_color, Color("ffe14d"), "jaune dedans")
 	n.free()
 
-# Le Mal est une amanite tue-mouche : un chapeau rouge à pois blancs sur un pied blanc.
-func test_evil_is_a_fly_agaric() -> void:
-	var n := ItemsView.make_item(SimConfig.Item.EVIL)
-	var cap: MeshInstance3D = n.find_child("Cap", true, false)
-	assert_true(cap != null, "un champignon")
+# Le Café navette est une tasse de café sur sa soucoupe, avec une navette dorée fendue sur le dessus.
+func test_the_cafe_navette_is_a_cup_of_coffee_with_a_navette() -> void:
+	var n := ItemsView.make_item(SimConfig.Item.COFFEE)
+	assert_true(n.find_child("Cup", true, false) != null, "une tasse")
+	assert_true(n.find_child("Coffee", true, false) != null, "du café dedans")
+	assert_true(n.find_child("Handle", true, false) != null, "une anse")
+	assert_true(n.find_child("Saucer", true, false) != null, "une soucoupe")
+	var navette: MeshInstance3D = n.find_child("Navette", true, false)
+	assert_true(navette != null, "une navette")
+	assert_true(navette.find_child("Slit", true, false) != null, "fendue")
+	var size := navette.mesh.get_aabb().size
+	assert_almost(size.x, ItemsView.NAVETTE_LENGTH, 1e-3, "longue")
+	assert_true(size.x > 3.0 * size.z, "allongée comme un petit bateau")
+	assert_eq(navette.material_override.albedo_color, ItemsView.NAVETTE_COLOR, "dorée")
 	assert_true(n.find_children("*", "Label3D", true, false).is_empty(), "pas d'étiquette")
-	assert_eq(cap.material_override.albedo_color, ItemsView.COLORS[SimConfig.Item.EVIL], "chapeau rouge")
-	assert_true(cap.get_child_count() > 3, "des pois blancs")
+	n.free()
+
+# La Bombe est une vraie bombe en plus petit, bleue, sans étiquette.
+func test_the_bomb_item_is_a_little_blue_bomb() -> void:
+	var n := ItemsView.make_item(SimConfig.Item.BOMB)
+	var bomb: Node3D = n.find_child("SmallBomb", true, false)
+	assert_true(bomb != null, "une petite bombe")
+	assert_true(bomb.scale.x < 1.0, "plus petite qu'une vraie")
+	for part in ["Body", "Cap", "Fuse", "Spark"]:
+		assert_true(bomb.find_child(part, true, false) != null, part)
+	var body: MeshInstance3D = bomb.find_child("Body", true, false)
+	assert_almost(body.mesh.radius, SimConfig.BOMB_BODY_RADIUS, 1e-6, "même forme qu'une vraie")
+	var blue: Color = body.material_override.albedo_color
+	assert_true(blue.b > blue.r and blue.b > blue.g, "bleue")
+	assert_true(n.find_children("*", "Label3D", true, false).is_empty(), "pas d'étiquette")
 	n.free()

@@ -10,6 +10,6 @@ func test_layout_follows_the_screen() -> void:
 
 func test_items_are_on_unless_turned_off() -> void:
 	var cfg := SimConfig.new()
-	assert_true(cfg.item_enabled(SimConfig.Item.SKULL), "activé par défaut")
-	cfg.items[SimConfig.Item.SKULL] = false
-	assert_false(cfg.item_enabled(SimConfig.Item.SKULL), "désactivé")
+	assert_true(cfg.item_enabled(SimConfig.Item.COFFEE), "activé par défaut")
+	cfg.items[SimConfig.Item.COFFEE] = false
+	assert_false(cfg.item_enabled(SimConfig.Item.COFFEE), "désactivé")

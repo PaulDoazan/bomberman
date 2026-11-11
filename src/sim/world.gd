@@ -17,10 +17,6 @@ var finished := false
 var winners: Array[int] = []
 var hidden: Dictionary = {} # block cell -> SimConfig.Item it hides
 var items: Dictionary = {} # cell -> SimConfig.Item lying there
-var evil := SimConfig.Evil.NONE # what is happening to everyone, and for how long
-var evil_timer := 0.0
-var twister_pos := Vector2.ZERO
-var twister_dir := Vector2.ZERO
 
 var teams: Dictionary = {} # player id -> team id; players absent from it are their own team
 var next_bomb_id := 0 # public so a client mirror predicts the ids the server will give

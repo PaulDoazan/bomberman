@@ -130,13 +130,13 @@ func test_config_roundtrip_and_clamp() -> void:
 	cfg.map_size = "grande"
 	cfg.round_time = 180.0
 	cfg.lives = 4
-	cfg.items[SimConfig.Item.SKULL] = false
+	cfg.items[SimConfig.Item.COFFEE] = false
 	var back := SimCodec.decode_config(SimCodec.encode_config(cfg))
 	assert_eq(back.bot_count, 5, "bots")
 	assert_eq(back.map_size, "grande", "taille")
 	assert_eq(back.round_time, 180.0, "durée")
 	assert_eq(back.lives, 4, "vies")
-	assert_false(back.item_enabled(SimConfig.Item.SKULL), "tête de mort désactivée")
+	assert_false(back.item_enabled(SimConfig.Item.COFFEE), "café navette désactivé")
 	assert_true(back.item_enabled(SimConfig.Item.FIRE), "feu activé")
 	var bad := SimCodec.decode_config({"lives": 99, "map_size": "xxl"})
 	assert_eq(bad.lives, 9, "vies bornées")

@@ -2,15 +2,12 @@ class_name Items
 extends RefCounted
 
 # Items, as in Bomberman 64: hidden in blocks, revealed when the block goes (blown up or lifted),
-# picked up by walking over them, destroyed by a later blast. The Skull makes whoever picks it up
-# sick for a while (it can also be lifted from the front and thrown at someone); Evil, once per
-# round, sets off something that happens to everyone. Static helpers over a World.
-
-const ALL_DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1), Vector2i(-1, 1),
-		Vector2i(-1, 0), Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1)]
+# picked up by walking over them, destroyed by a later blast. The Café navette makes whoever picks it up
+# sick for a while (it can also be lifted from the front and thrown at someone). Static helpers
+# over a World.
 
 # Draws what each block hides, among the items turned on: about ITEM_CHANCE of them hide one
-# (by ITEM_WEIGHTS), and one block hides Evil.
+# (by ITEM_WEIGHTS).
 static func hide_in_blocks(world: World) -> void:
 	var blocks: Array[Vector2i] = []
 	for y in world.arena.height:
@@ -33,8 +30,6 @@ static func hide_in_blocks(world: World) -> void:
 				if roll < 0:
 					world.hidden[c] = item
 					break
-	if world.cfg.item_enabled(SimConfig.Item.EVIL) and not blocks.is_empty():
-		world.hidden[blocks[world.rng.randi_range(0, blocks.size() - 1)]] = SimConfig.Item.EVIL
 
 # The block at c is gone: what it hid now lies there.
 static func reveal(world: World, c: Vector2i) -> void:
@@ -71,10 +66,8 @@ static func apply(world: World, p: PlayerState, item: int) -> void:
 			p.remote = true
 		SimConfig.Item.HEART:
 			p.heart = true
-		SimConfig.Item.SKULL:
+		SimConfig.Item.COFFEE:
 			infect(world, p)
-		SimConfig.Item.EVIL:
-			start_evil(world)
 
 # A random sickness for SICK_TIME, replacing the one p may have.
 static func infect(world: World, p: PlayerState) -> void:
@@ -82,19 +75,7 @@ static func infect(world: World, p: PlayerState) -> void:
 	p.sick_timer = SimConfig.SICK_TIME
 	world.events.append({"type": "sick", "id": p.id, "sick": p.sick})
 
-static func start_evil(world: World) -> void:
-	world.evil = world.rng.randi_range(SimConfig.Evil.GULLIVER, SimConfig.Evil.MAXIMUM)
-	world.evil_timer = SimConfig.EVIL_TIME
-	world.events.append({"type": "evil", "evil": world.evil})
-	match world.evil:
-		SimConfig.Evil.SHUFFLE:
-			_shuffle(world)
-		SimConfig.Evil.TWISTER:
-			var free := _free_cells(world)
-			world.twister_pos = Arena.center_of(free[world.rng.randi_range(0, free.size() - 1)]) if not free.is_empty() else Vector2.ZERO
-			world.twister_dir = Vector2.RIGHT.rotated(world.rng.randf() * TAU)
-
-# Sicknesses and Evil wear off; a player still on fire when it does burns.
+# Sicknesses wear off; a player still on fire when it does burns.
 static func update(world: World) -> void:
 	for p: PlayerState in world.players.values():
 		if p.sick == SimConfig.Sick.NONE:
@@ -105,14 +86,6 @@ static func update(world: World) -> void:
 			cure(p)
 			if burning and p.life == PlayerState.Life.ALIVE:
 				world.kill(p.id, "burn")
-	if world.evil == SimConfig.Evil.NONE:
-		return
-	if world.evil == SimConfig.Evil.TWISTER:
-		_move_twister(world)
-	world.evil_timer -= SimConfig.DT
-	if world.evil_timer <= 1e-6:
-		world.evil = SimConfig.Evil.NONE
-		world.evil_timer = 0.0
 
 static func cure(p: PlayerState) -> void:
 	p.sick = SimConfig.Sick.NONE
@@ -129,7 +102,7 @@ static func on_death(world: World, p: PlayerState) -> void:
 
 # How fast p walks: slower when big, faster when tiny.
 static func speed_of(world: World, p: PlayerState) -> float:
-	if p.sick == SimConfig.Sick.BIG or world.evil == SimConfig.Evil.GULLIVER:
+	if p.sick == SimConfig.Sick.BIG:
 		return SimConfig.PLAYER_SPEED * SimConfig.BIG_SPEED
 	if p.sick == SimConfig.Sick.TINY:
 		return SimConfig.PLAYER_SPEED * SimConfig.TINY_SPEED
@@ -137,7 +110,7 @@ static func speed_of(world: World, p: PlayerState) -> float:
 
 # Power level a bomb goes off with.
 static func level_of(world: World, b: BombState) -> int:
-	if b.disguised or world.evil == SimConfig.Evil.MAXIMUM:
+	if b.disguised:
 		return SimConfig.LEVEL_MAX
 	return mini(b.level + b.pump, SimConfig.LEVEL_MAX)
 
@@ -152,47 +125,3 @@ static func detonate(world: World, p: PlayerState) -> void:
 			oldest = b
 	if oldest != null:
 		oldest.fuse = 0.0
-
-# Alive players on the ground, free to move.
-static func _free_players(world: World) -> Array[PlayerState]:
-	var out: Array[PlayerState] = []
-	for p: PlayerState in world.players.values():
-		if p.life == PlayerState.Life.ALIVE and p.carried_by == -1:
-			out.append(p)
-	return out
-
-static func _free_cells(world: World) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	for y in world.arena.height:
-		for x in world.arena.width:
-			var c := Vector2i(x, y)
-			if not world.arena.is_solid(c) and not world.is_submerged(c):
-				out.append(c)
-	return out
-
-# Everyone on the ground swaps places at random.
-static func _shuffle(world: World) -> void:
-	var free := _free_players(world)
-	var spots: Array[Vector2] = []
-	for p in free:
-		spots.append(p.pos)
-	for i in range(spots.size() - 1, 0, -1):
-		var j := world.rng.randi_range(0, i)
-		var t := spots[i]
-		spots[i] = spots[j]
-		spots[j] = t
-	for i in free.size():
-		free[i].pos = spots[i]
-
-# The twister wanders, bouncing off walls, and flings away whoever it touches.
-static func _move_twister(world: World) -> void:
-	var step := world.twister_dir * SimConfig.TWISTER_SPEED * SimConfig.DT
-	var nxt := world.twister_pos + step
-	var c := Arena.cell_of(nxt)
-	if not world.arena.in_bounds(c) or world.arena.is_solid(c) or world.is_submerged(c):
-		world.twister_dir = world.twister_dir.rotated(PI * (0.5 + world.rng.randf()))
-	else:
-		world.twister_pos = nxt
-	for p in _free_players(world):
-		if p.stun_timer <= 0.0 and p.pos.distance_to(world.twister_pos) < SimConfig.TWISTER_REACH:
-			Carry.fling(world, p, ALL_DIRS[world.rng.randi_range(0, ALL_DIRS.size() - 1)])

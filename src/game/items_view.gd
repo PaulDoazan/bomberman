@@ -1,48 +1,42 @@
 class_name ItemsView
 extends Node3D
 
-# Items lying on the ground, bobbing a little above it, and Evil's twister. Each item is a
-# coloured tile with a short label; the Skull is a little skull, Evil a fly agaric, the Heart a big pink heart and
-# the Fire a little fire.
+# Items lying on the ground, bobbing a little above it. Each item is a coloured tile with a short
+# label; the Bomb is a little blue bomb, the Café navette a cup of coffee with a navette, the Heart a big pink heart and the Fire a little fire.
 
 const COLORS := {
 	SimConfig.Item.FIRE: Color("ff5a1f"),
-	SimConfig.Item.BOMB: Color("2a3550"),
+	SimConfig.Item.BOMB: Color("2f7bff"), # a bright blue, apart from the dark blue of remote bombs
 	SimConfig.Item.REMOTE: Color("1e7be0"),
 	SimConfig.Item.HEART: Color("ff4f9a"),
-	SimConfig.Item.EVIL: Color("e0201b"), # the fly agaric's cap
 }
 const TEXTS := {
 	SimConfig.Item.FIRE: "FEU",
-	SimConfig.Item.BOMB: "+1",
 	SimConfig.Item.REMOTE: "TÉLÉ",
 	SimConfig.Item.HEART: "CŒUR",
 }
 const HOVER := 0.3 # height of an item above the ground
 const BOB := 0.08
-const TWISTER_SPIN := 9.0 # radians per second
 const HEART_HEIGHT := 0.6 # half a player
 const HEART_DEPTH := 0.14 # how far each face bulges, like an emoji
 const FIRE_HEIGHT := 0.6
-const MUSHROOM_CAP := 0.3 # radius of the fly agaric's cap
-const MUSHROOM_STEM := 0.3 # height of its stem
+const BOMB_ITEM_SCALE := 0.55 # the Bomb item: a real bomb, this much smaller
+const CUP_HEIGHT := 0.3
+const CUP_RADIUS := 0.16 # at the rim
+const SAUCER_RADIUS := 0.3
+const NAVETTE_LENGTH := 0.52 # the Marseille biscuit, a little boat
+const NAVETTE_RADIUS := 0.075
+const NAVETTE_COLOR := Color("e9c27e")
 const PUFFY_SIDES := 48
 const FLICKER := 0.08 # how much a fire stretches and squashes as it flickers
 
 var _ground: Dictionary = {} # cell -> Node3D
-var _twister: Node3D
 var _time := 0.0
-
-func _init() -> void:
-	_twister = _make_twister()
-	_twister.visible = false
-	add_child(_twister)
 
 func reset() -> void:
 	for n: Node3D in _ground.values():
 		n.queue_free()
 	_ground.clear()
-	_twister.visible = false
 
 # dt: the sim time since the previous sync, one tick in solo, a snapshot interval online.
 func sync(world: World, dt: float = SimConfig.DT) -> void:
@@ -62,29 +56,22 @@ func sync(world: World, dt: float = SimConfig.DT) -> void:
 		if world.items[c] == SimConfig.Item.FIRE: # flickers
 			var f := sin(_time * 17.0 + c.x * 3.0) * 0.6 + sin(_time * 29.0 + c.y) * 0.4
 			n.scale = Vector3(1.0 - f * FLICKER * 0.5, 1.0 + f * FLICKER, 1.0)
-	_twister.visible = world.evil == SimConfig.Evil.TWISTER
-	if _twister.visible:
-		var at := world.twister_pos
-		var c := Arena.cell_of(at)
-		var y := world.arena.h2_at(c) * 0.5 if world.arena.in_bounds(c) else 0.0
-		_twister.position = Vector3(at.x, y, at.y)
-		_twister.rotation.y = _time * TWISTER_SPIN
 
 # A new drawing of an item, centred on its middle.
 static func make_item(item: int) -> Node3D:
 	var n := Node3D.new()
 	n.set_meta("item", item)
-	if item == SimConfig.Item.SKULL:
-		n.add_child(_make_skull())
+	if item == SimConfig.Item.BOMB:
+		n.add_child(_make_small_bomb())
+		return n
+	if item == SimConfig.Item.COFFEE:
+		n.add_child(_make_coffee())
 		return n
 	if item == SimConfig.Item.HEART:
 		n.add_child(_make_heart())
 		return n
 	if item == SimConfig.Item.FIRE:
 		n.add_child(_make_fire())
-		return n
-	if item == SimConfig.Item.EVIL:
-		n.add_child(_make_mushroom())
 		return n
 	var tile := MeshInstance3D.new()
 	var box := BoxMesh.new()
@@ -107,79 +94,158 @@ static func make_item(item: int) -> Node3D:
 	n.add_child(label)
 	return n
 
-static func _make_skull() -> Node3D:
-	var skull := Node3D.new()
-	var white := StandardMaterial3D.new()
-	white.albedo_color = Color("eeeae0")
-	var black := StandardMaterial3D.new()
-	black.albedo_color = Color("111111")
-	var head := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.3
-	sphere.height = 0.55
-	head.mesh = sphere
-	head.material_override = white
-	skull.add_child(head)
-	for side in [-1.0, 1.0]:
-		var eye := MeshInstance3D.new()
-		var e := SphereMesh.new()
-		e.radius = 0.08
-		e.height = 0.16
-		eye.mesh = e
-		eye.material_override = black
-		eye.position = Vector3(0.11 * side, 0.04, 0.25) # facing +Z, the camera's side
-		skull.add_child(eye)
-	return skull
+# A real bomb, smaller and blue: round body, grey cap, fuse and its spark.
+static func _make_small_bomb() -> Node3D:
+	var bomb := Node3D.new()
+	bomb.name = "SmallBomb"
+	var r := SimConfig.BOMB_BODY_RADIUS
+	var top := r + 0.04 + ActorsView.FUSE_LENGTH + 0.08 # the spark's top
+	bomb.scale = Vector3.ONE * BOMB_ITEM_SCALE
+	bomb.position.y = -0.5 * (top - r) * BOMB_ITEM_SCALE # centred on its middle
+	var blue := StandardMaterial3D.new()
+	blue.albedo_color = COLORS[SimConfig.Item.BOMB]
+	blue.emission_enabled = true
+	blue.emission = COLORS[SimConfig.Item.BOMB] * 0.25
+	blue.roughness = 0.3
+	var ball := SphereMesh.new()
+	ball.radius = r
+	ball.height = 2.0 * r
+	_part(bomb, "Body", ball, blue, 0.0)
+	var cap := CylinderMesh.new()
+	cap.top_radius = 0.11
+	cap.bottom_radius = 0.11
+	cap.height = 0.09
+	_part(bomb, "Cap", cap, _flat(Color("6b6b6b")), r + 0.01)
+	var fuse := CylinderMesh.new()
+	fuse.top_radius = 0.04
+	fuse.bottom_radius = 0.04
+	fuse.height = ActorsView.FUSE_LENGTH
+	_part(bomb, "Fuse", fuse, _flat(Color("e8c48a")), r + 0.04 + ActorsView.FUSE_LENGTH * 0.5)
+	var spark := SphereMesh.new()
+	spark.radius = 0.08
+	spark.height = 0.16
+	var glow := _flat(Color("ffb02e"))
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_part(bomb, "Spark", spark, glow, r + 0.04 + ActorsView.FUSE_LENGTH)
+	return bomb
 
-# A fly agaric, the poisonous toadstool: a white stem under a red dome dotted with white spots.
-static func _make_mushroom() -> Node3D:
-	var m := Node3D.new()
-	m.name = "Mushroom"
-	var white := StandardMaterial3D.new()
-	white.albedo_color = Color("f4f1e6")
-	var red := StandardMaterial3D.new()
-	red.albedo_color = COLORS[SimConfig.Item.EVIL]
-	red.emission_enabled = true
-	red.emission = COLORS[SimConfig.Item.EVIL] * 0.3
-	red.roughness = 0.35
-	var bottom := -0.5 * (MUSHROOM_STEM + MUSHROOM_CAP * 0.7) # centred on its middle
-	var stem := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.08
-	cyl.bottom_radius = 0.11
-	cyl.height = MUSHROOM_STEM
-	stem.mesh = cyl
-	stem.material_override = white
-	stem.position.y = bottom + 0.5 * MUSHROOM_STEM
-	m.add_child(stem)
-	var cap := MeshInstance3D.new()
-	cap.name = "Cap"
-	var dome := SphereMesh.new()
-	dome.radius = MUSHROOM_CAP
-	dome.height = MUSHROOM_CAP
-	dome.is_hemisphere = true
-	cap.mesh = dome
-	cap.material_override = red
-	cap.scale.y = 0.7
-	cap.position.y = bottom + MUSHROOM_STEM - 0.03
-	m.add_child(cap)
-	# White spots on the dome: a ring around it, one on top.
-	var spots: Array[Vector2] = [Vector2(0.0, 1.0)] # (angle round, angle up from the rim)
-	for i in 7:
-		spots.append(Vector2(TAU * i / 7.0 + 0.3, 0.45 + 0.15 * (i % 2)))
-	for s in spots:
-		var spot := MeshInstance3D.new()
-		var ball := SphereMesh.new()
-		ball.radius = 0.05
-		ball.height = 0.04
-		spot.mesh = ball
-		spot.material_override = white
-		var up := s.y * PI * 0.5
-		var normal := Vector3(cos(s.x) * cos(up), sin(up), sin(s.x) * cos(up))
-		spot.position = Vector3(normal.x * MUSHROOM_CAP, normal.y * MUSHROOM_CAP * 0.7, normal.z * MUSHROOM_CAP)
-		spot.basis = Basis(Quaternion(Vector3.UP, normal.normalized()))
-		cap.add_child(spot)
+static func _part(parent: Node3D, part_name: String, mesh: Mesh, mat: Material, y: float) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	m.name = part_name
+	m.mesh = mesh
+	m.material_override = mat
+	m.position.y = y
+	parent.add_child(m)
 	return m
+
+static func _flat(color: Color) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	return mat
+
+# A café navette: a white cup of black coffee on its saucer, and a navette, the boat-shaped
+# Marseille biscuit, lying across the front of the saucer, against the cup.
+static func _make_coffee() -> Node3D:
+	var root := Node3D.new()
+	root.name = "CafeNavette"
+	var china := StandardMaterial3D.new()
+	china.albedo_color = Color("f6f3ec")
+	china.roughness = 0.2
+	var bottom := -0.5 * (CUP_HEIGHT + 0.03) # centred on its middle
+	var saucer := MeshInstance3D.new()
+	saucer.name = "Saucer"
+	var plate := CylinderMesh.new()
+	plate.top_radius = SAUCER_RADIUS
+	plate.bottom_radius = SAUCER_RADIUS * 0.75
+	plate.height = 0.03
+	saucer.mesh = plate
+	saucer.material_override = china
+	saucer.position.y = bottom + 0.015
+	root.add_child(saucer)
+	var cup := MeshInstance3D.new()
+	cup.name = "Cup"
+	var body := CylinderMesh.new()
+	body.top_radius = CUP_RADIUS
+	body.bottom_radius = CUP_RADIUS * 0.72
+	body.height = CUP_HEIGHT
+	cup.mesh = body
+	cup.material_override = china
+	cup.position = Vector3(0.0, bottom + 0.03 + 0.5 * CUP_HEIGHT, -0.06)
+	root.add_child(cup)
+	var coffee := MeshInstance3D.new()
+	coffee.name = "Coffee"
+	var surface := CylinderMesh.new()
+	surface.top_radius = CUP_RADIUS * 0.85 # a white rim shows around it
+	surface.bottom_radius = CUP_RADIUS * 0.85
+	surface.height = 0.006
+	coffee.mesh = surface
+	var brown := StandardMaterial3D.new()
+	brown.albedo_color = Color("3a2114")
+	brown.roughness = 0.1
+	coffee.material_override = brown
+	coffee.position.y = 0.5 * CUP_HEIGHT + 0.003
+	cup.add_child(coffee)
+	var handle := MeshInstance3D.new()
+	handle.name = "Handle"
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.045
+	ring.outer_radius = 0.075
+	handle.mesh = ring
+	handle.material_override = china
+	handle.rotation.x = PI * 0.5 # standing up, facing the camera
+	handle.position = Vector3(CUP_RADIUS * 0.95, 0.02, 0.0)
+	cup.add_child(handle)
+	var navette := _make_navette()
+	navette.position = Vector3(0.0, bottom + 0.03 + NAVETTE_RADIUS * 0.85, CUP_RADIUS + NAVETTE_RADIUS - 0.04)
+	navette.rotation.y = deg_to_rad(-12.0)
+	root.add_child(navette)
+	return root
+
+# A navette lying along X: a golden stick narrowing to rounded ends, a little flattened,
+# with the long slit of a darker crust open along its top.
+static func _make_navette() -> Node3D:
+	var gold := StandardMaterial3D.new()
+	gold.albedo_color = NAVETTE_COLOR
+	gold.roughness = 0.7
+	var navette := MeshInstance3D.new()
+	navette.name = "Navette"
+	navette.mesh = _spindle(NAVETTE_LENGTH, NAVETTE_RADIUS, 0.8, 0.3)
+	navette.material_override = gold
+	var crust := StandardMaterial3D.new()
+	crust.albedo_color = Color("c98a3c")
+	crust.roughness = 0.8
+	var slit := MeshInstance3D.new()
+	slit.name = "Slit"
+	slit.mesh = _spindle(NAVETTE_LENGTH * 0.66, NAVETTE_RADIUS * 0.45, 0.35, 0.8) # pointed, like an eye
+	slit.material_override = crust
+	slit.position.y = NAVETTE_RADIUS * 0.8 * 0.9 # sunk a little into the top
+	navette.add_child(slit)
+	return navette
+
+# A solid of revolution along X, length long and radius wide at its middle, narrowing to rounded
+# ends (pointier as sharp grows); flat squashes its height.
+static func _spindle(length: float, radius: float, flat: float, sharp: float) -> ArrayMesh:
+	const ALONG := 40
+	const AROUND := 16
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rings: Array = []
+	for i in ALONG + 1:
+		var t := float(i) / ALONG
+		var r := radius * pow(sin(PI * t), sharp)
+		var ring: Array[Vector3] = []
+		for j in AROUND:
+			var a := TAU * j / AROUND
+			ring.append(Vector3((t - 0.5) * length, sin(a) * r * flat, cos(a) * r))
+		rings.append(ring)
+	for i in ALONG:
+		for j in AROUND:
+			var k := (j + 1) % AROUND
+			var quad: Array[Vector3] = [rings[i][j], rings[i + 1][j], rings[i + 1][k], rings[i][k]]
+			for q in [0, 1, 2, 0, 2, 3]:
+				st.add_vertex(quad[q])
+	st.generate_normals()
+	return st.commit()
 
 # A puffy heart standing up and tilted back to face the camera.
 static func _make_heart() -> Node3D:
@@ -260,22 +326,3 @@ static func _puffy(outline: Array[Vector2], height: float, depth: float, color: 
 	m.mesh = st.commit()
 	m.material_override = mat
 	return m
-
-# Stacked, widening grey rings: spun around, they read as a whirlwind.
-static func _make_twister() -> Node3D:
-	var t := Node3D.new()
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.75, 0.78, 0.82, 0.6)
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	for i in 6:
-		var ring := MeshInstance3D.new()
-		var torus := TorusMesh.new()
-		var r := 0.15 + 0.1 * i
-		torus.inner_radius = r
-		torus.outer_radius = r + 0.08
-		ring.mesh = torus
-		ring.material_override = mat
-		ring.position = Vector3(0.05 * sin(i * 1.3), 0.25 * i + 0.1, 0.05 * cos(i * 1.3))
-		t.add_child(ring)
-	return t
