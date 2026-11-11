@@ -17,6 +17,8 @@ var finished := false
 var winners: Array[int] = []
 var hidden: Dictionary = {} # block cell -> SimConfig.Item it hides
 var items: Dictionary = {} # cell -> SimConfig.Item lying there
+var drops: Array = [] # Drop: items on their way to the ground
+var crate_timer := SimConfig.CRATE_FIRST # until the next crate comes down
 
 var _next_bomb_id := 0
 var _water_index := 0
@@ -86,6 +88,7 @@ func step(intents: Dictionary) -> void:
 	Carry.update_flying(self)
 	Ghosts.update(self)
 	Kick.update_rolling(self)
+	Items.update_drops(self)
 	Items.update_pickups(self)
 	Items.update(self)
 	_update_explosions()

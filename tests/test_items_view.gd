@@ -61,3 +61,32 @@ func test_the_bomb_item_is_a_little_blue_bomb() -> void:
 	assert_true(blue.b > blue.r and blue.b > blue.g, "bleue")
 	assert_true(n.find_children("*", "Label3D", true, false).is_empty(), "pas d'étiquette")
 	n.free()
+
+# Une caisse en bois sous un parachute, et son ombre au sol.
+func test_a_crate_hangs_under_a_parachute() -> void:
+	var n := ItemsView.make_crate()
+	var body: Node3D = n.get_node("Body")
+	assert_true(body.find_child("Box", true, false) != null, "une caisse")
+	var chute: Node3D = body.find_child("Parachute", true, false)
+	assert_true(chute != null and chute.position.y > ItemsView.CRATE_SIZE, "un parachute au-dessus")
+	assert_true(n.get_node("Shadow") != null, "une ombre")
+	n.free()
+
+func test_drops_are_drawn_on_their_way_down() -> void:
+	var view := ItemsView.new()
+	var w := World.new(Fixtures.flat(9, 3), [0] as Array[int], SimConfig.new(), RandomNumberGenerator.new())
+	var d := Drop.new()
+	d.item = SimConfig.Item.FIRE
+	d.cell = Vector2i(4, 1)
+	w.drops.append(d)
+	view.sync(w)
+	assert_eq(view._drops.size(), 1)
+	var body: Node3D = view._drops[d].get_node("Body")
+	assert_true(body.position.y > 5.0, "haut dans le ciel")
+	d.elapsed = SimConfig.CRATE_FALL * 0.99
+	view.sync(w)
+	assert_true(body.position.y < 1.0, "presque au sol")
+	w.drops.clear()
+	view.sync(w)
+	assert_true(view._drops.is_empty(), "posée")
+	view.free()

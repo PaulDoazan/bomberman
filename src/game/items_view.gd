@@ -1,7 +1,8 @@
 class_name ItemsView
 extends Node3D
 
-# Items lying on the ground, bobbing a little above it. Each item is a coloured tile with a short
+# Items lying on the ground, bobbing a little above it, and those on their way down in crates
+# under a parachute. Each item is a coloured tile with a short
 # label; the Bomb is a little blue bomb, the Café navette a cup of coffee with a navette, the Heart a big pink heart and the Fire a little fire.
 
 const COLORS := {
@@ -16,6 +17,11 @@ const TEXTS := {
 	SimConfig.Item.HEART: "CŒUR",
 }
 const HOVER := 0.3 # height of an item above the ground
+const CRATE_START := 9.0 # height a crate starts coming down from
+const CRATE_SIZE := 0.5
+const CANOPY_RADIUS := 0.55
+const CANOPY_ABOVE := 0.85 # from the crate's middle to the parachute's rim
+const SWAY := 0.12 # radians a crate swings under its parachute
 const BOB := 0.08
 const HEART_HEIGHT := 0.6 # half a player
 const HEART_DEPTH := 0.14 # how far each face bulges, like an emoji
@@ -31,12 +37,16 @@ const PUFFY_SIDES := 48
 const FLICKER := 0.08 # how much a fire stretches and squashes as it flickers
 
 var _ground: Dictionary = {} # cell -> Node3D
+var _drops: Dictionary = {} # Drop -> Node3D
 var _time := 0.0
 
 func reset() -> void:
 	for n: Node3D in _ground.values():
 		n.queue_free()
 	_ground.clear()
+	for n: Node3D in _drops.values():
+		n.queue_free()
+	_drops.clear()
 
 func sync(world: World) -> void:
 	_time += SimConfig.DT
@@ -55,6 +65,29 @@ func sync(world: World) -> void:
 		if world.items[c] == SimConfig.Item.FIRE: # flickers
 			var f := sin(_time * 17.0 + c.x * 3.0) * 0.6 + sin(_time * 29.0 + c.y) * 0.4
 			n.scale = Vector3(1.0 - f * FLICKER * 0.5, 1.0 + f * FLICKER, 1.0)
+	_sync_drops(world)
+
+func _sync_drops(world: World) -> void:
+	for d: Drop in _drops.keys():
+		if not d in world.drops:
+			_drops[d].queue_free()
+			_drops.erase(d)
+	for d: Drop in world.drops:
+		var n: Node3D = _drops.get(d, null)
+		if n == null:
+			n = make_crate()
+			add_child(n)
+			_drops[d] = n
+		var t := d.progress()
+		var ground := world.arena.h2_at(d.cell) * 0.5 if world.arena.in_bounds(d.cell) else 0.0
+		var to := Vector3(d.cell.x + 0.5, ground, d.cell.y + 0.5)
+		var body: Node3D = n.get_node("Body")
+		body.position.y = lerpf(CRATE_START, 0.5 * CRATE_SIZE, t)
+		body.rotation.z = sin(_time * 2.5 + d.cell.x) * SWAY
+		body.rotation.x = sin(_time * 1.9 + d.cell.y) * SWAY * 0.6
+		var shadow: Node3D = n.get_node("Shadow")
+		shadow.scale = Vector3.ONE * lerpf(0.4, 1.0, t) # grows as the crate nears
+		n.position = to
 
 # A new drawing of an item, centred on its middle.
 static func make_item(item: int) -> Node3D:
@@ -91,6 +124,93 @@ static func make_item(item: int) -> Node3D:
 	label.position.y = 0.3
 	label.no_depth_test = true
 	n.add_child(label)
+	return n
+
+# A wooden crate hanging under a red and white parachute ("Body", the crate's middle at its
+# origin), and its shadow on the ground ("Shadow") where it will land.
+static func make_crate() -> Node3D:
+	var n := Node3D.new()
+	n.name = "Crate"
+	var shadow := MeshInstance3D.new()
+	shadow.name = "Shadow"
+	var disc := CylinderMesh.new()
+	disc.top_radius = 0.38
+	disc.bottom_radius = 0.38
+	disc.height = 0.01
+	shadow.mesh = disc
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color(0, 0, 0, 0.35)
+	dark.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dark.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	shadow.material_override = dark
+	shadow.position.y = 0.02
+	n.add_child(shadow)
+	var body := Node3D.new()
+	body.name = "Body"
+	n.add_child(body)
+	var wood := MeshInstance3D.new()
+	wood.name = "Box"
+	var box := BoxMesh.new()
+	box.size = Vector3.ONE * CRATE_SIZE
+	wood.mesh = box
+	wood.material_override = _flat(Color("b07a3c"))
+	body.add_child(wood)
+	var plank := _flat(Color("7a4f22"))
+	var h := CRATE_SIZE * 0.5
+	for axis in 3: # a dark frame along its twelve edges
+		for u in [-1.0, 1.0]:
+			for v in [-1.0, 1.0]:
+				var edge := MeshInstance3D.new()
+				var bar := BoxMesh.new()
+				var size := Vector3.ONE * 0.07
+				size[axis] = CRATE_SIZE + 0.07
+				bar.size = size
+				edge.mesh = bar
+				edge.material_override = plank
+				var at := Vector3(u * h, v * h, 0.0) if axis == 2 else (Vector3(u * h, 0.0, v * h) if axis == 1 else Vector3(0.0, u * h, v * h))
+				edge.position = at
+				wood.add_child(edge)
+	var canopy := MeshInstance3D.new()
+	canopy.name = "Parachute"
+	var dome := SphereMesh.new()
+	dome.radius = CANOPY_RADIUS
+	dome.height = CANOPY_RADIUS * 0.9
+	dome.is_hemisphere = true
+	dome.radial_segments = 8 # panels
+	canopy.mesh = dome
+	var cloth := _flat(Color("e8322b"))
+	cloth.cull_mode = BaseMaterial3D.CULL_DISABLED
+	canopy.material_override = cloth
+	canopy.position.y = CANOPY_ABOVE
+	body.add_child(canopy)
+	var stripe := MeshInstance3D.new()
+	var band := SphereMesh.new()
+	band.radius = CANOPY_RADIUS * 1.01
+	band.height = CANOPY_RADIUS * 0.9 * 1.01
+	band.is_hemisphere = true
+	band.radial_segments = 8
+	stripe.mesh = band
+	var white := _flat(Color("f4f1ea"))
+	white.cull_mode = BaseMaterial3D.CULL_DISABLED
+	stripe.material_override = white
+	stripe.scale = Vector3(1.0, 0.45, 1.0) # a white crown on the red canopy
+	stripe.position.y = CANOPY_RADIUS * 0.9 * 0.55
+	canopy.add_child(stripe)
+	var cord := _flat(Color("dddddd"))
+	for i in 4: # cords from the crate's top corners to the canopy's rim
+		var a := TAU * (i + 0.5) / 4.0
+		var low := Vector3(cos(a), 0.0, sin(a)) * CRATE_SIZE * 0.7 + Vector3.UP * CRATE_SIZE * 0.5
+		var high := Vector3(cos(a), 0.0, sin(a)) * CANOPY_RADIUS * 0.95 + Vector3.UP * CANOPY_ABOVE
+		var line := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.01
+		cyl.bottom_radius = 0.01
+		cyl.height = low.distance_to(high)
+		line.mesh = cyl
+		line.material_override = cord
+		line.position = (low + high) * 0.5
+		line.basis = Basis(Quaternion(Vector3.UP, (high - low).normalized()))
+		body.add_child(line)
 	return n
 
 # A real bomb, smaller and blue: round body, grey cap, fuse and its spark.

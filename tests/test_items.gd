@@ -218,3 +218,34 @@ func test_a_thrown_coffee_makes_its_target_sick() -> void:
 	w.step({0: _intent(false, true)})
 	_wait(w, SimConfig.THROW_FLIGHT + 0.1)
 	assert_true((w.players[1] as PlayerState).sick != SimConfig.Sick.NONE, "la cible tombe malade")
+
+# Des caisses descendent en parachute pendant la partie, avec un objet dedans.
+func test_crates_come_down_with_items() -> void:
+	var w := _world([Vector2(0.5, 0.5)], Fixtures.flat(9, 9))
+	w.cfg.items[SimConfig.Item.HEART] = true
+	_wait(w, SimConfig.CRATE_FIRST - 0.1)
+	assert_true(w.drops.is_empty(), "pas encore")
+	_wait(w, 0.2)
+	assert_eq(w.drops.size(), 1, "une caisse descend")
+	var d: Drop = w.drops[0]
+	assert_eq(d.item, SimConfig.Item.HEART, "un objet activé")
+	_wait(w, SimConfig.CRATE_FALL)
+	assert_eq(w.items.get(d.cell), SimConfig.Item.HEART, "posée, elle laisse son objet")
+	_wait(w, SimConfig.CRATE_EVERY - SimConfig.CRATE_FALL)
+	assert_eq(w.drops.size(), 1, "la suivante")
+
+func test_no_crates_when_every_item_is_off() -> void:
+	var w := _world([Vector2(0.5, 0.5)])
+	_wait(w, SimConfig.CRATE_FIRST + 1.0)
+	assert_true(w.drops.is_empty())
+
+func test_a_drop_whose_cell_got_taken_lands_next_to_it() -> void:
+	var w := _world([Vector2(0.5, 0.5)])
+	var d := Drop.new()
+	d.item = SimConfig.Item.BOMB
+	d.cell = Vector2i(4, 1)
+	w.drops.append(d)
+	w.items[Vector2i(4, 1)] = SimConfig.Item.FIRE
+	_wait(w, SimConfig.CRATE_FALL + 0.05)
+	assert_eq(w.items.size(), 2)
+	assert_eq(w.items.get(Vector2i(4, 1)), SimConfig.Item.FIRE, "l'autre reste")
