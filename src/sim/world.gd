@@ -17,10 +17,6 @@ var finished := false
 var winners: Array[int] = []
 var hidden: Dictionary = {} # block cell -> SimConfig.Item it hides
 var items: Dictionary = {} # cell -> SimConfig.Item lying there
-var evil := SimConfig.Evil.NONE # what is happening to everyone, and for how long
-var evil_timer := 0.0
-var twister_pos := Vector2.ZERO
-var twister_dir := Vector2.ZERO
 
 var _next_bomb_id := 0
 var _water_index := 0

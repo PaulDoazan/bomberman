@@ -6,7 +6,6 @@ var _bar: Control # one square chip per player, in a staircase in the top left c
 var _chips: Dictionary = {} # id -> Label
 var _warning: Label
 var _status: Label # the local player's items and sickness
-var _evil: Label # what Evil is doing to everyone
 var _panel: PanelContainer
 var _panel_text: Label
 var _fullscreen: Button
@@ -153,14 +152,6 @@ func _ready() -> void:
 	_warning.visible = false
 	root.add_child(_warning)
 
-	_evil = _outlined(34)
-	_evil.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_evil.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_evil.offset_top = 150
-	_evil.add_theme_color_override("font_color", Color(0.85, 0.55, 1.0))
-	_evil.visible = false
-	root.add_child(_evil)
-
 	_panel = PanelContainer.new()
 	_panel.set_anchors_preset(Control.PRESET_CENTER)
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -226,9 +217,6 @@ func sync(match_state: MatchState) -> void:
 	action_button.holding = me != null and me.held != PlayerState.Held.NONE
 	detonate_button.visible = me != null and me.remote
 	_status.text = status_text(me) if me != null and me.life == PlayerState.Life.ALIVE else ""
-	_evil.visible = world.evil != SimConfig.Evil.NONE
-	if _evil.visible:
-		_evil.text = "Le Mal : %s ! %d s" % [SimConfig.EVIL_LABELS[world.evil], ceili(world.evil_timer)]
 	_warning.visible = world.water_warning and match_state.phase == MatchState.Phase.PLAYING
 	_panel.visible = match_state.phase == MatchState.Phase.ROUND_OVER
 	if _panel.visible:

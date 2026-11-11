@@ -38,18 +38,13 @@ func test_blocks_hide_items_only_when_turned_on() -> void:
 				a.set_tile(Vector2i(x, y), Arena.Tile.BLOCK)
 	var cfg := SimConfig.new()
 	var w := World.new(a, [0] as Array[int], cfg, RandomNumberGenerator.new())
-	var evils := 0
-	for item: int in w.hidden.values():
-		if item == SimConfig.Item.EVIL:
-			evils += 1
 	assert_true(w.hidden.size() > 5, "des objets cachés")
-	assert_eq(evils, 1, "un seul Mal par manche")
 	for item: int in SimConfig.ITEM_LABELS:
 		cfg.items[item] = false
 	var w2 := World.new(Fixtures.flat(9, 9), [0] as Array[int], cfg, RandomNumberGenerator.new())
 	assert_true(w2.hidden.is_empty(), "aucun objet quand tout est désactivé")
 	cfg.items = {SimConfig.Item.FIRE: false, SimConfig.Item.BOMB: false,
-			SimConfig.Item.REMOTE: false, SimConfig.Item.SKULL: false, SimConfig.Item.EVIL: false}
+			SimConfig.Item.REMOTE: false, SimConfig.Item.SKULL: false}
 	var w3 := World.new(a, [0] as Array[int], cfg, RandomNumberGenerator.new())
 	for item: int in w3.hidden.values():
 		assert_eq(item, SimConfig.Item.HEART, "seulement les objets activés")
@@ -223,40 +218,3 @@ func test_a_thrown_skull_makes_its_target_sick() -> void:
 	w.step({0: _intent(false, true)})
 	_wait(w, SimConfig.THROW_FLIGHT + 0.1)
 	assert_true((w.players[1] as PlayerState).sick != SimConfig.Sick.NONE, "la cible tombe malade")
-
-func test_evil_happens_to_everyone_for_a_while() -> void:
-	var w := _world([Vector2(1.5, 1.5), Vector2(7.5, 1.5)])
-	w.items[Vector2i(2, 1)] = SimConfig.Item.EVIL
-	_wait(w, 0.5, {0: _go(Vector2(2.5, 1.5))})
-	assert_true(w.evil != SimConfig.Evil.NONE, "le Mal se déclenche")
-	_wait(w, SimConfig.EVIL_TIME)
-	assert_eq(w.evil, SimConfig.Evil.NONE, "puis s'arrête")
-
-func test_evil_effects() -> void:
-	var w := _world([Vector2(1.5, 1.5), Vector2(7.5, 1.5)])
-	var p := w.players[0] as PlayerState
-	w.evil = SimConfig.Evil.GULLIVER
-	w.evil_timer = 5.0
-	assert_almost(Items.speed_of(w, p), SimConfig.PLAYER_SPEED * SimConfig.BIG_SPEED, 0.001, "Gulliver : lents")
-	w.evil = SimConfig.Evil.MAXIMUM
-	w.step({0: _intent(true)})
-	assert_eq(Items.level_of(w, w.bombs.values()[0]), SimConfig.LEVEL_MAX, "Maximum")
-	var swapped := false
-	for _i in 10:
-		Items._shuffle(w)
-		var spots := [w.players[0].pos, w.players[1].pos]
-		assert_true(Vector2(1.5, 1.5) in spots and Vector2(7.5, 1.5) in spots, "Mélange : mêmes places")
-		swapped = swapped or w.players[0].pos == Vector2(7.5, 1.5)
-	assert_true(swapped, "Mélange : places échangées")
-
-func test_twister_flings_whoever_it_touches() -> void:
-	var w := _world([Vector2(4.5, 4.5)], Fixtures.flat(9, 9)) # flung 3 cells any way, it lands
-	w.evil = SimConfig.Evil.TWISTER
-	w.evil_timer = 5.0
-	w.twister_pos = Vector2(4.5, 4.5)
-	w.twister_dir = Vector2.RIGHT
-	w.step({})
-	var p := w.players[0] as PlayerState
-	assert_eq(p.carried_by, Carry.THROWN, "projeté")
-	_wait(w, SimConfig.THROW_FLIGHT + 0.1)
-	assert_true(p.stun_timer > 0.0, "assommé à l'atterrissage")

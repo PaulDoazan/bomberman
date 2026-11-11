@@ -16,7 +16,7 @@ const STAR_ORBIT := 0.4
 const STAR_HEIGHT := 1.4
 const SIT_STAR_HEIGHT := 1.2 # stars above a player sitting knocked out
 const HOP_HEIGHT := 0.35 # top of the hop of a player knocked back by a bomb
-const BIG_SCALE := 1.5 # a big player (Big sickness, Gulliver), drawn larger
+const BIG_SCALE := 1.5 # a big player (Big sickness), drawn larger
 const TINY_SCALE := 0.6
 const SICK_BADGE_HEIGHT := 1.75 # a little skull above the head of a sick player
 # The throw gauge above what is held: a triangle rising to the right, like a volume control,
@@ -544,10 +544,10 @@ func _sync_players(world: World, match_state: MatchState) -> void:
 		n.gauge.visible = p.charging
 		n.gauge_fill.scale = Vector3(maxf(p.charge, 0.001), maxf(p.charge, 0.001), 1.0)
 
-# Size, flames and the skull badge of a sick player (or of everyone under Gulliver).
+# Size, flames and the skull badge of a sick player.
 func _show_sickness(world: World, n: PlayerNode, p: PlayerState, ghost: bool) -> void:
 	var want := 1.0
-	if not ghost and (p.sick == SimConfig.Sick.BIG or world.evil == SimConfig.Evil.GULLIVER):
+	if not ghost and p.sick == SimConfig.Sick.BIG:
 		want = BIG_SCALE
 	elif not ghost and p.sick == SimConfig.Sick.TINY:
 		want = TINY_SCALE

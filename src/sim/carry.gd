@@ -171,22 +171,6 @@ static func throw(world: World, p: PlayerState, charge := 0.0) -> void:
 	p.held_id = -1
 	p.throw_tick = world.tick
 
-# Flings p, with nobody throwing them (a twister): like a thrown player, stunned on landing.
-static func fling(world: World, p: PlayerState, dir: Vector2i) -> void:
-	release_links(world, p)
-	var f := FlyingObject.new()
-	f.kind = PlayerState.Held.PLAYER
-	f.ref_id = p.id
-	f.from = p.pos
-	f.dir = dir
-	var dist := SimConfig.TWISTER_THROW if dir.x == 0 or dir.y == 0 else roundi(SimConfig.TWISTER_THROW / sqrt(2.0))
-	var land := _find_landing(world, p.cell() + dir * dist, dir, PlayerState.Held.PLAYER)
-	if world.arena.in_bounds(land):
-		f.landing = land
-	f.to = Arena.center_of(land)
-	p.carried_by = THROWN
-	world.flying.append(f)
-
 # Carried players follow their carrier and break free when their timer runs out.
 static func update_carried(world: World) -> void:
 	for p: PlayerState in world.players.values():
