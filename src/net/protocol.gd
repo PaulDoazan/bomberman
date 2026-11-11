@@ -2,7 +2,7 @@ class_name Protocol
 extends RefCounted
 # Wire format: 1 byte of message type, then the body as var_to_bytes, DEFLATE-compressed.
 
-const VERSION := 1 # bump when the messages change: it is part of SimCodec.schema_hash()
+const VERSION := 2 # bump when the messages change: it is part of SimCodec.schema_hash()
 
 enum Msg {
 	CREATE = 1, JOIN = 2, CREATE_TEAM = 3, JOIN_TEAM = 4, LEAVE_TEAM = 5,
@@ -19,6 +19,7 @@ const ERR_HOST_ONLY := "host_only"
 const ERR_CANNOT_START := "cannot_start"
 const ERR_NOT_NOW := "not_now"
 const ERR_VERSION := "version"
+const SNAPSHOT_EVERY := 1 # sim ticks between two snapshots: 30 a second
 const ERR_SERVER_FULL := "server_full"
 
 const ERROR_LABELS := {

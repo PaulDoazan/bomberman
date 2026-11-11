@@ -33,6 +33,7 @@ class Client:
 	var a_start := Vector2.INF # A's position in the first snapshot applied
 	var last_snapshot := -1.0 # when the last snapshot arrived
 	var max_gap := 0.0 # seconds between two snapshots, at most
+	var gaps: Array[float] = [] # every gap, for the mean and the 95th percentile
 	var target := Vector2.ZERO # bots: where they are heading
 
 var core := ServerCore.new()
@@ -149,6 +150,16 @@ func _play(a: Client, b: Client) -> void:
 		if worst == null or c.max_gap > worst.max_gap:
 			worst = c
 	print("%d clients, plus grand écart entre deux instantanés : %d ms (%s)" % [clients.size(), roundi(worst.max_gap * 1000.0), worst.name])
+	var all: Array[float] = []
+	for c in clients:
+		all.append_array(c.gaps)
+	if not all.is_empty():
+		all.sort()
+		var total := 0.0
+		for g in all:
+			total += g
+		print("écart moyen %d ms, 95e percentile %d ms (%d instantanés)" % [
+			roundi(total / all.size() * 1000.0), roundi(all[int(all.size() * 0.95)] * 1000.0), all.size()])
 
 # A bot's random move: a new spot of the arena about once a second.
 func _wander(bot: Client, m: MatchState, ticks: int) -> PlayerIntent:
@@ -235,6 +246,7 @@ func _pump(now: float) -> void:
 				if msg[0] == Msg.SNAPSHOT:
 					if c.last_snapshot >= 0.0:
 						c.max_gap = maxf(c.max_gap, now - c.last_snapshot)
+						c.gaps.append(now - c.last_snapshot)
 					c.last_snapshot = now
 
 # Waits for a message of the given type that satisfies pred; earlier messages are dropped.
