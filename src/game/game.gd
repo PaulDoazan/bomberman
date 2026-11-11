@@ -16,6 +16,7 @@ var _acc := 0.0
 var _seen_world: World = null
 var _net: Node = null # online only
 var _snapshots: SnapshotQueue = null # online only
+var _prediction: Prediction = null # online only: the local player's own moves, shown at once
 
 func _ready() -> void:
 	var rng := RandomNumberGenerator.new()
@@ -30,6 +31,7 @@ func _ready() -> void:
 	if net != null and net.is_online():
 		_net = net
 		_snapshots = SnapshotQueue.new()
+		_prediction = Prediction.new()
 		net.snapshot_received.connect(_on_snapshot) # a node: disconnected when the scene is freed
 		return # nothing to show until the first snapshot
 	match_state = MatchState.new(_session().config, rng)
@@ -87,14 +89,18 @@ func _step_once() -> void:
 	match_state.step(intents)
 
 # Online: the server simulates. Its snapshots are played back through the queue and the local
-# player's intent is sent once per sim tick of local time.
+# player's intent is sent once per sim tick of local time; the local player's own moves are
+# predicted, so they show at once.
 func _process_online(delta: float) -> void:
 	var data: Variant = _snapshots.advance(delta)
 	if data != null:
+		var world_before := match_state.world if match_state != null else null
 		match_state = SimCodec.apply_match(data, match_state, _net.config)
+		if match_state.world != world_before:
+			_prediction.reset() # a new round: the intents sent before do not apply to it
+		_predict()
 		_refresh_world()
 		_sync_views(SnapshotQueue.INTERVAL)
-	actors_view.render(_snapshots.alpha())
 	_acc += delta
 	var steps := 0
 	while _acc >= SimConfig.DT - EPS and steps < MAX_STEPS_PER_FRAME:
@@ -103,6 +109,20 @@ func _process_online(delta: float) -> void:
 		_send_intent()
 	if steps == MAX_STEPS_PER_FRAME:
 		_acc = minf(_acc, SimConfig.DT)
+	actors_view.render(_snapshots.alpha(), clampf(_acc / SimConfig.DT, 0.0, 1.0))
+
+# After a snapshot: the local player is shown where the prediction puts them.
+func _predict() -> void:
+	var id: int = _session().local_id
+	var me: PlayerState = match_state.world.players.get(id)
+	_prediction.reconcile(match_state.world, me)
+	if _prediction.me == null:
+		actors_view.local_id = -1
+		return
+	actors_view.local_id = id
+	me.pos = _prediction.shown_pos()
+	me.facing = _prediction.me.facing
+	me.aim = _prediction.me.aim
 
 func _on_snapshot(data: Dictionary) -> void:
 	_snapshots.push(data)
@@ -116,4 +136,11 @@ func _send_intent() -> void:
 	if me == null:
 		input_controller.clear_presses()
 		return
-	_net.send_intent(input_controller.consume_intent(me, camera_rig))
+	if _prediction.me != null:
+		me = _prediction.me
+	var intent := input_controller.consume_intent(me, camera_rig)
+	intent.seq = _prediction.next_seq()
+	_net.send_intent(intent)
+	_prediction.record(match_state.world, intent)
+	if _prediction.me != null:
+		actors_view.track_local(_prediction.shown_pos(), _prediction.me.aim)

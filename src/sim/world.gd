@@ -52,6 +52,8 @@ func step(intents: Dictionary) -> void:
 		var intent: PlayerIntent = intents.get(id, null)
 		if intent == null:
 			intent = PlayerIntent.new()
+		else:
+			p.input_seq = intent.seq
 		p.stun_timer = maxf(0.0, p.stun_timer - SimConfig.DT - intent.struggle * SimConfig.STRUGGLE_TIME)
 		p.invulnerable_timer = maxf(0.0, p.invulnerable_timer - SimConfig.DT)
 		Ghosts.tick_timers(p)
@@ -60,8 +62,10 @@ func step(intents: Dictionary) -> void:
 				Ghosts.update_eject(self, p)
 			elif p.possess_target != -1:
 				Ghosts.drive_victim(self, p, intent)
-			elif intent.moving:
-				Movement.move_free(self, p, intent.target, SimConfig.GHOST_SPEED, SimConfig.DT)
+			else:
+				for walk: PlayerIntent in _walks(intent):
+					if walk.moving and not walk.late:
+						Movement.move_free(self, p, walk.target, SimConfig.GHOST_SPEED, SimConfig.DT)
 			continue
 		if p.life != PlayerState.Life.ALIVE:
 			continue
@@ -82,11 +86,12 @@ func step(intents: Dictionary) -> void:
 				p.charging = true # the throw goes off once the button is let go
 				p.charge = 0.0
 				Carry.charge(self, p, intent.action_held)
-		if p.can_act() and intent.moving:
-			var target := intent.target
-			if p.sick == SimConfig.Sick.REVERSE:
-				target = p.pos * 2.0 - target # the other way round
-			Movement.move(self, p, target, Items.speed_of(self, p), SimConfig.DT)
+		for walk: PlayerIntent in _walks(intent):
+			if p.can_act() and walk.moving and not walk.late:
+				var target := walk.target
+				if p.sick == SimConfig.Sick.REVERSE:
+					target = p.pos * 2.0 - target # the other way round
+				Movement.move(self, p, target, Items.speed_of(self, p), SimConfig.DT)
 		Kick.update_push(self, p, p.can_act() and intent.moving)
 	_update_knockbacks()
 	Carry.update_carried(self)
@@ -102,6 +107,12 @@ func step(intents: Dictionary) -> void:
 	_apply_drowning()
 	_update_respawns()
 	_check_round_end()
+
+# The intents whose step is taken this tick: this one, then those caught up.
+static func _walks(intent: PlayerIntent) -> Array[PlayerIntent]:
+	var out: Array[PlayerIntent] = [intent]
+	out.append_array(intent.catch_up)
+	return out
 
 func is_submerged(c: Vector2i) -> bool:
 	return not arena.in_bounds(c) or arena.h2_at(c) <= water_h2

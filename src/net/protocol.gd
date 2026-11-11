@@ -2,7 +2,7 @@ class_name Protocol
 extends RefCounted
 # Wire format: 1 byte of message type, then the body as var_to_bytes, DEFLATE-compressed.
 
-const VERSION := 2 # bump when the messages change: it is part of SimCodec.schema_hash()
+const VERSION := 3 # bump when the messages change: it is part of SimCodec.schema_hash()
 
 enum Msg {
 	CREATE = 1, JOIN = 2, CREATE_TEAM = 3, JOIN_TEAM = 4, LEAVE_TEAM = 5,
@@ -104,10 +104,10 @@ static func _has_object(v: Variant) -> bool:
 	return false
 
 static func intent_to_array(i: PlayerIntent) -> Array:
-	return [i.moving, i.target.x, i.target.y, i.place_bomb, i.action, i.action_held, i.detonate, i.struggle]
+	return [i.moving, i.target.x, i.target.y, i.place_bomb, i.action, i.action_held, i.detonate, i.struggle, i.seq]
 
 static func intent_from_array(a: Variant) -> PlayerIntent:
-	if not (a is Array) or (a as Array).size() != 8:
+	if not (a is Array) or (a as Array).size() != 9:
 		return null
 	var arr: Array = a
 	for idx in [0, 3, 4, 5, 6]:
@@ -118,6 +118,8 @@ static func intent_from_array(a: Variant) -> PlayerIntent:
 			return null
 		if not is_finite(float(arr[idx])):
 			return null
+	if typeof(arr[8]) != TYPE_INT or int(arr[8]) < 0:
+		return null
 	if absf(float(arr[1])) > MAX_TARGET or absf(float(arr[2])) > MAX_TARGET:
 		return null
 	var i := PlayerIntent.new()
@@ -128,4 +130,5 @@ static func intent_from_array(a: Variant) -> PlayerIntent:
 	i.action_held = arr[5]
 	i.detonate = arr[6]
 	i.struggle = clampf(float(arr[7]), 0.0, MAX_STRUGGLE)
+	i.seq = arr[8]
 	return i

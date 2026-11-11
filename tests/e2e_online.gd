@@ -18,6 +18,7 @@ const LOAD_DURATION := 15.0 # with bots: long enough to read the server's CPU
 const MAX_CLIENTS := 12
 const PING_EVERY := 2.0 # like the game: the server drops a client silent for 6 s
 const MIN_TRAVEL := 0.5 # cells A must have moved, as seen by both mirrors
+const MAX_CORRECTION := 0.05 # cells: what A's prediction may be off by, on a local network
 
 class Client:
 	var name := ""
@@ -35,6 +36,8 @@ class Client:
 	var max_gap := 0.0 # seconds between two snapshots, at most
 	var gaps: Array[float] = [] # every gap, for the mean and the 95th percentile
 	var target := Vector2.ZERO # bots: where they are heading
+	var prediction := Prediction.new() # A: its own moves, as the game predicts them
+	var max_correction := 0.0 # cells: the largest gap between prediction and server
 
 var core := ServerCore.new()
 var url := "ws://127.0.0.1:%d" % PORT
@@ -139,12 +142,17 @@ func _play(a: Client, b: Client) -> void:
 			acc -= SimConfig.DT
 			ticks += 1
 			if a.mirror != null and a.mirror.world.players.has(a.id):
-				_send(a, Msg.INTENT, Protocol.intent_to_array(_towards_centre(a.mirror, a.id)))
+				var intent := _towards_centre(a.mirror, a.id)
+				intent.seq = a.prediction.next_seq()
+				_send(a, Msg.INTENT, Protocol.intent_to_array(intent))
+				a.prediction.record(a.mirror.world, intent)
 				intents += 1
 			for bot in bots:
 				_send(bot, Msg.INTENT, Protocol.intent_to_array(_wander(bot, a.mirror, ticks)))
 		OS.delay_msec(5)
 	print("intents envoyés par A : %d, instantanés appliqués : A %d, B %d" % [intents, a.applied, b.applied])
+	print("prédiction de A : plus grande correction %.3f case, %s" % [a.max_correction,
+		"active" if a.prediction.me != null else "inactive"])
 	var worst: Client = null
 	for c in clients:
 		if worst == null or c.max_gap > worst.max_gap:
@@ -180,8 +188,18 @@ func _play_back(c: Client, delta: float, a_id: int) -> void:
 	var data: Variant = c.queue.advance(delta)
 	if data == null:
 		return
+	var world_before := c.mirror.world if c.mirror != null else null
 	c.mirror = SimCodec.apply_match(data, c.mirror, c.config)
 	c.applied += 1
+	if c.mirror.world != world_before:
+		c.prediction.reset()
+	if c.id == a_id:
+		c.prediction.reconcile(c.mirror.world, c.mirror.world.players.get(a_id))
+		c.max_correction = maxf(c.max_correction, c.prediction.offset.length())
+		if OS.get_environment("E2E_TRACE") != "" and c.prediction.offset.length() > 0.02:
+			var me: PlayerState = c.mirror.world.players[a_id]
+			print("  correction %.3f à %.2f s : accusé %d, %d en attente, serveur %s, vie %d, étourdi %.2f, recul %.2f" % [
+				c.prediction.offset.length(), _now(), me.input_seq, c.prediction._pending.size(), me.pos, me.life, me.stun_timer, me.knock_timer])
 	var w := c.mirror.world
 	var seen: World = c.world_of_round.get(c.mirror.round_number)
 	if seen == null:
@@ -211,6 +229,8 @@ func _check(a: Client, b: Client) -> void:
 			continue
 		var travel := p.pos.distance_to(c.a_start)
 		print("%s voit A passer de %s à %s (%.2f cases), manche %d" % [c.name, c.a_start, p.pos, travel, c.mirror.round_number])
+		if c == a and c.max_correction > MAX_CORRECTION:
+			errors.append("A : la prédiction a été corrigée de %.2f case" % c.max_correction)
 		if travel < MIN_TRAVEL:
 			errors.append("%s : A n'a pas assez bougé (%.2f cases)" % [c.name, travel])
 	if a.mirror != null and b.mirror != null and a.mirror.round_number != b.mirror.round_number:

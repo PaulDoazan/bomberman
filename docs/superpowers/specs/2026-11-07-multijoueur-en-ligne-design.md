@@ -151,7 +151,11 @@ La façon de choisir le rôle au démarrage (argument de ligne de commande, tag 
 - Messages **binaires** compacts plutôt que du JSON. Le builder choisit le format exact : envoi de l'état complet ou des seules différences, fréquence d'envoi (chaque tick ou un tick sur deux).
 - Contraintes : rester très en dessous de la bande passante gratuite de Render, et ne jamais envoyer à 12 joueurs plus de quelques dizaines de Ko/s chacun.
 - **Interpolation côté client** : la vue affiche un léger retard sur le dernier état reçu, pour lisser les mouvements de tout le monde. `ActorsView.render(alpha)` sait déjà interpoler entre deux ticks.
-- **Pas de prédiction locale dans la première version** (choix Claude) : on mesure d'abord la sensation de jeu en partie réelle. Si le déplacement de son propre personnage paraît en retard, on ajoutera une prédiction du mouvement local dans une étape suivante.
+- ~~Pas de prédiction locale dans la première version~~. **Prédiction du mouvement local** (ajoutée le 2026-11-11, l'utilisateur trouvant trop de délai entre son action et l'écran) :
+  - chaque intention porte un numéro, et l'état de chaque joueur dit le numéro de la dernière appliquée (`input_seq`) ;
+  - le client montre son propre personnage à la position du serveur, plus les intentions pas encore appliquées rejouées dessus (`Prediction`). Seule la marche (et le vol libre d'un fantôme) est prédite ; étourdi, projeté, porté ou possédé, il voit la position du serveur ;
+  - un désaccord est rattrapé en fondu sur quelques ticks, ou d'un coup au-delà de 1,5 case ;
+  - le serveur joue les intentions de chacun dans l'ordre, une par tick (`IntentBuffer`). Une intention en retard ne fait pas de pas à sa place : le tick inutilisé devient un crédit, dépensé en marchant plusieurs intentions dans un même tick dès qu'elles arrivent. Les ticks que le serveur saute après une longue pause sont accordés en crédit aussi. Ainsi le serveur fait exactement les pas prédits, sans qu'envoyer plus d'intentions fasse marcher plus vite.
 - Le client affiche un indicateur discret de latence (ping) dans le HUD, pour diagnostiquer les playtests (choix Claude).
 
 ### Plusieurs parties sur un serveur

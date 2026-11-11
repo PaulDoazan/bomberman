@@ -41,6 +41,7 @@ var remote := false # bombs wait for the detonate button
 var heart := false # survives one blast
 var sick := SimConfig.Sick.NONE
 var sick_timer := 0.0
+var input_seq := 0 # online: seq of the last intent applied, for the player's own prediction
 
 func cell() -> Vector2i:
 	return Arena.cell_of(pos)

@@ -7,7 +7,7 @@ signal logged(text: String)
 
 const MAX_ROOMS := 4 # Render's free plan has 0.1 CPU: a few matches at once at most
 const SNAPSHOT_EVERY := Protocol.SNAPSHOT_EVERY
-const MAX_CATCH_UP := 4 # ticks run in one poll at most; the rest of the backlog is dropped
+const MAX_CATCH_UP := 10 # ticks run in one poll at most (a throttled CPU stalls ~100-300 ms); the rest is dropped
 # Flood guard, a token bucket per peer: a burst of FLOOD_BURST messages, refilled at
 # FLOOD_RATE per second. Honest clients send about 31 a second (intents and pings), and a
 # network or server stall delivering seconds of backlog at once stays within the burst.
@@ -61,13 +61,18 @@ func poll(now: float) -> void:
 		_last_now = now
 	_accumulator += now - _last_now
 	_last_now = now
+	# Beyond MAX_CATCH_UP ticks behind, the rest is skipped; the steps players took meanwhile on
+	# their screens are granted, so their intents are still walked rather than lost.
+	var skipped := floori(_accumulator / SimConfig.DT) - MAX_CATCH_UP
+	if skipped > 0:
+		_accumulator -= skipped * SimConfig.DT
+		for buf: IntentBuffer in _intents.values():
+			buf.grant(skipped)
 	var steps := 0
 	while _accumulator >= SimConfig.DT and steps < MAX_CATCH_UP:
 		_accumulator -= SimConfig.DT
 		steps += 1
 		_tick_rooms(now)
-	if _accumulator >= SimConfig.DT:
-		_accumulator = 0.0
 
 func stop() -> void:
 	for peer in _peers:
