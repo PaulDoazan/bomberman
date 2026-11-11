@@ -19,7 +19,6 @@ const BG := Color(0.12, 0.16, 0.24)
 const CARD_BG := Color(0.17, 0.22, 0.32)
 const WAITING_TEXT := "En attente du host pour lancer la partie"
 const PLAYING_TEXT := "Partie en cours : choisis une équipe pour jouer à la manche suivante"
-const PLAYING_FREE_TEXT := "Partie en cours : tu joueras à la manche suivante"
 
 var host_label: Label
 var waiting_label: Label # a guest's "En attente du host…" while in the lobby
@@ -223,7 +222,6 @@ func show_state(state: Dictionary, my_id: int) -> void:
 	# While a match runs (a newcomer is here to pick a team), nobody changes settings or starts.
 	var playing: bool = state.get("phase") == "playing"
 	playing_label.visible = playing
-	playing_label.text = PLAYING_FREE_TEXT if nobody_in_a_team else PLAYING_TEXT
 	form.editable = is_host and not playing
 	for host_only: Control in [host_label, code_label, share_row, form, leave_button]:
 		host_only.visible = is_host

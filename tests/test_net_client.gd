@@ -143,6 +143,9 @@ func test_scene_for() -> void:
 	assert_eq(NetScript.scene_for(playing, 1), NetScript.GAME_SCENE, "en équipe : la partie")
 	assert_eq(NetScript.scene_for(playing, 2), NetScript.LOBBY_SCENE, "sans équipe : choisir une équipe")
 	assert_eq(NetScript.scene_for(playing, 9), NetScript.LOBBY_SCENE, "absent de la liste : salon")
+	var each_for_themselves := {"phase": "playing", "players": [{"id": 1, "team": -1}, {"id": 2, "team": -1}]}
+	assert_eq(NetScript.scene_for(each_for_themselves, 1), NetScript.GAME_SCENE, "personne en équipe : chacun pour soi, la partie")
+	assert_eq(NetScript.scene_for(each_for_themselves, 2), NetScript.GAME_SCENE, "personne en équipe : l'invité aussi")
 
 # A Net pointed at the local server, with a scratch OnlineStore; body(net) runs, then cleanup.
 func _with_net(port: int, body: Callable) -> void:

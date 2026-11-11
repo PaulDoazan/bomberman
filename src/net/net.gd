@@ -45,14 +45,17 @@ static func server_url() -> String:
 		return str(param) if str(param) != "" else PROD_URL
 	return LOCAL_URL
 
-# Where a LOBBY message sends this player: the game while a match runs and they have a team,
-# otherwise the lobby (where a newcomer picks a team for the next round).
+# Where a LOBBY message sends this player: the game while a match runs and they play in it
+# (in a team, or anyone when nobody is in a team: each for themselves), otherwise the lobby
+# (where a newcomer picks a team for the next round).
 static func scene_for(state: Dictionary, p_my_id: int) -> String:
 	if state.get("phase") != "playing":
 		return LOBBY_SCENE
-	for p: Variant in state.get("players", []):
+	var players: Array = state.get("players", [])
+	var nobody_in_a_team := players.all(func(p: Variant) -> bool: return p is Dictionary and int(p.get("team", -1)) == -1)
+	for p: Variant in players:
 		if p is Dictionary and int(p.get("id", -1)) == p_my_id:
-			return GAME_SCENE if int(p.get("team", -1)) != -1 else LOBBY_SCENE
+			return GAME_SCENE if int(p.get("team", -1)) != -1 or nobody_in_a_team else LOBBY_SCENE
 	return LOBBY_SCENE
 
 func _init() -> void:

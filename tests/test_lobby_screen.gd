@@ -84,12 +84,7 @@ func test_guest_sees_no_waiting_message_during_a_match() -> void:
 		s["phase"] = "playing"
 		lobby.show_state(s, 5)
 		assert_false(lobby.waiting_label.visible, "pas d'attente du host")
-		assert_true(lobby.playing_label.visible, "partie en cours")
-		s["teams"] = []
-		for p: Dictionary in s["players"]:
-			p["team"] = -1
-		lobby.show_state(s, 5)
-		assert_eq(lobby.playing_label.text, LobbyScreen.PLAYING_FREE_TEXT, "sans équipe : il jouera la suivante"))
+		assert_true(lobby.playing_label.visible, "partie en cours"))
 
 func test_host_view_keeps_everything() -> void:
 	_with_lobby(func(lobby: LobbyScreen) -> void:
