@@ -55,7 +55,39 @@ func test_guest_view() -> void:
 	_with_lobby(func(lobby: LobbyScreen) -> void:
 		lobby.show_state(_state(), 4)
 		assert_false(lobby.start_button.visible, "Lancer masqué")
-		assert_false(lobby.form.editable, "formulaire verrouillé"))
+		assert_false(lobby.form.editable, "formulaire verrouillé")
+		assert_false(lobby.form.visible, "réglages masqués")
+		assert_false(lobby.host_label.visible, "titre masqué")
+		assert_false(lobby.code_label.visible, "code masqué")
+		assert_false(lobby.share_row.visible, "partage masqué")
+		assert_false(lobby.leave_button.visible, "Quitter masqué")
+		assert_true(lobby.waiting_label.visible, "message d'attente")
+		assert_eq(lobby.waiting_label.text, "En attente du host pour lancer la partie")
+		assert_eq(lobby.team_cards.get_child_count(), 3, "équipes visibles")
+		assert_true(lobby.no_team_label.visible, "joueurs sans équipe visibles"))
+
+func test_guest_sees_no_waiting_message_during_a_match() -> void:
+	_with_lobby(func(lobby: LobbyScreen) -> void:
+		var s := _state()
+		s["phase"] = "playing"
+		lobby.show_state(s, 5)
+		assert_false(lobby.waiting_label.visible, "pas d'attente du host")
+		assert_true(lobby.playing_label.visible, "partie en cours"))
+
+func test_host_view_keeps_everything() -> void:
+	_with_lobby(func(lobby: LobbyScreen) -> void:
+		lobby.show_state(_state(), 0)
+		assert_true(lobby.form.visible, "réglages")
+		assert_true(lobby.code_label.visible, "code")
+		assert_true(lobby.share_row.visible, "partage")
+		assert_true(lobby.leave_button.visible, "Quitter")
+		assert_false(lobby.waiting_label.visible, "pas d'attente"))
+
+func test_players_listed_in_a_column() -> void:
+	_with_lobby(func(lobby: LobbyScreen) -> void:
+		lobby.show_state(_state(), 4)
+		for chip in lobby.chips:
+			assert_true(chip.get_parent() is VBoxContainer, "un joueur par ligne"))
 
 func test_join_buttons_skip_my_team() -> void:
 	_with_lobby(func(lobby: LobbyScreen) -> void:

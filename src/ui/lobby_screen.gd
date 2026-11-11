@@ -4,6 +4,8 @@ extends Control
 # The online lobby (mockup A): the room code and how to share it, one card per team, the
 # settings (editable by the host only) and the host's Lancer button. While a match runs, it is
 # where a newcomer picks a team ("Partie en cours"), without Lancer and with settings read-only.
+# A guest sees only the teams (to join or create one), the players listed one per line, and a
+# message that the host will start; the code, sharing, settings and Quitter are the host's view.
 # Laid out like the home screen: one column, zoomed to fill a phone held in portrait.
 # `show_state` is fed by Net.lobby_changed and needs no Net, so tests drive it directly.
 
@@ -14,11 +16,14 @@ const TEAM_NAME_MAX := 16
 const MSG := Protocol.Msg
 const BG := Color(0.12, 0.16, 0.24)
 const CARD_BG := Color(0.17, 0.22, 0.32)
+const WAITING_TEXT := "En attente du host pour lancer la partie"
 const PLAYING_TEXT := "Partie en cours : choisis ou crée une équipe pour jouer à la manche suivante"
 
 var host_label: Label
+var waiting_label: Label # a guest's "En attente du host…" while in the lobby
 var playing_label: Label # "Partie en cours…": shown to a newcomer while a match runs
 var code_label: Label
+var share_row: HBoxContainer
 var copy_button: Button
 var share_button: Button
 var team_cards: VBoxContainer
@@ -87,7 +92,16 @@ func build() -> void:
 	code_label.add_theme_color_override("font_color", Color(1.0, 0.82, 0.3))
 	page.add_child(code_label)
 
-	var share_row := HBoxContainer.new()
+	waiting_label = Label.new()
+	waiting_label.text = WAITING_TEXT
+	waiting_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	waiting_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	waiting_label.add_theme_font_size_override("font_size", 28)
+	waiting_label.add_theme_color_override("font_color", Color(1.0, 0.82, 0.3))
+	waiting_label.visible = false
+	page.add_child(waiting_label)
+
+	share_row = HBoxContainer.new()
 	share_row.add_theme_constant_override("separation", 8)
 	copy_button = _button("Copier le lien")
 	copy_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -185,7 +199,8 @@ func show_state(state: Dictionary, my_id: int) -> void:
 			loners.append(_display_name(p, int(state.get("host", -1))))
 	for t: Dictionary in teams:
 		team_cards.add_child(_team_card(t, players, my_team, int(state.get("host", -1))))
-	no_team_label.text = "Sans équipe : " + (", ".join(loners) if not loners.is_empty() else "personne")
+	no_team_label.text = "Sans équipe :\n" + "\n".join(loners)
+	no_team_label.visible = not loners.is_empty()
 
 	var full := teams.size() >= MAX_TEAMS
 	create_toggle.visible = not full
@@ -206,6 +221,9 @@ func show_state(state: Dictionary, my_id: int) -> void:
 	var playing: bool = state.get("phase") == "playing"
 	playing_label.visible = playing
 	form.editable = is_host and not playing
+	for host_only: Control in [host_label, code_label, share_row, form, leave_button]:
+		host_only.visible = is_host
+	waiting_label.visible = not is_host and not playing
 
 	start_button.visible = is_host and not playing
 	start_button.text = "Lancer · %d/%d" % [players.size(), MAX_PLAYERS]
@@ -263,20 +281,20 @@ func _team_card(t: Dictionary, players: Array, my_team: int, host_id: int) -> Pa
 		join_buttons.append(join)
 	box.add_child(head)
 
-	var flow := HFlowContainer.new()
-	flow.add_theme_constant_override("h_separation", 6)
-	flow.add_theme_constant_override("v_separation", 6)
+	var column := VBoxContainer.new() # one player per line
+	column.add_theme_constant_override("separation", 6)
 	for p: Dictionary in members:
 		var chip := _chip(p, host_id)
-		flow.add_child(chip)
+		column.add_child(chip)
 		chips.append(chip)
-	box.add_child(flow)
+	box.add_child(column)
 	return card
 
 func _chip(p: Dictionary, host_id: int) -> Label:
 	var color: Color = p["color"]
 	var chip := Label.new()
 	chip.text = _display_name(p, host_id)
+	chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN # a pill, not a full-width bar
 	chip.add_theme_color_override("font_color", Color.BLACK if color.get_luminance() > 0.5 else Color.WHITE)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = color
