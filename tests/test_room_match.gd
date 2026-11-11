@@ -10,9 +10,11 @@ func _started() -> Room:
 	for n in ["Ann", "Bob", "Cid", "Dan"]:
 		r.join(n, "", 0.0)
 	r.create_team(1, "Rouge")
-	r.join_team(2, 0)
-	r.create_team(3, "Bleu")
-	r.join_team(4, 1)
+	r.create_team(1, "Bleu")
+	for id in [1, 2]:
+		r.join_team(id, 0)
+	for id in [3, 4]:
+		r.join_team(id, 1)
 	assert_eq(r.start(1), "")
 	return r
 
@@ -98,6 +100,7 @@ func test_single_team_plays_each_for_themselves() -> void:
 	r.join("Ann", "", 0.0)
 	r.join("Bob", "", 0.0)
 	r.create_team(1, "Rouge")
+	r.join_team(1, 0)
 	r.join_team(2, 0)
 	assert_eq(r.start(1), "")
 	assert_true(r.match_state.world.teams.is_empty(), "chacun pour soi")

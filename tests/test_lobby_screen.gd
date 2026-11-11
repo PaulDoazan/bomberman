@@ -64,7 +64,19 @@ func test_guest_view() -> void:
 		assert_true(lobby.waiting_label.visible, "message d'attente")
 		assert_eq(lobby.waiting_label.text, "En attente du host pour lancer la partie")
 		assert_eq(lobby.team_cards.get_child_count(), 3, "équipes visibles")
-		assert_true(lobby.no_team_label.visible, "joueurs sans équipe visibles"))
+		assert_true(lobby.no_team_label.visible, "joueurs sans équipe visibles")
+		assert_false(lobby.create_toggle.visible, "seul l'host crée une équipe")
+		assert_false(lobby.create_row.visible, "pas de ligne de création"))
+
+func test_without_teams_lists_everyone_each_for_themselves() -> void:
+	_with_lobby(func(lobby: LobbyScreen) -> void:
+		var s := _state(0)
+		for p: Dictionary in s["players"]:
+			p["team"] = -1
+		lobby.show_state(s, 4)
+		assert_eq(lobby.team_cards.get_child_count(), 0, "aucune équipe")
+		assert_true(lobby.no_team_label.text.begins_with("Chacun pour soi"), "chacun pour soi")
+		assert_true(lobby.no_team_label.text.contains("Paul\n"), "un joueur par ligne"))
 
 func test_guest_sees_no_waiting_message_during_a_match() -> void:
 	_with_lobby(func(lobby: LobbyScreen) -> void:
@@ -72,7 +84,12 @@ func test_guest_sees_no_waiting_message_during_a_match() -> void:
 		s["phase"] = "playing"
 		lobby.show_state(s, 5)
 		assert_false(lobby.waiting_label.visible, "pas d'attente du host")
-		assert_true(lobby.playing_label.visible, "partie en cours"))
+		assert_true(lobby.playing_label.visible, "partie en cours")
+		s["teams"] = []
+		for p: Dictionary in s["players"]:
+			p["team"] = -1
+		lobby.show_state(s, 5)
+		assert_eq(lobby.playing_label.text, LobbyScreen.PLAYING_FREE_TEXT, "sans équipe : il jouera la suivante"))
 
 func test_host_view_keeps_everything() -> void:
 	_with_lobby(func(lobby: LobbyScreen) -> void:
@@ -215,7 +232,8 @@ func test_match_running_view() -> void:
 		assert_true(lobby.playing_label.text.begins_with("Partie en cours"), "texte")
 		lobby.show_state(s, 5) # the newcomer, without a team
 		assert_eq(lobby.join_buttons.size(), 3, "Rejoindre sur chaque équipe")
-		assert_true(lobby.create_toggle.visible, "+ Créer une équipe")
+		assert_false(lobby.create_toggle.visible, "pas de création pour un invité")
+		assert_true(lobby.playing_label.text.contains("choisis une équipe"), "choisir une équipe")
 		assert_false(lobby.form.editable, "réglages en lecture seule")
 		s["phase"] = "lobby"
 		lobby.show_state(s, 0)

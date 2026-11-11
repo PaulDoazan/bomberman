@@ -64,6 +64,18 @@ func _expect(c: Client, type: int, what: String, pred := Callable(), timeout := 
 		return found[0]
 	return null
 
+# Ready to start with everybody in a team (without teams, can_start is already true).
+func _in_teams(body: Variant) -> bool:
+	return body["can_start"] and _players(body).all(func(p: Dictionary) -> bool: return p["team"] != -1)
+
+# The host (a) creates two teams, then a joins the first and b the second.
+func _two_teams(a: Client, b: Client) -> void:
+	_send(a, Msg.CREATE_TEAM, {"name": "Rouge"})
+	_send(a, Msg.CREATE_TEAM, {"name": "Bleu"})
+	_expect(b, Msg.LOBBY, "deux équipes créées", func(body: Variant) -> bool: return body["teams"].size() == 2)
+	_send(a, Msg.JOIN_TEAM, {"team": 0})
+	_send(b, Msg.JOIN_TEAM, {"team": 1})
+
 func _send(c: Client, type: int, body: Variant) -> void:
 	c.ws.send(Protocol.encode(type, body))
 
@@ -171,9 +183,8 @@ func test_start_sends_snapshots() -> void:
 		_send(a, Msg.SETTINGS, {"config": {"map_size": "petite"}})
 		var small := func(body: Variant) -> bool: return body["config"]["map_size"] == "petite"
 		assert_true(_expect(b, Msg.LOBBY, "réglages", small) != null, "réglages appliqués")
-		_send(a, Msg.CREATE_TEAM, {"name": "Rouge"})
-		_send(b, Msg.CREATE_TEAM, {"name": "Bleu"})
-		var ready := func(body: Variant) -> bool: return body["can_start"]
+		_two_teams(a, b)
+		var ready := _in_teams
 		assert_true(_expect(a, Msg.LOBBY, "deux équipes", ready) != null, "prêts")
 		_send(a, Msg.START, null)
 		var playing := func(body: Variant) -> bool: return body["phase"] == "playing"
@@ -276,8 +287,11 @@ func test_leave_removes_player() -> void:
 		var a: Client = created[0]
 		var b := _join(19089, created[1]["code"], "Bob")
 		var welcome: Variant = _expect(b, Msg.WELCOME, "WELCOME de B")
-		_send(b, Msg.CREATE_TEAM, {"name": "Bleu"})
-		_expect(a, Msg.LOBBY, "équipe de B", func(body: Variant) -> bool: return body["teams"].size() == 1)
+		_send(a, Msg.CREATE_TEAM, {"name": "Bleu"})
+		_expect(b, Msg.LOBBY, "équipe créée", func(body: Variant) -> bool: return body["teams"].size() == 1)
+		_send(b, Msg.JOIN_TEAM, {"team": 0})
+		_expect(a, Msg.LOBBY, "B dans l'équipe", func(body: Variant) -> bool: return _players(body).any(
+			func(p: Dictionary) -> bool: return p["team"] == 0))
 		_send(b, Msg.LEAVE, null)
 		var b_gone := func(body: Variant) -> bool: return _players(body).size() == 1
 		var lobby: Variant = _expect(a, Msg.LOBBY, "LOBBY après LEAVE", b_gone)
@@ -334,9 +348,8 @@ func _started_match(port: int) -> Array:
 	var welcome: Variant = _expect(b, Msg.WELCOME, "WELCOME de B")
 	if welcome == null:
 		return []
-	_send(a, Msg.CREATE_TEAM, {"name": "Rouge"})
-	_send(b, Msg.CREATE_TEAM, {"name": "Bleu"})
-	if _expect(a, Msg.LOBBY, "deux équipes", func(body: Variant) -> bool: return body["can_start"]) == null:
+	_two_teams(a, b)
+	if _expect(a, Msg.LOBBY, "deux équipes", _in_teams) == null:
 		return []
 	_send(a, Msg.START, null)
 	if _expect(b, Msg.LOBBY, "LOBBY playing", func(body: Variant) -> bool: return body["phase"] == "playing") == null:

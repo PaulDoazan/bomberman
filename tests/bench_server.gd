@@ -12,12 +12,10 @@ func _init() -> void:
 	var room := Room.new("BENCH2", rng)
 	for i in PLAYERS:
 		room.join("Joueur %d" % (i + 1), "", 0.0)
+	for team in Room.MAX_TEAMS:
+		room.create_team(room.host_id, "Équipe %d" % (team + 1))
 	for id in range(1, PLAYERS + 1):
-		var team := (id - 1) % Room.MAX_TEAMS
-		if room.teams.has(team):
-			room.join_team(id, team)
-		else:
-			room.create_team(id, "Équipe %d" % (team + 1))
+		room.join_team(id, (id - 1) % Room.MAX_TEAMS)
 	var cfg := SimConfig.new()
 	cfg.map_size = "immense"
 	room.set_config(room.host_id, cfg)

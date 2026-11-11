@@ -11,7 +11,9 @@ func _ready_room() -> Room:
 	var a: int = r.join("Ann", "", 0.0)["id"]
 	var b: int = r.join("Bob", "", 0.0)["id"]
 	r.create_team(a, "Rouge")
-	r.create_team(b, "Bleu")
+	r.create_team(a, "Bleu")
+	r.join_team(a, 0)
+	r.join_team(b, 1)
 	return r
 
 func test_normalize() -> void:
@@ -84,18 +86,22 @@ func test_team_colors_and_limit() -> void:
 	var ids: Array[int] = []
 	for i in 5:
 		ids.append(r.join("p%d" % i, "", 0.0)["id"])
+	var host := ids[0]
+	assert_eq(r.create_team(ids[1], "Pas moi"), Protocol.ERR_HOST_ONLY, "seul l'host crée")
 	for i in 4:
-		assert_eq(r.create_team(ids[i], "T%d" % i), "")
-		assert_eq(r.teams[r.players[ids[i]].team].color_index, i)
-	assert_eq(r.create_team(ids[4], "T5"), Protocol.ERR_TEAMS_FULL)
-	assert_eq(r.create_team(ids[4], ""), Protocol.ERR_BAD_NAME)
-	assert_eq(r.create_team(ids[4], "01234567890123456"), Protocol.ERR_BAD_NAME)
-	# Leaving the last member removes the team and frees its colour.
-	var t1: int = r.players[ids[1]].team
+		assert_eq(r.create_team(host, "T%d" % i), "")
+		assert_eq(r.teams[i].color_index, i)
+	assert_eq(r.players[host].team, -1, "créer ne fait pas entrer dans l'équipe")
+	assert_eq(r.teams.size(), 4, "les équipes vides restent")
+	assert_eq(r.create_team(host, "T5"), Protocol.ERR_TEAMS_FULL)
+	assert_eq(r.create_team(host, ""), Protocol.ERR_BAD_NAME)
+	assert_eq(r.create_team(host, "01234567890123456"), Protocol.ERR_BAD_NAME)
+	# Leaving as the last member removes the team and frees its colour.
+	r.join_team(ids[1], 1)
 	assert_eq(r.leave_team(ids[1]), "")
-	assert_false(r.teams.has(t1))
-	assert_eq(r.create_team(ids[4], "Neuve"), "")
-	assert_eq(r.teams[r.players[ids[4]].team].color_index, 1)
+	assert_false(r.teams.has(1))
+	assert_eq(r.create_team(host, "Neuve"), "")
+	assert_eq(r.teams[4].color_index, 1)
 
 func test_join_team_moves_player() -> void:
 	var r := _ready_room()
@@ -124,10 +130,25 @@ func test_start_needs_two_players() -> void:
 	var r := _room()
 	var a: int = r.join("Ann", "", 0.0)["id"]
 	r.create_team(a, "Rouge")
+	r.join_team(a, 0)
 	assert_false(r.can_start(), "seul")
 	var b: int = r.join("Bob", "", 0.0)["id"]
 	r.join_team(b, 0)
 	assert_true(r.can_start(), "deux dans la même équipe")
+
+func test_no_team_is_each_for_themselves() -> void:
+	var r := _room()
+	var a: int = r.join("Ann", "", 0.0)["id"]
+	var b: int = r.join("Bob", "", 0.0)["id"]
+	assert_true(r.can_start(), "sans équipe : chacun pour soi")
+	var colors := {}
+	for p in r.lobby_state()["players"]:
+		colors[p["color"]] = true
+	assert_eq(colors.size(), 2, "une couleur par joueur")
+	assert_eq(r.start(a), "")
+	assert_eq(r.match_state.players.size(), 2, "tout le monde joue")
+	assert_true(r.match_state.world.teams.is_empty(), "pas d'équipes")
+	assert_true(r.match_state.player(a).color != r.match_state.player(b).color, "couleurs distinctes")
 
 func test_start_builds_match() -> void:
 	var r := _ready_room()

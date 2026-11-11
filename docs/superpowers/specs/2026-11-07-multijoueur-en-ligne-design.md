@@ -40,7 +40,7 @@ L'hébergement doit tenir dans le **plan gratuit (Hobby) de Render**. Le jeu sol
 1. **L'host crée la partie** : il saisit son pseudo, appuie sur « Créer une partie », et arrive dans le salon avec un code de 6 caractères.
 2. **Il partage le code ou le lien.** Le lien a la forme `https://pauldoazan.github.io/bomberman/#K7P2QX`. Le code est placé après un `#` parce que GitHub Pages ne sait pas servir `/bomberman/K7P2QX` (validé par l'utilisateur).
 3. **Les autres ouvrent le lien** : le code est déjà rempli, ils n'ont qu'à saisir leur pseudo. Sans le lien, ils tapent le code sur l'écran d'accueil.
-4. **Dans le salon**, chacun choisit son équipe ou en crée une.
+4. **Dans le salon**, l'host crée les équipes et chacun en rejoint une ; sans équipe, c'est chacun pour soi (voir « Équipes et lancement »).
 5. **L'host lance la partie.** Les manches s'enchaînent.
 6. **L'host peut ramener tout le monde au salon** à tout moment (choix Claude validé par l'utilisateur), en gardant les équipes, pour changer les réglages.
 
@@ -77,12 +77,12 @@ Pensé d'abord pour un écran de téléphone en portrait. De haut en bas :
 
 ### Équipes (décisions utilisateur)
 
-- **Jusqu'à 4 équipes.** N'importe quel joueur peut en **créer** une, en lui donnant un nom, et il la rejoint aussitôt. N'importe quel joueur peut **rejoindre** une équipe existante ou en changer.
+- **Jusqu'à 4 équipes**, créées par l'host seul (voir « Équipes et lancement », qui remplace ici la création par n'importe quel joueur).
 - La **couleur d'équipe** est attribuée automatiquement, la première libre parmi rouge, bleu, vert et jaune (choix Claude).
 - Nom d'équipe : de 1 à 16 caractères (choix Claude). Deux équipes peuvent porter le même nom, leurs couleurs les distinguent.
 - On peut être « sans équipe » dans le salon (choix Claude).
 - Une équipe que tout le monde a quittée disparaît, et sa couleur redevient libre (choix Claude).
-- **Conditions pour lancer** (demande de l'utilisateur, 2026-11-11) : au moins 2 joueurs, tous dans une équipe. S'ils sont tous dans la même équipe, la partie se joue chacun pour soi (scores par joueur) ; la manche suivante attend alors deux joueurs connectés au lieu de deux équipes.
+- **Équipes et lancement** (demandes de l'utilisateur, 2026-11-11) : seul l'host crée les équipes (créer ne l'y fait pas entrer) ; chacun, host compris, entre dans une équipe avec « Rejoindre ». Il faut au moins 2 joueurs. Si personne n'est dans une équipe, c'est chacun pour soi (une couleur par joueur) ; sinon tout le monde doit être dans une équipe, et une seule équipe se joue aussi chacun pour soi. Les scores sont alors par joueur, et la manche suivante attend deux joueurs connectés.
 - Il n'y a **pas de limite de joueurs par équipe**, hormis le maximum de 12 au total. Les équipes peuvent être déséquilibrées.
 
 ### Maximum de joueurs

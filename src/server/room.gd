@@ -102,19 +102,19 @@ func remove_player(id: int, now: float) -> void:
 	if _connected_count() == 0 and _empty_since < 0.0:
 		_empty_since = now
 
+# Only the host creates teams, and creating one does not move them into it: like everyone,
+# they pick a team with join_team. An empty team stays until someone has joined and left it.
 func create_team(id: int, team_name: String) -> String:
-	var p: RoomPlayer = players.get(id)
-	if p == null or _is_locked(p):
+	var err := _host_check(id)
+	if err != "":
+		return err
+	if _is_locked(players[id]):
 		return Protocol.ERR_NOT_NOW
 	var clean := team_name.strip_edges()
 	if not _valid_name(clean, TEAM_NAME_MAX):
 		return Protocol.ERR_BAD_NAME
-	var count := teams.size()
-	if p.team != -1 and _team_size(p.team) == 1:
-		count -= 1 # the team the player is about to leave disappears
-	if count >= MAX_TEAMS:
+	if teams.size() >= MAX_TEAMS:
 		return Protocol.ERR_TEAMS_FULL
-	_leave(p)
 	var used: Array[int] = []
 	for t: Team in teams.values():
 		used.append(t.color_index)
@@ -124,7 +124,6 @@ func create_team(id: int, team_name: String) -> String:
 	t.name = clean
 	t.color_index = TeamColors.free_index(used)
 	teams[t.id] = t
-	p.team = t.id
 	return ""
 
 func join_team(id: int, team_id: int) -> String:
@@ -196,9 +195,10 @@ func tick(now: float, intents: Dictionary) -> void:
 			p.forfeited = false
 	# The next round waits until two sides are connected: teams, or players when each plays for themselves.
 	var free_for_all := _free_for_all()
+	var nobody := _nobody_in_a_team()
 	var sides_online := {}
 	for p: RoomPlayer in players.values():
-		if p.connected and p.team != -1:
+		if p.connected and _plays(p, nobody):
 			sides_online[p.id if free_for_all else p.team] = true
 	match_state.hold_next_round = sides_online.size() < 2
 	match_state.step(intents)
@@ -211,14 +211,32 @@ func is_dead(now: float) -> bool:
 func in_match(id: int) -> bool:
 	return phase == Phase.PLAYING and match_state != null and match_state.world.players.has(id)
 
-# At least two players and everybody in a team (a single team plays each for themselves).
+# At least two players, and either nobody in a team (each for themselves) or everybody in one.
 func can_start() -> bool:
 	if players.size() < 2:
 		return false
+	if _nobody_in_a_team():
+		return true
 	for p: RoomPlayer in players.values():
 		if p.team == -1:
 			return false
 	return true
+
+func _nobody_in_a_team() -> bool:
+	for p: RoomPlayer in players.values():
+		if p.team != -1:
+			return false
+	return true
+
+# Whether the player takes part in the next round: with teams, once in one; without, always.
+func _plays(p: RoomPlayer, nobody_in_a_team: bool) -> bool:
+	return p.team != -1 or nobody_in_a_team
+
+# A player's own colour when each plays for themselves without teams, by rank of arrival.
+static func free_color(rank: int) -> Color:
+	if rank < SimConfig.PLAYER_COLORS.size():
+		return SimConfig.PLAYER_COLORS[rank]
+	return Color.from_hsv(fmod(rank * 0.38, 1.0), 0.65, 0.95)
 
 # True when the players with a team all share the same one: the match is then each for themselves.
 func _free_for_all() -> bool:
@@ -250,7 +268,13 @@ func lobby_state() -> Dictionary:
 
 func _lobby_color(p: RoomPlayer) -> Color:
 	if p.team == -1:
-		return NO_TEAM_COLOR
+		if not _nobody_in_a_team():
+			return NO_TEAM_COLOR
+		var arrived_before := 0
+		for q: RoomPlayer in players.values():
+			if q.id < p.id:
+				arrived_before += 1
+		return free_color(arrived_before)
 	var rank := 0
 	var count := 0
 	for q: RoomPlayer in players.values():
@@ -334,12 +358,13 @@ func _forget_gone(now: float) -> void:
 
 # One MatchPlayer per player that has a team, colours spread over each team's members.
 func _build_roster() -> Array[MatchState.MatchPlayer]:
+	var nobody := _nobody_in_a_team()
 	var by_team: Dictionary = {} # team id -> player ids, ascending
 	var ids: Array = players.keys()
 	ids.sort()
 	for pid: int in ids:
 		var p: RoomPlayer = players[pid]
-		if p.team == -1:
+		if not _plays(p, nobody):
 			continue
 		if not by_team.has(p.team):
 			by_team[p.team] = []
@@ -348,7 +373,7 @@ func _build_roster() -> Array[MatchState.MatchPlayer]:
 	var roster: Array[MatchState.MatchPlayer] = []
 	for pid: int in ids:
 		var p: RoomPlayer = players[pid]
-		if p.team == -1:
+		if not _plays(p, nobody):
 			continue
 		var members: Array = by_team[p.team]
 		var mp := MatchState.MatchPlayer.new()
@@ -356,7 +381,10 @@ func _build_roster() -> Array[MatchState.MatchPlayer]:
 		mp.name = p.name
 		mp.is_bot = false
 		mp.team = -1 if free_for_all else p.team
-		mp.color = TeamColors.tint(teams[p.team].color_index, members.find(pid), members.size())
+		if nobody:
+			mp.color = free_color(members.find(pid))
+		else:
+			mp.color = TeamColors.tint(teams[p.team].color_index, members.find(pid), members.size())
 		mp.tag = MatchState.tag_of(p.name)
 		roster.append(mp)
 	return roster

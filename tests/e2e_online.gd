@@ -89,14 +89,17 @@ func _run() -> void:
 			return
 		bots.append(bot)
 	_send(a, Msg.CREATE_TEAM, {"name": "Rouge"})
-	_send(b, Msg.CREATE_TEAM, {"name": "Bleu"})
+	_send(a, Msg.CREATE_TEAM, {"name": "Bleu"})
 	var two_teams: Variant = _expect(a, Msg.LOBBY, "deux équipes", func(body: Variant) -> bool: return body["teams"].size() == 2)
 	if two_teams == null:
 		return
+	_send(a, Msg.JOIN_TEAM, {"team": two_teams["teams"][0]["id"]})
+	_send(b, Msg.JOIN_TEAM, {"team": two_teams["teams"][1]["id"]})
 	for i in bots.size():
 		_send(bots[i], Msg.JOIN_TEAM, {"team": two_teams["teams"][i % 2]["id"]})
-	if not two_teams["can_start"] and _expect(a, Msg.LOBBY, "tout le monde en équipe",
-			func(body: Variant) -> bool: return body["can_start"]) == null:
+	if _expect(a, Msg.LOBBY, "tout le monde en équipe", func(body: Variant) -> bool:
+			return body["can_start"] and (body["players"] as Array).all(
+				func(p: Dictionary) -> bool: return p["team"] != -1)) == null:
 		return
 	_send(a, Msg.START, null)
 	for c in [a, b]:

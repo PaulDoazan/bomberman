@@ -4,8 +4,9 @@ extends Control
 # The online lobby (mockup A): the room code and how to share it, one card per team, the
 # settings (editable by the host only) and the host's Lancer button. While a match runs, it is
 # where a newcomer picks a team ("Partie en cours"), without Lancer and with settings read-only.
-# A guest sees only the teams (to join or create one), the players listed one per line, and a
-# message that the host will start; the code, sharing, settings and Quitter are the host's view.
+# A guest sees only the teams (to join one), the players listed one per line, and a message
+# that the host will start; the code, sharing, settings, team creation and Quitter are the
+# host's. Without any player in a team, the game is each for themselves.
 # Laid out like the home screen: one column, zoomed to fill a phone held in portrait.
 # `show_state` is fed by Net.lobby_changed and needs no Net, so tests drive it directly.
 
@@ -17,7 +18,8 @@ const MSG := Protocol.Msg
 const BG := Color(0.12, 0.16, 0.24)
 const CARD_BG := Color(0.17, 0.22, 0.32)
 const WAITING_TEXT := "En attente du host pour lancer la partie"
-const PLAYING_TEXT := "Partie en cours : choisis ou crée une équipe pour jouer à la manche suivante"
+const PLAYING_TEXT := "Partie en cours : choisis une équipe pour jouer à la manche suivante"
+const PLAYING_FREE_TEXT := "Partie en cours : tu joueras à la manche suivante"
 
 var host_label: Label
 var waiting_label: Label # a guest's "En attente du host…" while in the lobby
@@ -142,7 +144,7 @@ func build() -> void:
 	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_edit.text_submitted.connect(func(_t: String) -> void: _on_create_team())
 	create_row.add_child(name_edit)
-	create_button = _button("Créer et rejoindre")
+	create_button = _button("Créer")
 	create_button.pressed.connect(_on_create_team)
 	create_row.add_child(create_button)
 	page.add_child(create_row)
@@ -199,12 +201,13 @@ func show_state(state: Dictionary, my_id: int) -> void:
 			loners.append(_display_name(p, int(state.get("host", -1))))
 	for t: Dictionary in teams:
 		team_cards.add_child(_team_card(t, players, my_team, int(state.get("host", -1))))
-	no_team_label.text = "Sans équipe :\n" + "\n".join(loners)
+	var nobody_in_a_team := loners.size() == players.size()
+	no_team_label.text = ("Chacun pour soi :\n" if nobody_in_a_team else "Sans équipe :\n") + "\n".join(loners)
 	no_team_label.visible = not loners.is_empty()
 
-	var full := teams.size() >= MAX_TEAMS
-	create_toggle.visible = not full
-	if full:
+	var can_create := is_host and teams.size() < MAX_TEAMS
+	create_toggle.visible = can_create
+	if not can_create:
 		create_row.visible = false
 
 	# The form follows the host's settings, except that echoes of this player's own older edits
@@ -220,6 +223,7 @@ func show_state(state: Dictionary, my_id: int) -> void:
 	# While a match runs (a newcomer is here to pick a team), nobody changes settings or starts.
 	var playing: bool = state.get("phase") == "playing"
 	playing_label.visible = playing
+	playing_label.text = PLAYING_FREE_TEXT if nobody_in_a_team else PLAYING_TEXT
 	form.editable = is_host and not playing
 	for host_only: Control in [host_label, code_label, share_row, form, leave_button]:
 		host_only.visible = is_host
