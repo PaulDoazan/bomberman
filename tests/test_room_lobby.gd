@@ -162,8 +162,6 @@ func test_start_builds_match() -> void:
 		assert_eq(mp.team, rp.team)
 		assert_eq(mp.name, rp.name)
 		assert_false(mp.is_bot)
-		assert_eq(mp.tag, MatchState.tag_of(rp.name))
-		assert_true(mp.tag != "")
 		var rank := 1 if mp.id == c else 0
 		var count := 2 if rp.team == 0 else 1
 		assert_eq(mp.color, TeamColors.tint(r.teams[rp.team].color_index, rank, count))

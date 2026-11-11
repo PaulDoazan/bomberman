@@ -8,7 +8,6 @@ class MatchPlayer:
 	var color: Color
 	var wins := 0
 	var team := -1 # -1: no team (solo)
-	var tag := "" # 3 letters shown over the character, empty in solo
 
 enum Phase { PLAYING, ROUND_OVER }
 
@@ -38,9 +37,6 @@ func _init(p_cfg: SimConfig, p_rng: RandomNumberGenerator, roster: Variant = nul
 		players.assign(roster)
 	if auto_start:
 		start_round()
-
-static func tag_of(p_name: String) -> String:
-	return p_name.strip_edges().left(3).to_upper()
 
 # Replaces the roster, keeping the wins of players already present.
 func sync_roster(roster: Array[MatchPlayer]) -> void:

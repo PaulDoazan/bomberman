@@ -14,7 +14,6 @@ func _match() -> MatchState:
 		mp.name = "P%d" % i
 		mp.color = TeamColors.tint(i / 3, i % 3, 3)
 		mp.team = i / 3
-		mp.tag = MatchState.tag_of(mp.name)
 		roster.append(mp)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7

@@ -101,7 +101,7 @@ Pensé d'abord pour un écran de téléphone en portrait. De haut en bas :
 ## Apparence des joueurs (décisions utilisateur)
 
 - Tous les membres d'une équipe ont la **couleur de l'équipe**, chacun avec une **teinte légèrement différente** pour qu'on les distingue (plus claire, plus foncée, plus ou moins saturée). Le builder choisit la façon de dériver les teintes. Elles doivent rester clairement de la couleur de l'équipe et se distinguer entre elles, jusqu'à 12 joueurs dans une seule équipe.
-- Les **3 premières lettres du pseudo**, en majuscules, sont **écrites sur le corps du personnage, devant et derrière**. Elles doivent être lisibles avec la caméra du jeu, y compris sur téléphone.
+- ~~Les 3 premières lettres du pseudo écrites sur le corps~~ : retirées à la demande de l'utilisateur (2026-11-11), « c'est mieux sans ». Aucun nom n'est écrit sur les personnages.
 - Le HUD (les pastilles de joueurs en haut à gauche) affiche les teintes de couleur et les pseudos.
 
 ## Arrivées, départs et host (décisions utilisateur)
@@ -183,7 +183,7 @@ Côté jeu : intentions du client, état et événements du serveur, début et f
 - Un joueur en délai de grâce : son personnage reste dans le `World` sans intention, puis est éliminé au bout de 10 secondes.
 - `MatchState` : compter les victoires par équipe.
 - Couleurs : passer d'une couleur par joueur (`SimConfig.PLAYER_COLORS`) à une couleur d'équipe déclinée en teintes. Le solo garde ses couleurs actuelles.
-- `ActorsView` : afficher les 3 lettres du pseudo sur le corps, devant et derrière.
+- `ActorsView` : ~~afficher les 3 lettres du pseudo sur le corps~~ (retiré le 2026-11-11).
 - `Hud` : pseudos, teintes, score par équipe, indicateur de ping.
 - `Game` : en ligne, les intentions partent au serveur et l'état vient du serveur. En solo, le fonctionnement actuel ne change pas.
 - Nouvelles scènes : accueil, salon. L'écran de réglages solo reste accessible depuis « Solo ».

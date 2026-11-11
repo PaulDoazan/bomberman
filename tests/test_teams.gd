@@ -99,7 +99,3 @@ func test_forfeit_makes_ghost() -> void:
 	assert_eq(p.death_cause, "déconnexion", "cause")
 	m.world.forfeit(1)
 	assert_eq(p.life, PlayerState.Life.GHOST, "toujours fantôme")
-
-func test_tag_of() -> void:
-	assert_eq(MatchState.tag_of(" paul "), "PAU", "3 lettres")
-	assert_eq(MatchState.tag_of("Al"), "AL", "court")

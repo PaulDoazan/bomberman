@@ -385,6 +385,5 @@ func _build_roster() -> Array[MatchState.MatchPlayer]:
 			mp.color = free_color(members.find(pid))
 		else:
 			mp.color = TeamColors.tint(teams[p.team].color_index, members.find(pid), members.size())
-		mp.tag = MatchState.tag_of(p.name)
 		roster.append(mp)
 	return roster
