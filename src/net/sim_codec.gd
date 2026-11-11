@@ -64,6 +64,13 @@ static func _unpack(obj: Object, keys: Array[String], values: Array) -> void:
 		else:
 			obj.set(keys[i], _copy(values[i]))
 
+# An object's state as plain values, and back: a copy kept aside (Prediction).
+static func values_of(obj: Object, script: Script) -> Array:
+	return _pack(obj, keys_of(script))
+
+static func set_values(obj: Object, script: Script, values: Array) -> void:
+	_unpack(obj, keys_of(script), values)
+
 static func _pack_all(objects: Array, script: Script) -> Array:
 	var keys := keys_of(script)
 	var out := []

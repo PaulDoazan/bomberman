@@ -23,9 +23,9 @@ var twister_pos := Vector2.ZERO
 var twister_dir := Vector2.ZERO
 
 var teams: Dictionary = {} # player id -> team id; players absent from it are their own team
-var _next_bomb_id := 0
+var next_bomb_id := 0 # public so a client mirror predicts the ids the server will give
 var water_index := 0 # water rises done; public so a client mirror sees the next one
-var _next_uid := 0
+var last_uid := 0 # public, like next_bomb_id
 
 func _init(p_arena: Arena, player_ids: Array[int], p_cfg: SimConfig, p_rng: RandomNumberGenerator, p_teams: Dictionary = {}) -> void:
 	arena = p_arena
@@ -301,13 +301,13 @@ func _try_place_bomb(p: PlayerState) -> void:
 
 # Identifier for an explosion or a flying object, unique in this world.
 func next_uid() -> int:
-	_next_uid += 1
-	return _next_uid
+	last_uid += 1
+	return last_uid
 
 func add_bomb(owner_id: int, cell: Vector2i, fuse: float) -> BombState:
 	var b := BombState.new()
-	b.id = _next_bomb_id
-	_next_bomb_id += 1
+	b.id = next_bomb_id
+	next_bomb_id += 1
 	b.owner_id = owner_id
 	b.cell = cell
 	b.fuse = fuse

@@ -145,14 +145,14 @@ func _play(a: Client, b: Client) -> void:
 				var intent := _towards_centre(a.mirror, a.id)
 				intent.seq = a.prediction.next_seq()
 				_send(a, Msg.INTENT, Protocol.intent_to_array(intent))
-				a.prediction.record(a.mirror.world, intent)
+				a.prediction.record(a.mirror, a.id, intent)
 				intents += 1
 			for bot in bots:
 				_send(bot, Msg.INTENT, Protocol.intent_to_array(_wander(bot, a.mirror, ticks)))
 		OS.delay_msec(5)
 	print("intents envoyés par A : %d, instantanés appliqués : A %d, B %d" % [intents, a.applied, b.applied])
-	print("prédiction de A : plus grande correction %.3f case, %s" % [a.max_correction,
-		"active" if a.prediction.me != null else "inactive"])
+	print("prédiction de A : plus grande correction %.3f case, %d intentions en attente" % [
+		a.max_correction, a.prediction.pending_count()])
 	var worst: Client = null
 	for c in clients:
 		if worst == null or c.max_gap > worst.max_gap:
@@ -189,17 +189,21 @@ func _play_back(c: Client, delta: float, a_id: int) -> void:
 	if data == null:
 		return
 	var world_before := c.mirror.world if c.mirror != null else null
+	var shown := Vector2.INF
+	if world_before != null and world_before.players.has(c.id):
+		shown = world_before.players[c.id].pos + c.prediction.offset
 	c.mirror = SimCodec.apply_match(data, c.mirror, c.config)
 	c.applied += 1
 	if c.mirror.world != world_before:
 		c.prediction.reset()
+		shown = Vector2.INF
 	if c.id == a_id:
-		c.prediction.reconcile(c.mirror.world, c.mirror.world.players.get(a_id))
+		c.prediction.on_snapshot(c.mirror, a_id, shown)
 		c.max_correction = maxf(c.max_correction, c.prediction.offset.length())
 		if OS.get_environment("E2E_TRACE") != "" and c.prediction.offset.length() > 0.02:
 			var me: PlayerState = c.mirror.world.players[a_id]
 			print("  correction %.3f à %.2f s : accusé %d, %d en attente, serveur %s, vie %d, étourdi %.2f, recul %.2f" % [
-				c.prediction.offset.length(), _now(), me.input_seq, c.prediction._pending.size(), me.pos, me.life, me.stun_timer, me.knock_timer])
+				c.prediction.offset.length(), _now(), me.input_seq, c.prediction.pending_count(), me.pos, me.life, me.stun_timer, me.knock_timer])
 	var w := c.mirror.world
 	var seen: World = c.world_of_round.get(c.mirror.round_number)
 	if seen == null:

@@ -144,8 +144,8 @@ var _time := 0.0
 var _tracks: Dictionary = {} # Node3D -> [prev: Vector3, cur: Vector3]
 var _spins: Dictionary = {} # bomb Node3D -> [prev: Quaternion, cur: Quaternion], as it rolls
 const SNAP_DISTANCE := 1.2
-var local_id := -1 # online: the predicted local player, moved by track_local every tick
-var _local_y := 0.0 # height of the local player at the last sync
+var local_id := -1 # online: the local player, shown local_offset away from their sim position
+var local_offset := Vector2.ZERO # online: a correction of the prediction, fading (Prediction)
 # Half-size of the footprint used to find the ground under a player: slightly inside the
 # collision box so merely brushing a step does not lift the player.
 const FOOT_HALF := 0.3
@@ -160,26 +160,16 @@ func _track(node: Node3D, pos: Vector3, snap: bool = false) -> void:
 		t[0] = t[1]
 		t[1] = pos
 
-# Online, every tick: where the predicted local player now is, and where they look.
-func track_local(pos: Vector2, aim: Vector2i) -> void:
-	var n: PlayerNode = _players.get(local_id)
-	if n == null:
-		return
-	_track(n, Vector3(pos.x, _local_y, pos.y))
-	n.model.rotation.y = lerp_angle(n.model.rotation.y, _yaw(aim), _per_tick(TURN_SPEED, SimConfig.DT))
-
 func _untrack(node: Node3D) -> void:
 	_tracks.erase(node)
 	_spins.erase(node)
 	node.queue_free()
 
-# Called every rendered frame with alpha in [0, 1] = progress towards the next sim tick, and
-# online local_alpha the same for the local player, who moves on local ticks.
-func render(alpha: float, local_alpha: float = -1.0) -> void:
-	var local: Node3D = _players.get(local_id) if local_alpha >= 0.0 else null
+# Called every rendered frame with alpha in [0, 1] = progress towards the next sim tick.
+func render(alpha: float) -> void:
 	for node: Node3D in _tracks:
 		var t: Array = _tracks[node]
-		node.position = (t[0] as Vector3).lerp(t[1], local_alpha if node == local else alpha)
+		node.position = (t[0] as Vector3).lerp(t[1], alpha)
 	for node: Node3D in _spins:
 		var q: Array = _spins[node]
 		node.quaternion = (q[0] as Quaternion).slerp(q[1], alpha)
@@ -493,7 +483,7 @@ func _sync_players(world: World, match_state: MatchState, dt: float = SimConfig.
 		var ghost := p.life == PlayerState.Life.GHOST
 		n.visible = p.life != PlayerState.Life.WAITING_RESPAWN
 		var thrown := p.carried_by == Carry.THROWN
-		var pos := p.pos
+		var pos := p.pos + (local_offset if id == local_id else Vector2.ZERO)
 		var y := _foot_y(world, pos)
 		if thrown:
 			var f := _flight_of(world, PlayerState.Held.PLAYER, id)
@@ -525,13 +515,7 @@ func _sync_players(world: World, match_state: MatchState, dt: float = SimConfig.
 		if p.knock_timer > 0.0 and not ghost:
 			var s := 1.0 - p.knock_timer / SimConfig.KNOCK_TIME
 			hop = 4.0 * HOP_HEIGHT * s * (1.0 - s)
-		var snap := p.life == PlayerState.Life.WAITING_RESPAWN
-		if id == local_id:
-			_local_y = n.y_smooth + hop # track_local moves them, every tick
-			if snap or not _tracks.has(n):
-				_track(n, Vector3(pos.x, _local_y, pos.y), snap)
-		else:
-			_track(n, Vector3(pos.x, n.y_smooth + hop, pos.y), snap)
+		_track(n, Vector3(pos.x, n.y_smooth + hop, pos.y), p.life == PlayerState.Life.WAITING_RESPAWN)
 		n.body.material_override = _ghost_mat if ghost else n.mat
 		var stunned := p.stun_timer > 0.0
 		n.stars.visible = stunned and not ghost

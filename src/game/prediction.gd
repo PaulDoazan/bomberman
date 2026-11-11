@@ -1,89 +1,84 @@
 class_name Prediction
 extends RefCounted
-# Online: the local player's own moves, shown as soon as they are made instead of a round trip
-# later. Each intent sent is numbered and kept; every snapshot says the number of the last one the
-# server applied (PlayerState.input_seq). The predicted player is the server's, with the intents
-# not applied yet replayed on it. When a snapshot disagrees with what was shown, the gap is
-# carried as an offset that fades over a few ticks rather than as a jump.
-# Only walking is predicted; while stunned, knocked back, carried, possessed or ejected the
-# server's position is shown as is.
+# Online: everything the local player does shows at once instead of a round trip later (walking,
+# bombs, picking up, throwing, kicking, detonating). The client's mirror of the match is the
+# server's last snapshot moved forward by the local player's intents the server has not applied
+# yet, through the same simulation (World.step): its bombs tick, explode and roll on time.
+# Each intent sent is numbered and kept; every snapshot says the number of the last one the server
+# applied (PlayerState.input_seq). After a snapshot the mirror replays the intents still pending,
+# and every local tick steps it once more with the new intent.
+# The other players stay as the server last showed them (their intents are not known here): a
+# predicted step neither moves, hurts nor kills them, except a player the local one carries or
+# possesses. Where the server ends up disagreeing about the local player's position, the gap is
+# shown as an offset that fades over a few ticks rather than as a jump.
 
 const MAX_PENDING := 90 # intents kept, 3 s: more means the server stopped answering
-const SNAP_DISTANCE := 1.5 # cells: a bigger gap is shown at once (a respawn, a teleport)
+const SNAP_DISTANCE := 1.5 # cells: a bigger gap is shown at once (a respawn, a throw)
 const CORRECTION_KEEP := 0.7 # share of the offset left after each tick
 
-var me: PlayerState = null # the predicted player, null while not predicting
-var offset := Vector2.ZERO # shown position minus predicted position, fading
+var offset := Vector2.ZERO # shown position minus simulated position of the local player, fading
 var _seq := 0
 var _pending: Array[PlayerIntent] = [] # sent, not yet applied by the server, oldest first
+var _others: Dictionary = {} # id -> the other players' state in the last snapshot
+var _finished := false # the round's end in the last snapshot: only the server ends a round
+var _winners: Array[int] = []
 
 # The number for the next intent sent.
 func next_seq() -> int:
 	_seq += 1
 	return _seq
 
-# Where the player is shown.
-func shown_pos() -> Vector2:
-	return me.pos + offset
+# A new round or match: nothing sent before applies to it.
+func reset() -> void:
+	offset = Vector2.ZERO
+	_pending.clear()
+	_others.clear()
 
-# An intent just sent: kept until the server applies it, and played at once on the prediction.
-func record(world: World, intent: PlayerIntent) -> void:
+func pending_count() -> int:
+	return _pending.size()
+
+# m was just set to the server's snapshot: drop the intents it has applied, replay the others.
+# shown_before: where the local player was shown just before (INF when nowhere).
+func on_snapshot(m: MatchState, my_id: int, shown_before: Vector2) -> void:
+	var w := m.world
+	var me: PlayerState = w.players.get(my_id)
+	if me != null:
+		while not _pending.is_empty() and _pending[0].seq <= me.input_seq:
+			_pending.pop_front()
+	_others.clear()
+	_finished = w.finished
+	_winners.assign(w.winners)
+	for id: int in w.players:
+		if id != my_id:
+			_others[id] = SimCodec.values_of(w.players[id], PlayerState)
+	for intent in _pending:
+		_step(m, my_id, intent)
+	me = w.players.get(my_id)
+	if me == null or shown_before == Vector2.INF:
+		offset = Vector2.ZERO
+		return
+	offset = shown_before - me.pos
+	if offset.length() > SNAP_DISTANCE:
+		offset = Vector2.ZERO
+
+# An intent just sent: kept until the server applies it, and played at once.
+func record(m: MatchState, my_id: int, intent: PlayerIntent) -> void:
 	_pending.append(intent)
 	if _pending.size() > MAX_PENDING:
 		_pending.pop_front()
-	if me != null:
-		apply(world, me, intent)
+	_step(m, my_id, intent)
 	offset *= CORRECTION_KEEP
 	if offset.length() < 0.001:
 		offset = Vector2.ZERO
 
-# A snapshot was applied: start again from the server's player and replay what it has not seen.
-func reconcile(world: World, server_me: PlayerState) -> void:
-	if server_me == null:
-		reset()
+func _step(m: MatchState, my_id: int, intent: PlayerIntent) -> void:
+	var w := m.world
+	if m.phase != MatchState.Phase.PLAYING or w.finished or not w.players.has(my_id):
 		return
-	var before := shown_pos() if me != null else server_me.pos
-	while not _pending.is_empty() and _pending[0].seq <= server_me.input_seq:
-		_pending.pop_front()
-	if not predictable(server_me):
-		me = null
-		offset = Vector2.ZERO
-		return
-	me = _copy(server_me)
-	for intent in _pending:
-		apply(world, me, intent)
-	offset = before - me.pos
-	if offset.length() > SNAP_DISTANCE:
-		offset = Vector2.ZERO
-
-# A new round or match: nothing sent before applies to it.
-func reset() -> void:
-	me = null
-	offset = Vector2.ZERO
-	_pending.clear()
-
-# True when the player only walks (or floats, as a free ghost): moves the client can foresee.
-static func predictable(p: PlayerState) -> bool:
-	if p.life == PlayerState.Life.GHOST:
-		return p.eject_timer <= 0.0 and p.possess_target == -1
-	return p.life == PlayerState.Life.ALIVE and p.can_act() and p.knock_timer <= 0.0
-
-# One tick of the player's own movement, as World.step does it.
-static func apply(world: World, p: PlayerState, intent: PlayerIntent) -> void:
-	if not intent.moving:
-		return
-	if p.life == PlayerState.Life.GHOST:
-		Movement.move_free(world, p, intent.target, SimConfig.GHOST_SPEED, SimConfig.DT)
-		return
-	if not p.can_act():
-		return
-	var target := intent.target
-	if p.sick == SimConfig.Sick.REVERSE:
-		target = p.pos * 2.0 - target
-	Movement.move(world, p, target, Items.speed_of(world, p), SimConfig.DT)
-
-static func _copy(p: PlayerState) -> PlayerState:
-	var c := PlayerState.new()
-	for key in SimCodec.keys_of(PlayerState):
-		c.set(key, p.get(key))
-	return c
+	w.step({my_id: intent})
+	for id: int in _others:
+		var p: PlayerState = w.players.get(id)
+		if p != null and p.carried_by != my_id and p.possessed_by != my_id:
+			SimCodec.set_values(p, PlayerState, _others[id])
+	w.finished = _finished
+	w.winners.assign(_winners)
