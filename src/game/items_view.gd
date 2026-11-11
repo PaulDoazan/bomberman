@@ -2,17 +2,16 @@ class_name ItemsView
 extends Node3D
 
 # Items lying on the ground, bobbing a little above it. Each item is a coloured tile with a short
-# label; the Café navette is a cup of coffee with a navette, the Heart a big pink heart and the Fire a little fire.
+# label; the Bomb is a little blue bomb, the Café navette a cup of coffee with a navette, the Heart a big pink heart and the Fire a little fire.
 
 const COLORS := {
 	SimConfig.Item.FIRE: Color("ff5a1f"),
-	SimConfig.Item.BOMB: Color("2a3550"),
+	SimConfig.Item.BOMB: Color("2f7bff"), # a bright blue, apart from the dark blue of remote bombs
 	SimConfig.Item.REMOTE: Color("1e7be0"),
 	SimConfig.Item.HEART: Color("ff4f9a"),
 }
 const TEXTS := {
 	SimConfig.Item.FIRE: "FEU",
-	SimConfig.Item.BOMB: "+1",
 	SimConfig.Item.REMOTE: "TÉLÉ",
 	SimConfig.Item.HEART: "CŒUR",
 }
@@ -21,6 +20,7 @@ const BOB := 0.08
 const HEART_HEIGHT := 0.6 # half a player
 const HEART_DEPTH := 0.14 # how far each face bulges, like an emoji
 const FIRE_HEIGHT := 0.6
+const BOMB_ITEM_SCALE := 0.55 # the Bomb item: a real bomb, this much smaller
 const CUP_HEIGHT := 0.3
 const CUP_RADIUS := 0.16 # at the rim
 const SAUCER_RADIUS := 0.3
@@ -60,6 +60,9 @@ func sync(world: World) -> void:
 static func make_item(item: int) -> Node3D:
 	var n := Node3D.new()
 	n.set_meta("item", item)
+	if item == SimConfig.Item.BOMB:
+		n.add_child(_make_small_bomb())
+		return n
 	if item == SimConfig.Item.COFFEE:
 		n.add_child(_make_coffee())
 		return n
@@ -89,6 +92,55 @@ static func make_item(item: int) -> Node3D:
 	label.no_depth_test = true
 	n.add_child(label)
 	return n
+
+# A real bomb, smaller and blue: round body, grey cap, fuse and its spark.
+static func _make_small_bomb() -> Node3D:
+	var bomb := Node3D.new()
+	bomb.name = "SmallBomb"
+	var r := SimConfig.BOMB_BODY_RADIUS
+	var top := r + 0.04 + ActorsView.FUSE_LENGTH + 0.08 # the spark's top
+	bomb.scale = Vector3.ONE * BOMB_ITEM_SCALE
+	bomb.position.y = -0.5 * (top - r) * BOMB_ITEM_SCALE # centred on its middle
+	var blue := StandardMaterial3D.new()
+	blue.albedo_color = COLORS[SimConfig.Item.BOMB]
+	blue.emission_enabled = true
+	blue.emission = COLORS[SimConfig.Item.BOMB] * 0.25
+	blue.roughness = 0.3
+	var ball := SphereMesh.new()
+	ball.radius = r
+	ball.height = 2.0 * r
+	_part(bomb, "Body", ball, blue, 0.0)
+	var cap := CylinderMesh.new()
+	cap.top_radius = 0.11
+	cap.bottom_radius = 0.11
+	cap.height = 0.09
+	_part(bomb, "Cap", cap, _flat(Color("6b6b6b")), r + 0.01)
+	var fuse := CylinderMesh.new()
+	fuse.top_radius = 0.04
+	fuse.bottom_radius = 0.04
+	fuse.height = ActorsView.FUSE_LENGTH
+	_part(bomb, "Fuse", fuse, _flat(Color("e8c48a")), r + 0.04 + ActorsView.FUSE_LENGTH * 0.5)
+	var spark := SphereMesh.new()
+	spark.radius = 0.08
+	spark.height = 0.16
+	var glow := _flat(Color("ffb02e"))
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_part(bomb, "Spark", spark, glow, r + 0.04 + ActorsView.FUSE_LENGTH)
+	return bomb
+
+static func _part(parent: Node3D, part_name: String, mesh: Mesh, mat: Material, y: float) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	m.name = part_name
+	m.mesh = mesh
+	m.material_override = mat
+	m.position.y = y
+	parent.add_child(m)
+	return m
+
+static func _flat(color: Color) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	return mat
 
 # A café navette: a white cup of black coffee on its saucer, and a navette, the boat-shaped
 # Marseille biscuit, lying across the front of the saucer, against the cup.

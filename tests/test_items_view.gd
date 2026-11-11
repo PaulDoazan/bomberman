@@ -46,3 +46,18 @@ func test_the_cafe_navette_is_a_cup_of_coffee_with_a_navette() -> void:
 	assert_eq(navette.material_override.albedo_color, ItemsView.NAVETTE_COLOR, "dorée")
 	assert_true(n.find_children("*", "Label3D", true, false).is_empty(), "pas d'étiquette")
 	n.free()
+
+# La Bombe est une vraie bombe en plus petit, bleue, sans étiquette.
+func test_the_bomb_item_is_a_little_blue_bomb() -> void:
+	var n := ItemsView.make_item(SimConfig.Item.BOMB)
+	var bomb: Node3D = n.find_child("SmallBomb", true, false)
+	assert_true(bomb != null, "une petite bombe")
+	assert_true(bomb.scale.x < 1.0, "plus petite qu'une vraie")
+	for part in ["Body", "Cap", "Fuse", "Spark"]:
+		assert_true(bomb.find_child(part, true, false) != null, part)
+	var body: MeshInstance3D = bomb.find_child("Body", true, false)
+	assert_almost(body.mesh.radius, SimConfig.BOMB_BODY_RADIUS, 1e-6, "même forme qu'une vraie")
+	var blue: Color = body.material_override.albedo_color
+	assert_true(blue.b > blue.r and blue.b > blue.g, "bleue")
+	assert_true(n.find_children("*", "Label3D", true, false).is_empty(), "pas d'étiquette")
+	n.free()
