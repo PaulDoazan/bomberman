@@ -48,7 +48,7 @@ const EJECT_TIME := 0.5
 const POSSESS_SHAKE_TIME := 0.5 # seconds of possession removed per shake: ten shake a ghost off
 
 const THROW_DISTANCE := 3 # cells, for a quick tap
-const THROW_MAX_FACTOR := 1.5 # a fully charged throw goes this much further
+const THROW_MAX_DISTANCE := 7 # cells, for a full gauge: a cell more every quarter of it
 const THROW_CHARGE_TIME := 1.0 # seconds holding the button to fill the gauge
 const THROW_FLIGHT := 0.5
 const STUN_TIME := 1.5 # after landing from a throw
