@@ -133,11 +133,11 @@ static func charge(world: World, p: PlayerState, held: bool) -> void:
 	p.charge = 0.0
 	throw(world, p, c)
 
-# Cells covered by a throw charged to `charge` (0..1) along dir, on each axis: diagonal throws
-# cover about the same distance as straight ones. Halves round down, so a full gauge never goes
-# past THROW_MAX_FACTOR (4 cells straight, 3 by 3 diagonally).
+# Cells covered by a throw charged to `charge` (0..1) along dir, on each axis: from THROW_DISTANCE
+# to THROW_MAX_DISTANCE straight, a cell more every quarter of the gauge; diagonal throws cover
+# about the same distance (from 2 by 2 to 5 by 5). Halves round down.
 static func throw_offset(dir: Vector2i, charge: float) -> Vector2i:
-	var dist := SimConfig.THROW_DISTANCE * lerpf(1.0, SimConfig.THROW_MAX_FACTOR, charge)
+	var dist := lerpf(SimConfig.THROW_DISTANCE, SimConfig.THROW_MAX_DISTANCE, charge)
 	var v := Vector2(dir).normalized() * dist
 	return Vector2i(_round_half_down(v.x), _round_half_down(v.y))
 

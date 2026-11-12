@@ -286,9 +286,9 @@ func _hold(charging: bool, pressed := false) -> Dictionary:
 	return {0: i}
 
 # Garder le bouton enfoncé remplit la jauge ; on lance en le relâchant, d'autant plus loin que la
-# jauge est pleine, jusqu'à 1,5 fois le lancer normal.
+# jauge est pleine : 3 cases d'un coup, 5 à mi-jauge, 7 jauge pleine.
 func test_holding_the_button_throws_further() -> void:
-	for case in [[0.0, Vector2i(4, 2)], [0.5, Vector2i(5, 2)], [SimConfig.THROW_CHARGE_TIME + 0.5, Vector2i(5, 2)]]:
+	for case in [[0.0, Vector2i(4, 2)], [0.5, Vector2i(6, 2)], [SimConfig.THROW_CHARGE_TIME + 0.5, Vector2i(8, 2)]]:
 		var a := Fixtures.flat(12, 5)
 		var w := _world(a, [Vector2(1.5, 2.5)])
 		w.players[0].held = PlayerState.Held.BLOCK
@@ -305,8 +305,19 @@ func _go_with(w: World, seconds: float, intents: Dictionary) -> void:
 	for _t in roundi(seconds * 30):
 		w.step(intents)
 
-func test_throw_distance_grows_to_one_and_a_half_times() -> void:
+func test_throw_distance_grows_from_3_to_7_cells() -> void:
 	assert_eq(Carry.throw_offset(Vector2i(1, 0), 0.0), Vector2i(SimConfig.THROW_DISTANCE, 0))
-	assert_eq(Carry.throw_offset(Vector2i(1, 0), 1.0), Vector2i(4, 0), "4,5 arrondi en dessous")
+	assert_eq(Carry.throw_offset(Vector2i(1, 0), 0.5), Vector2i(5, 0), "mi-jauge")
+	assert_eq(Carry.throw_offset(Vector2i(1, 0), 1.0), Vector2i(SimConfig.THROW_MAX_DISTANCE, 0), "jauge pleine")
 	assert_eq(Carry.throw_offset(Vector2i(-1, 1), 0.0), Vector2i(-2, 2))
-	assert_eq(Carry.throw_offset(Vector2i(-1, 1), 1.0), Vector2i(-3, 3), "1,5 fois en diagonale")
+	assert_eq(Carry.throw_offset(Vector2i(-1, 1), 0.5), Vector2i(-4, 4), "mi-jauge en diagonale")
+	assert_eq(Carry.throw_offset(Vector2i(-1, 1), 1.0), Vector2i(-5, 5), "jauge pleine en diagonale")
+
+# Chaque quart de jauge lance une case plus loin : moitié et plein ne se confondent pas.
+func test_every_quarter_of_the_gauge_throws_a_cell_further() -> void:
+	var last := -1
+	for q in 5:
+		var d := Carry.throw_offset(Vector2i(1, 0), q / 4.0).x
+		assert_eq(d, SimConfig.THROW_DISTANCE + q, "quart %d" % q)
+		assert_true(d > last)
+		last = d
